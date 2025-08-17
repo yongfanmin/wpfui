@@ -27,6 +27,8 @@
     <PackageReference Include="Microsoft.Web.WebView2" />
     <PackageReference Include="ReflectionEventing" />
     <PackageReference Include="ReflectionEventing.DependencyInjection" />
+    <PackageReference Include="Refit.HttpClientFactory" />
+    <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
   <ItemGroup>

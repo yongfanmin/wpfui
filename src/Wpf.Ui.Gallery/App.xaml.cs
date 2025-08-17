@@ -4,7 +4,9 @@
 // All Rights Reserved.
 
 using Lepo.i18n.DependencyInjection;
+using Refit;
 using Wpf.Ui.DependencyInjection;
+using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.DependencyModel;
 using Wpf.Ui.Gallery.Resources;
 using Wpf.Ui.Gallery.Services;
@@ -39,6 +41,11 @@ public partial class App
                 // Main window container with navigation
                 _ = services.AddSingleton<IWindow, MainWindow>();
                 _ = services.AddSingleton<MainWindowViewModel>();
+
+                // Login
+                _ = services.AddTransient<LoginWindow>();
+                _ = services.AddTransient<LoginWindowViewModel>();
+
                 _ = services.AddSingleton<INavigationService, NavigationService>();
                 _ = services.AddSingleton<ISnackbarService, SnackbarService>();
                 _ = services.AddSingleton<IContentDialogService, ContentDialogService>();
@@ -63,6 +70,13 @@ public partial class App
                 {
                     b.FromResource<Translations>(new("pl-PL"));
                 });
+
+                _ = services
+                    .AddRefitClient<ILoginApi>()
+                    .ConfigureHttpClient(c =>
+                    {
+                        c.BaseAddress = new Uri("https://api.test.com");
+                    });
             }
         )
         .Build();
@@ -81,9 +95,12 @@ public partial class App
     /// <summary>
     /// Occurs when the application is loading.
     /// </summary>
-    private void OnStartup(object sender, StartupEventArgs e)
+    private async void OnStartup(object sender, StartupEventArgs e)
     {
-        _host.Start();
+        await _host.StartAsync();
+
+        var loginWindow = GetRequiredService<LoginWindow>();
+        loginWindow.Show();
     }
 
     /// <summary>
