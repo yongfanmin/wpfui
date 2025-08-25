@@ -86,7 +86,6 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-
             <ui:CardAction
                 Grid.Row="0"
                 Grid.Column="0"
@@ -238,5 +237,31 @@
                 NavigateUri="https://marketplace.visualstudio.com/items?itemName=lepo.wpf-ui"
                 ToolTip="https://marketplace.visualstudio.com/items?itemName=lepo.wpf-ui" />
         </StackPanel>
+        
+        <TextBlock
+            Grid.Row="3"
+            Margin="0,24,0,0"
+            FontSize="18"
+            FontWeight="DemiBold"
+            Text="Batch List" />
+        <ui:Button
+            Width="200"
+            Margin="0,12,0,0"
+            Appearance="Primary"
+            Click="Test"
+            Content="排版测试" />
+        <ListView
+            Grid.Row="4"
+            Margin="0,12,0,0"
+            ItemsSource="{Binding ViewModel.BatchItems}">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn DisplayMemberBinding="{Binding ProduceBatchNumber}" Header="Batch Number" />
+                    <GridViewColumn DisplayMemberBinding="{Binding NumTotal}" Header="Total" />
+                    <GridViewColumn DisplayMemberBinding="{Binding Status}" Header="Status" />
+                    <GridViewColumn DisplayMemberBinding="{Binding ProduceBatchNumberTotal}" Header="Batch Number Total" />
+                </GridView>
+            </ListView.View>
+        </ListView>
     </Grid>
 </Page>

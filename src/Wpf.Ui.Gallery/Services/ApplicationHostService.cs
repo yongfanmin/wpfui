@@ -45,14 +45,15 @@ public class ApplicationHostService : IHostedService
     /// </summary>
     private Task HandleActivationAsync()
     {
-        if (Application.Current.Windows.OfType<MainWindow>().Any())
+        //加了登录页面 默认先不显示 登录成功再显示
+        /*if (Application.Current.Windows.OfType<MainWindow>().Any())
         {
             return Task.CompletedTask;
         }
 
         IWindow mainWindow = _serviceProvider.GetRequiredService<IWindow>();
         mainWindow.Loaded += OnMainWindowLoaded;
-        mainWindow?.Show();
+        mainWindow?.Show();*/
 
         return Task.CompletedTask;
     }

@@ -8,6 +8,7 @@ using System.Windows.Controls.Primitives;
 using Microsoft.Extensions.Localization;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Resources;
+using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Views.Pages;
 using Wpf.Ui.Gallery.Views.Pages.BasicInput;
 using Wpf.Ui.Gallery.Views.Pages.Collections;
@@ -21,14 +22,56 @@ using Wpf.Ui.Gallery.Views.Pages.OpSystem;
 using Wpf.Ui.Gallery.Views.Pages.StatusAndInfo;
 using Wpf.Ui.Gallery.Views.Pages.Text;
 using Wpf.Ui.Gallery.Views.Pages.Windows;
+using Wpf.Ui.Gallery.Views.Windows;
 
 namespace Wpf.Ui.Gallery.ViewModels.Windows;
 
-public partial class MainWindowViewModel(IStringLocalizer<Translations> localizer) : ViewModel
-{
-    [ObservableProperty]
-    private string _applicationTitle = localizer["WPF UI Gallery"];
+//public partial class MainWindowViewModel(IStringLocalizer<Translations> localizer) : ViewModel
 
+public partial class MainWindowViewModel : ViewModel
+{
+    private readonly IServiceProvider _serviceProvider;
+    private readonly LoginInfoService _loginInfoService;
+    //[ObservableProperty]
+    //private string _applicationTitle = localizer["WPF UI Gallery"];
+
+    [ObservableProperty]
+    private string _applicationTitle;
+
+    [ObservableProperty]
+    private string _userName = string.Empty;
+
+    public MainWindowViewModel(
+        IStringLocalizer<Translations> localizer,
+        IServiceProvider serviceProvider,
+        LoginInfoService loginInfoService
+    )
+    {
+        _serviceProvider = serviceProvider;
+        _loginInfoService = loginInfoService;
+        _applicationTitle = localizer["获取用户名称失败"];
+
+        if (_loginInfoService.CurrentLoginInfo is not null)
+        {
+            UserName = _loginInfoService.CurrentLoginInfo.UserInfo.UserName;
+        }
+    }
+
+    [RelayCommand]
+    private void Logout()
+    {
+        _loginInfoService.ClearLoginRequest();
+
+        var loginWindow = _serviceProvider.GetRequiredService<LoginWindow>();
+        loginWindow.Show();
+
+        // Close main window
+        foreach (var window in Application.Current.Windows.OfType<MainWindow>())
+        {
+            window.Close();
+        }
+    }
+    
     [ObservableProperty]
     private ObservableCollection<object> _menuItems =
     [

@@ -19,12 +19,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="File.TypeChecker" />
     <PackageReference Include="Lepo.i18n.DependencyInjection" />
     <PackageReference Include="Lepo.i18n.Wpf" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Web.WebView2" />
+    <PackageReference Include="NetVips" />
+    <PackageReference Include="NetVips.Native.win-x64" />
+    <PackageReference Include="Refit" />
+    <PackageReference Include="Refit.HttpClientFactory" />
     <PackageReference Include="ReflectionEventing" />
     <PackageReference Include="ReflectionEventing.DependencyInjection" />
   </ItemGroup>
@@ -66,6 +71,7 @@
 
   <ItemGroup>
     <Folder Include="Assets\Monaco\" />
+    <Folder Include="Dto\ApiRequest\" />
   </ItemGroup>
 
   <ItemGroup>

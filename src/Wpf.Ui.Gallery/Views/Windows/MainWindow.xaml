@@ -74,12 +74,19 @@
         </ui:NavigationView>
 
         <ContentPresenter x:Name="RootContentDialog" Grid.Row="0" />
-
+        
         <ui:TitleBar
             x:Name="TitleBar"
-            Title="{Binding ViewModel.ApplicationTitle}"
             Grid.Row="0"
-            CloseWindowByDoubleClickOnIcon="True">
+            CloseWindowByDoubleClickOnIcon="True"><!--Title="{Binding ViewModel.ApplicationTitle}"-->
+            <ui:TitleBar.Header>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Text="{Binding ViewModel.UserName}" />
+                </StackPanel>
+            </ui:TitleBar.Header>
             <ui:TitleBar.Icon>
                 <ui:ImageIcon Source="pack://application:,,,/Assets/wpfui.png" />
             </ui:TitleBar.Icon>
@@ -90,7 +97,7 @@
             FocusOnLeftClick="True"
             Icon="pack://application:,,,/Assets/wpfui.png"
             MenuOnRightClick="True"
-            TooltipText="WPF UI Gallery">
+            TooltipText="{Binding}">
             <tray:NotifyIcon.Menu>
                 <ContextMenu ItemsSource="{Binding ViewModel.TrayMenuItems, Mode=OneWay}" />
             </tray:NotifyIcon.Menu>
