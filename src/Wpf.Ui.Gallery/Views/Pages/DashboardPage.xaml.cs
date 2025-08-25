@@ -27,12 +27,12 @@ public partial class DashboardPage : INavigableView<DashboardViewModel>
         ViewModel.PageLoadedCommand.Execute(null);
     }
     
-    //private readonly IImageCreator _imageCreator;
+    private readonly IImageCreator _imageCreator;
     
 
     private void Test(object sender, RoutedEventArgs e)
     {
-        /*RollOfFabric rollOfFabric = new RollOfFabric();
+        RollOfFabric rollOfFabric = new RollOfFabric();
         rollOfFabric.WidthMm = 2 * 1000; //2米布料卷
         rollOfFabric.CurrentMaxLengthMm = 30 * 1000; //当前剩余30米
         int targetDpi = 100;
@@ -82,7 +82,7 @@ public partial class DashboardPage : INavigableView<DashboardViewModel>
             _imageCreator.SaveImageForProduction(tempCanvas, "D:\\POD\\exeSoftware\\wpfui-main\\src\\Wpf.Ui.Gallery\\bin\\Debug\\net9.0-windows10.0.26100.0\\Cache\\Factory-1053\\Order-GWH5256519437737\\result.png", ImgSupportFormat.Jpeg);
             // 4. 保存为 JPEG
             //ImageHelper.SaveImageForProduction(jpegCanvas, "D:/output/piece_mm", ImgSupportFormat.Jpeg);
-        }*/
+        }
         
         // The user will implement this.
     }
