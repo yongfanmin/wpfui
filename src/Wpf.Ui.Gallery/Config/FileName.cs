@@ -70,6 +70,8 @@ public class FileName
                //Path.DirectorySeparatorChar + "Print-img-" + galleryId +
                Path.DirectorySeparatorChar;
     }
-    
-    
+
+    public static string ProduceImgLayoutName = "ProduceImgLayout";
+
+
 }

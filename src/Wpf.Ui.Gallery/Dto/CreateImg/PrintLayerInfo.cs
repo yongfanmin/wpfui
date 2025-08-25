@@ -39,7 +39,7 @@ public class PrintLayerInfo
     /// Y轴方向的缩放比例
     /// </summary>
     public decimal ScaleY { get; set; }
-    
+    // 左上角基准点
     /// <summary>
     /// 在设计器画布上的水平位移（像素或其他坐标单位，取决于transform的上下文）
     /// </summary>

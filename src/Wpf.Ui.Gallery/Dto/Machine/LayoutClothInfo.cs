@@ -3,13 +3,10 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
-namespace Wpf.Ui.Gallery.Dto.CreateImg;
+namespace Wpf.Ui.Gallery.Dto.Machine;
 
-public class DesignMatrix
+public class LayoutClothInfo
 {
-    public decimal ScaleX { get; set; }
-    public decimal ScaleY { get; set; }
-    // 左上角基准点
-    public decimal TranslateX { get; set; }
-    public decimal TranslateY { get; set; }
+    public decimal WidthMm { get; set; }
+    public decimal HeightMm { get; set; }
 }

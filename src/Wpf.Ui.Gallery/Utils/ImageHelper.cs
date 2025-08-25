@@ -64,10 +64,11 @@ public static class ImageHelper
     {
         double millimeter = decimal.ToDouble(millimeters);
         // 1. 参数校验，确保输入有效
-        if (millimeters <= 0)
+        /*if (millimeters < 0)
         {
-            throw new ArgumentException("毫米值必须为正数。", nameof(millimeters));
-        }
+            // 有时是用来位移多少厘米 可能为负数  后续需要加强判断
+            throw new ArgumentException("毫米值不能为负数。", nameof(millimeters));
+        }*/
         if (dpi <= 0)
         {
             throw new ArgumentException("DPI值必须为正数。", nameof(dpi));

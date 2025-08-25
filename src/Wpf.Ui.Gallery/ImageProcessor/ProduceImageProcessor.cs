@@ -6,6 +6,7 @@
 using NetVips;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Dto.CreateImg;
+using Wpf.Ui.Gallery.Dto.Machine;
 using Wpf.Ui.Gallery.Utils;
 
 namespace Wpf.Ui.Gallery.ImageProcessor;
@@ -85,11 +86,16 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 mutableImage.Set(GValue.GDoubleType, "yres", pixelsPerMm);
             });*/
             string PatternPieceProduceImg = localOutputPath + patternPieceTask.PatternPieceTitle + ".png";
+            
+            // 如果是 单件手动排版 则不需要保存到磁盘,直接在内存中排版完成 只把生产排版图写入磁盘
+            /*if (ProduceLayout.MANUAL)
+            {
+                
+            }*/
             using (var imageToSave = tempCanvas.Copy(xres: pixelsPerMm, yres: pixelsPerMm))
             {
                 // 使用通用的 WriteToFile，它会根据后缀名自动选择 png 保存器
                 //imageToSave.Tiffsave(localOutputPath, xres: pixelsPerMm, yres: pixelsPerMm);
-                
                 imageToSave.Pngsave(PatternPieceProduceImg);
             }
 

@@ -10,12 +10,12 @@ namespace Wpf.Ui.Gallery.Services.Creator;
 
 public interface IImageCreator
 {
-    /*public Image CreateImageFromPhysicalSize(
+    public Image CreateImageFromPhysicalSize(
         double widthMm,
         double heightMm,
         int dpi,
         ImgSupportFormat format,
-        double[]? backgroundColor = null);*/
+        double[]? backgroundColor = null);
 
     public void SaveImageForProduction(Image image, string filePathWithoutExtension, ImgSupportFormat format);
 }

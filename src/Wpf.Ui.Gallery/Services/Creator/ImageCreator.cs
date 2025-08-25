@@ -58,21 +58,32 @@ public class ImageCreator : IImageCreator
 
             // --- 4. 创建图像 ---
             // 1. 直接使用数组，而不是 Memory<T>
-            double[] pixelData = backgroundColor;
+            //double[] pixelData = backgroundColor;
 
-            // 2. 将数组传递给 NewFromMemory
-            //    这个调用现在是类型安全的，并且可以正常工作。
-            using var pixel = Image.NewFromMemory(pixelData, 1, 1, bands, Enums.BandFormat.Double);
-            Image newImage = pixel.Embed(0, 0, widthInPixels, heightInPixels, extend: Enums.Extend.Copy);
+            //using var pixel = Image.NewFromArray(pixelData);
+    
+            // 创建一个 1000x1000 像素的黑色图像，并包含一个 alpha 通道（4个通道：RGBA）
+            // 通过将第四个通道（alpha）设置为0，我们使其完全透明。
+            using Image image = Image.Black(widthInPixels, heightInPixels, bands: 4) + backgroundColor;
+
+            // 将图像的色彩空间解释为 SRGB
+            Image newImage = image.Copy(interpretation: Enums.Interpretation.Srgb);
+            
+            // b. 使用 Embed 将这个单像素颜色“平铺”到一个指定尺寸的巨大画布上。
+            //    extend: Enums.Extend.Copy 确保了颜色被复制填充。
+            //    这里要使用正确的 heightInPixels 变量！
+            //Image newImage = pixel.Embed(0, 0, widthInPixels, heightInPixels, extend: Enums.Extend.Copy);
 
             // --- 5. 设置DPI元数据 ---
-            double pixelsPerInch = dpi;
-            using var finalImage = newImage.Copy(xres: pixelsPerInch, yres: pixelsPerInch);
-            newImage.Dispose();
-            
-            return finalImage;
+            double pixelsPerInch = dpi / ImageHelper.MillimetersPerInch;
+            using(newImage) 
+            {
+                // Copy 会创建一个新的 Image 实例，这是最终要返回的对象
+                var finalImage = newImage.Copy(xres: pixelsPerInch, yres: pixelsPerInch);
+                return finalImage;
+            }
         }
-    
+
     /// <summary>
     /// Saves a NetVips image to a file with format-specific, high-quality options suitable for production.
     /// </summary>
@@ -82,6 +93,7 @@ public class ImageCreator : IImageCreator
     public void SaveImageForProduction(Image image, string filePathWithoutExtension, ImgSupportFormat format)
     {
         string fullPath;
+        Directory.CreateDirectory(Path.GetDirectoryName(filePathWithoutExtension));
         switch (format)
         {
             case ImgSupportFormat.Jpeg:
@@ -101,16 +113,17 @@ public class ImageCreator : IImageCreator
                 fullPath = filePathWithoutExtension + ".tif";
                 image.Tiffsave(fullPath, compression: Enums.ForeignTiffCompression.Lzw, tile: true, pyramid: true);
                 break;
-                
+
             case ImgSupportFormat.Webp:
                 fullPath = filePathWithoutExtension + ".webp";
                 // lossless: 无损压缩, q: 质量 (有损时)
                 image.Webpsave(fullPath, lossless: true);
                 break;
-                
+
             default:
                 throw new NotSupportedException($"Format {format} is not supported.");
         }
+
         Console.WriteLine($"图片已成功保存至: {fullPath}");
     }
 }

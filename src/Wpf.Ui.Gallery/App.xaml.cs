@@ -83,11 +83,11 @@ public partial class App
                 _ = services.AddSingleton<IProduceImageProcessor, ProduceImageProcessor>();
 
                 // All other pages and view models
-                _ = services.AddTransientFromNamespace("Wpf.Ui.Gallery.Views", GalleryAssembly.Asssembly);
+                /*_ = services.AddTransientFromNamespace("Wpf.Ui.Gallery.Views", GalleryAssembly.Asssembly);
                 _ = services.AddTransientFromNamespace(
                     "Wpf.Ui.Gallery.ViewModels",
                     GalleryAssembly.Asssembly
-                );
+                );*/
 
                 _ = services.AddStringLocalizer(b =>
                 {
