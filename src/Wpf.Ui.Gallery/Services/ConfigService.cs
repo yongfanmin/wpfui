@@ -7,6 +7,7 @@ using System.Text.Json;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Dto;
+using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Utils;
 
 namespace Wpf.Ui.Gallery.Services;
@@ -21,7 +22,7 @@ public class ConfigService
 
     public ConfigService()
     {
-        _cacheFilePath = Path.Combine(PathName.Config, FileName.LocalConfigFileName);
+        _cacheFilePath = Path.Combine(PathName.Config, LocalAppConfig.LocalConfigFileName);
     }
 
     public async void SaveLoginInfo(LoginRequest loginRequest, LoginInfo loginInfo)
@@ -29,7 +30,7 @@ public class ConfigService
         CurrentLoginInfo = loginInfo;
 
         // File.WriteAllTextAsync(_cacheFilePath, json);
-        await FileHelper.WriteTextRobustAsync(_cacheFilePath, JsonSerializer.Serialize(loginRequest));
+        await FileHelper.WriteToJsonFileAsync(_cacheFilePath, JsonSerializer.Serialize(loginRequest));
     }
 
 }

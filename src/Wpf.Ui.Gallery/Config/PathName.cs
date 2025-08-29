@@ -3,6 +3,9 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using Wpf.Ui.Gallery.Dto;
+using Wpf.Ui.Gallery.Dto.Machine;
+
 namespace Wpf.Ui.Gallery.Config;
 
 public class PathName

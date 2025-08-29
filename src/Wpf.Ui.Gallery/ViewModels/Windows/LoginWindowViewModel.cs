@@ -13,9 +13,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Dto;
+using Wpf.Ui.Gallery.Dto.Machine;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Contracts;
+using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.Views.Windows;
+using MessageBox = Wpf.Ui.Controls.MessageBox;
+using MessageBoxResult = Wpf.Ui.Controls.MessageBoxResult;
 
 namespace Wpf.Ui.Gallery.ViewModels.Windows;
 
@@ -26,17 +30,13 @@ public partial class LoginWindowViewModel : ObservableObject
     private readonly IServiceProvider _serviceProvider;
     private readonly LoginInfoService _loginInfoService;
 
-    [ObservableProperty]
-    private string _account = string.Empty;
+    [ObservableProperty] private string _account = string.Empty;
 
-    [ObservableProperty]
-    private string _password = string.Empty;
+    [ObservableProperty] private string _password = string.Empty;
 
-    [ObservableProperty]
-    private bool _isLoading;
+    [ObservableProperty] private bool _isLoading;
 
-    [ObservableProperty]
-    private bool _rememberMe;
+    [ObservableProperty] private bool _rememberMe;
 
     public LoginWindowViewModel(
         ILoginApi loginApi,
@@ -74,11 +74,6 @@ public partial class LoginWindowViewModel : ObservableObject
 
             if (response.IsSuccess)
             {
-                var mainWindow = _serviceProvider.GetRequiredService<IWindow>();
-                mainWindow.Show();
-
-                Application.Current.Windows.OfType<LoginWindow>().FirstOrDefault()?.Close();
-
                 if (RememberMe)
                 {
                     _loginInfoService.SaveLoginInfo(request, response.Data);
@@ -87,8 +82,11 @@ public partial class LoginWindowViewModel : ObservableObject
                 {
                     _loginInfoService.ClearLoginRequest();
                 }
-
                 _loginInfoService.SetSessionOnly(response.Data);
+                var mainWindow = _serviceProvider.GetRequiredService<IWindow>();
+                mainWindow.Show();
+                // 关闭登录弹窗
+                Application.Current.Windows.OfType<LoginWindow>().FirstOrDefault()?.Close();
             }
             else
             {
@@ -106,9 +104,7 @@ public partial class LoginWindowViewModel : ObservableObject
         {
             var messageBox = new Wpf.Ui.Controls.MessageBox
             {
-                Title = "Login Failed",
-                Content = "An error occurred.",
-                CloseButtonText = "OK"
+                Title = "Login Failed", Content = "An error occurred.", CloseButtonText = "OK"
             };
 
             _ = await messageBox.ShowDialogAsync();
@@ -118,9 +114,7 @@ public partial class LoginWindowViewModel : ObservableObject
             IsLoading = false;
             var messageBox = new Wpf.Ui.Controls.MessageBox
             {
-                Title = "登录出错",
-                Content = "An error occurred.",
-                CloseButtonText = "OK"
+                Title = "登录出错", Content = "An error occurred.", CloseButtonText = "OK"
             };
 
             _ = await messageBox.ShowDialogAsync();

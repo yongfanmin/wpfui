@@ -6,6 +6,7 @@
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Extensions;
+using Wpf.Ui.Gallery.ViewModels.Windows;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
 
@@ -23,6 +24,8 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
     private NavigationViewPaneDisplayMode _currentApplicationNavigationStyle =
         NavigationViewPaneDisplayMode.Left;
 
+    private readonly MainWindowViewModel _mainWindowViewModel;
+    
     public override void OnNavigatedTo()
     {
         if (!_isInitialized)

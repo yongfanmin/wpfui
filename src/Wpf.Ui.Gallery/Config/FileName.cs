@@ -7,11 +7,12 @@ namespace Wpf.Ui.Gallery.Config;
 
 public class FileName
 {
-    //用户信息缓存文件名称
-    public static readonly string UserCacheFileName = "UserInfo.cache";
     
-    //用户信息缓存文件名称
-    public static readonly string LocalConfigFileName = "Local.Config";
+    
+    
+    
+    
+    
 
     // 公版裁片图 本地保存的路径
     public static string getPatternPieceImgPath(int factoryId, long designProductId)

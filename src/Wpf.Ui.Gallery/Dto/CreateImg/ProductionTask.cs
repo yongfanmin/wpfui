@@ -3,11 +3,16 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using Wpf.Ui.Gallery.Constant;
+
 namespace Wpf.Ui.Gallery.Dto.CreateImg;
 
 // 生产任务 (一个裁片+多印花图 = 一个生产任务)
 public class ProductionTask
 {
+    
+    public RenderType RenderType { get; set; }
+    
     public string PatternPieceTitle { get; set; }
     public int FactoryId { get; set; }
     /// <summary>

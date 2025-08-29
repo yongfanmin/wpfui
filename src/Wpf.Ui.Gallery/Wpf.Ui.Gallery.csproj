@@ -72,6 +72,7 @@
   <ItemGroup>
     <Folder Include="Assets\Monaco\" />
     <Folder Include="Dto\ApiRequest\" />
+    <Folder Include="Services\Order\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -79,6 +80,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="System.Management" />
     <PackageReference Include="WpfAnalyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

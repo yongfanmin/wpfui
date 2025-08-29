@@ -5,8 +5,10 @@
 
 using NetVips;
 using Wpf.Ui.Gallery.Config;
+using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Dto.CreateImg;
 using Wpf.Ui.Gallery.Dto.Machine;
+using Wpf.Ui.Gallery.Services.Creator;
 using Wpf.Ui.Gallery.Utils;
 
 namespace Wpf.Ui.Gallery.ImageProcessor;
@@ -19,87 +21,101 @@ namespace Wpf.Ui.Gallery.ImageProcessor;
 // 放大后的 裁片与印花图 进行叠加合成
 public class ProduceImageProcessor : IProduceImageProcessor
 {
+    private readonly IImageCreator _imageCreator;
+
+    // 构造函数：声明自己需要一个 IImageProcessor
+    public ProduceImageProcessor(IImageCreator imageCreator)
+    {
+        _imageCreator = imageCreator; // DI容器会自动提供实例
+    }
+
     public async Task<List<ProductionTask>> processProductionTask(List<ProductionTask> productionTasks)
     {
         foreach (ProductionTask patternPieceTask in productionTasks)
         {
             // 公版裁片为基底作业流水线
-            // Enums.Access.Sequential 顺序读取不能用 因为要保存缩略图 如果用了顺序读取 保存完大图 指针会在图片末尾, 无法从头读取像素去制造缩略图
-            using Image patternPieceImg = Image.NewFromFile(patternPieceTask.PatternPieceImageLocalImg.LocalUrl,
-                access: Enums.Access.Sequential);
-            Image tempCanvas = patternPieceImg.Resize(ImageHelper.pixelSizeToPhysicalSizeNeedScale(patternPieceImg.Width,
-                patternPieceTask.PatternPieceTargetWidthMm, patternPieceTask.TargetDpi));
+            Image tempCanvas = null;
+            if (patternPieceTask.RenderType == RenderType.全印_叠加裁片)
+            {
+                // 任何将被用于 Composite 操作下层的图像，都必须以 Random 模式加载，因为它需要被随机访问 ??? 待确认
+                // Enums.Access.Sequential 顺序读取不能用 因为要保存缩略图 如果用了顺序读取 保存完大图 指针会在图片末尾, 无法从头读取像素去制造缩略图
+                using Image patternPieceImg = Image.NewFromFile(
+                    patternPieceTask.PatternPieceImageLocalImg.LocalUrl,
+                    access: Enums.Access.Sequential);
+                tempCanvas = patternPieceImg.Resize(ImageHelper.pixelSizeToPhysicalSizeNeedScale(
+                    patternPieceImg.Width,
+                    patternPieceTask.PatternPieceTargetWidthMm,
+                    patternPieceTask.TargetDpi));
+            }
+            else if (patternPieceTask.RenderType == RenderType.局部印_矩形框)
+            {
+                tempCanvas = _imageCreator.CreateImageFromPhysicalSize(
+                    decimal.ToDouble(patternPieceTask.PatternPieceTargetWidthMm),
+                    decimal.ToDouble(patternPieceTask.PatternPieceTargetHeightMm),
+                    patternPieceTask.TargetDpi,
+                    ImgSupportFormat.Png,
+                    backgroundColor: new double[] { 255, 255, 255, 0 }); // 透明 RGBA
+            }
+            else
+            {
+                throw new Exception("无法处理的渲染类型【" + patternPieceTask.RenderType.ToString() + "】");
+            }
+
             foreach (PrintLayerInfo patternPrintLayerTask in patternPieceTask.PrintLayers)
             {
-                using Image patternPrintImg = Image.NewFromFile(patternPrintLayerTask.DesignImageLocalImg.LocalUrl,
+                using Image patternPrintImg = Image.NewFromFile(
+                    patternPrintLayerTask.DesignImageLocalImg.LocalUrl,
                     access: Enums.Access.Sequential);
                 // 横向缩放 水平倾斜 垂直缩放 垂直倾斜
                 // var transformMatrix = new double[] { decimal.ToDouble(patternPrintLayerTask.ScaleX), 0, 0, decimal.ToDouble(patternPrintLayerTask.ScaleY) };
                 using Image scalePatternPrintImg = patternPrintImg.Resize(ImageHelper.pixelSizeToPhysicalSizeNeedScale(
                     patternPrintImg.Width,
-                    patternPrintLayerTask.DesignImageSizeMm.Width, patternPieceTask.TargetDpi));
+                    patternPrintLayerTask.DesignImageSizeMm.Width,
+                    patternPieceTask.TargetDpi));
                 using Image rotatePatternPrintImg =
                     scalePatternPrintImg.Rotate(decimal.ToDouble(patternPrintLayerTask.Rotation));
                 // Atop模式: 叠加裁片图和印花图
-                Image newCanvas = tempCanvas.Composite(rotatePatternPrintImg, Enums.BlendMode.Atop,
-                    ImageHelper.ConvertMmToPixels(patternPrintLayerTask.TranslateX, patternPieceTask.TargetDpi),
+                Image newCanvas = tempCanvas.Composite(
+                    rotatePatternPrintImg,
+                    Enums.BlendMode.Atop,
+                    ImageHelper.ConvertMmToPixels(
+                        patternPrintLayerTask.TranslateX,
+                        patternPieceTask.TargetDpi),
                     ImageHelper.ConvertMmToPixels(patternPrintLayerTask.TranslateY, patternPieceTask.TargetDpi));
-                tempCanvas.Dispose();
+                //tempCanvas.Dispose();
+                if (tempCanvas != newCanvas) tempCanvas.Dispose();
                 tempCanvas = newCanvas;
             }
 
-            string localOutputPath = FileName.getOrderPatternPrintImgPath(patternPieceTask.OrderNo,
+            string localOutputPath = FileName.getOrderPatternPrintImgPath(
+                patternPieceTask.OrderNo,
                 patternPieceTask.FactoryId,
                 0);
-            
+
             Directory.CreateDirectory(localOutputPath);
-            
-            string localOutputThumbPath = FileName.getOrderPatternPrintImgThumbPath(patternPieceTask.OrderNo,
+
+            string localOutputThumbPath = FileName.getOrderPatternPrintImgThumbPath(
+                patternPieceTask.OrderNo,
                 patternPieceTask.FactoryId,
                 0);
-            
+
             Directory.CreateDirectory(localOutputThumbPath);
-            //测试写死
-            //patternPieceImg.WriteToFile(localOutputPath + patternPieceTask.PatternPieceTitle+".png");
-            
-            // 使用通用的 WriteToFile，它会根据后缀名自动选择 png 保存器
-            //imageToSave.Tiffsave(localOutputPath, xres: pixelsPerMm, yres: pixelsPerMm);
-            
-            // --- 这是设置DPI并保存的最终、正确的方法 ---
-            // 1. 将DPI转换为libvips需要的单位: 像素/毫米
-            /*double xres = patternPieceTask.TargetDpi/ImageHelper.MillimetersPerInch;
-            double yres = patternPieceTask.TargetDpi/ImageHelper.MillimetersPerInch;
-            VOption voption = new VOption();
-            voption.AddIfPresent<double>(nameof(xres), xres);
-            voption.AddIfPresent<double>(nameof(yres), yres);
-            var saveOptions = new VOption
-            {
-                { "xres", xres },
-                { "yres", yres },
-                { "resolution-unit", "in" }
-            };*/
-            double pixelsPerMm = patternPieceTask.TargetDpi/ImageHelper.MillimetersPerInch;
-            // 此写法无效 无法改变dpi
-            /*patternPieceImg = patternPieceImg.Mutate(mutableImage =>
-            {
-                mutableImage.Set(GValue.GDoubleType, "xres", pixelsPerMm);
-                mutableImage.Set(GValue.GDoubleType, "yres", pixelsPerMm);
-            });*/
-            string PatternPieceProduceImg = localOutputPath + patternPieceTask.PatternPieceTitle + ".png";
-            
-            // 如果是 单件手动排版 则不需要保存到磁盘,直接在内存中排版完成 只把生产排版图写入磁盘
+            double pixelsPerMm = patternPieceTask.TargetDpi / ImageHelper.MillimetersPerInch;
+            string patternPieceProduceImg = localOutputPath + patternPieceTask.PatternPieceTitle + ".png";
+
+            // TODO 如果是 单件手动排版 则不需要保存到磁盘,直接在内存中排版完成 只把生产排版图写入磁盘 以节约磁盘读写
             /*if (ProduceLayout.MANUAL)
             {
-                
+
             }*/
             using (var imageToSave = tempCanvas.Copy(xres: pixelsPerMm, yres: pixelsPerMm))
             {
                 // 使用通用的 WriteToFile，它会根据后缀名自动选择 png 保存器
                 //imageToSave.Tiffsave(localOutputPath, xres: pixelsPerMm, yres: pixelsPerMm);
-                imageToSave.Pngsave(PatternPieceProduceImg);
+                imageToSave.Pngsave(patternPieceProduceImg);
             }
 
-            patternPieceTask.PatternPieceProduceLocalImgUrl = PatternPieceProduceImg;
+            patternPieceTask.PatternPieceProduceLocalImgUrl = patternPieceProduceImg;
 
             // TO DO 目前缩略图只在自动排版的时候用到 如果不是自动排版 可以不创建缩略图
             // a. 计算1/10的缩放比例
@@ -126,8 +142,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
         return productionTasks;
     }
-    
-    
+
+
     // 旋转
     private void rotate(LocalImgInfo localImg, string localOutputPath, decimal rotation)
     {

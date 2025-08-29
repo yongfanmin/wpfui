@@ -7,6 +7,7 @@ namespace Wpf.Ui.Gallery.Constant;
 
 public enum ImgSupportFormat
 {
+    // 支持的图片格式
     Jpeg = 1,
     Png = 2,
     Tiff = 3,

@@ -21,6 +21,7 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ExtendsContentIntoTitleBar="True"
     SizeChanged="MainWindow_OnSizeChanged"
+    StateChanged="OnStateChanged"
     WindowBackdropType="Mica"
     WindowCornerPreference="Default"
     WindowStartupLocation="CenterScreen"
@@ -53,7 +54,6 @@
             Transition="FadeInWithSlide">
             <ui:NavigationView.Header>
                 <StackPanel Margin="42,32,42,20">
-                    <ui:BreadcrumbBar x:Name="BreadcrumbBar" />
                     <controls:PageControlDocumentation Margin="0,10,0,0" NavigationView="{Binding ElementName=NavigationView}" />
                 </StackPanel>
             </ui:NavigationView.Header>
@@ -78,7 +78,11 @@
         <ui:TitleBar
             x:Name="TitleBar"
             Grid.Row="0"
-            CloseWindowByDoubleClickOnIcon="True"><!--Title="{Binding ViewModel.ApplicationTitle}"-->
+            CloseWindowByDoubleClickOnIcon="True"
+            ShowClose="True"
+            ShowMinimize="True"
+            ShowMaximize="True"
+        ><!--Title="{Binding ViewModel.ApplicationTitle}"-->
             <ui:TitleBar.Header>
                 <StackPanel Orientation="Horizontal">
                     <TextBlock
@@ -92,15 +96,17 @@
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 
-        <tray:NotifyIcon
+        <!--<tray:NotifyIcon
+            x:Name="NotifyIcon"
             Grid.Row="0"
             FocusOnLeftClick="True"
             Icon="pack://application:,,,/Assets/wpfui.png"
+            LeftClick="NotifyIcon_OnLeftClick"
             MenuOnRightClick="True"
             TooltipText="{Binding}">
             <tray:NotifyIcon.Menu>
                 <ContextMenu ItemsSource="{Binding ViewModel.TrayMenuItems, Mode=OneWay}" />
             </tray:NotifyIcon.Menu>
-        </tray:NotifyIcon>
+        </tray:NotifyIcon>-->
     </Grid>
 </ui:FluentWindow>

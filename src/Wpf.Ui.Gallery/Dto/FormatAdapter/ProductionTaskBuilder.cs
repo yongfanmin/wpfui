@@ -24,16 +24,17 @@ public class ProductionTaskBuilder
         // 遍历所有视图 (后片、前片、袖子等)
         foreach (var viewIdKey in order.ProducePrintInfo.Keys)
         {
-            var printInfo = order.ProducePrintInfo[viewIdKey];
+            PrintInfo printInfo = order.ProducePrintInfo[viewIdKey];
 
             // 一个视图可能对应多个裁片
             foreach (var piecePair in printInfo.PatternPieces)
             {
-                var patternPiece = piecePair.Value;
+                PatternPieceInfo patternPiece = piecePair.Value;
 
                 // 创建一个针对此裁片的新生产任务
                 var task = new ProductionTask
                 {
+                    RenderType = RenderTypeBuilder.getRenderType(order.Is3d),
                     PatternPieceTitle = patternPiece.Title,
                     FactoryId = order.FactoryId,
                     TaskId = $"{order.ProduceBatchNumber}-{patternPiece.Title}",
@@ -44,8 +45,7 @@ public class ProductionTaskBuilder
                     // CuttingPieceTargetWidthCm = decimal.Parse(cuttingPiece.WidthCm, CultureInfo.InvariantCulture),
                     // CuttingPieceTargetHeightCm = decimal.Parse(cuttingPiece.HeightCm, CultureInfo.InvariantCulture),
                     PatternPieceTargetWidthMm = printInfo.realSizeWidthMm,
-                    // 公版设计的时候 宽高相等才成立
-                    PatternPieceTargetHeightMm = printInfo.realSizeWidthMm,
+                    PatternPieceTargetHeightMm = printInfo.realSizeHeightMm,
                     TargetDpi = printInfo.TargetDpi,
                     PrintLayers = new List<PrintLayerInfo>()
                 };

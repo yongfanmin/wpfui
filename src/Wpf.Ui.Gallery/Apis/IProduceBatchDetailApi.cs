@@ -3,6 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Refit;
 using Wpf.Ui.Gallery.Dto;
@@ -29,7 +30,7 @@ public interface IProduceBatchDetailApi
     );
     
     [Post("/api/factoryInterface/getOrderProduceInfoByBatchNo")]
-    Task<FactoryApiResponse<object>> getProduceBatchDetailObjTest(
+    Task<FactoryApiResponse<List<JsonNode?>>> getProduceBatchDetailObjTest(
         [Body] ProduceBatchDetailRequest request,
         // TODO 接口端使用非标准鉴权方式
         [Header("Token")] string token,

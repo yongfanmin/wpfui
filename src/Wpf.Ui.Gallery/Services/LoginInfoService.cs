@@ -9,6 +9,7 @@ using System.Text.Json;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Dto;
+using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Models;
 using Wpf.Ui.Gallery.Utils;
 
@@ -24,7 +25,7 @@ public class LoginInfoService
 
     public LoginInfoService()
     {
-        _cacheFilePath = Path.Combine(PathName.Config, FileName.UserCacheFileName);
+        _cacheFilePath = Path.Combine(PathName.Config, LocalAppConfig.UserCacheFileName);
     }
 
     public async void SaveLoginInfo(LoginRequest loginRequest, LoginInfo loginInfo)
@@ -32,7 +33,8 @@ public class LoginInfoService
         CurrentLoginInfo = loginInfo;
 
         // File.WriteAllTextAsync(_cacheFilePath, json);
-        await FileHelper.WriteTextRobustAsync(_cacheFilePath, JsonSerializer.Serialize(loginRequest));
+        // TODO 登录信息写入和读取需要加密防止账号密码泄露
+        await FileHelper.WriteToJsonFileAsync(_cacheFilePath, loginRequest);
     }
 
     public void SetSessionOnly(LoginInfo loginInfo)

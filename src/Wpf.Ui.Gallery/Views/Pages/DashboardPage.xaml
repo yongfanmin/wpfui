@@ -4,10 +4,14 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:Wpf.Ui.Gallery.Views.Pages"
+    xmlns:windows="clr-namespace:Wpf.Ui.Gallery.Views.Windows"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:controls="clr-namespace:Wpf.Ui.Gallery.Controls"
+    xmlns:converters="clr-namespace:Wpf.Ui.Gallery.Converters"
+    xmlns:vo="clr-namespace:Wpf.Ui.Gallery.Vo"
     Title="Dashboard Page"
-    Margin="0,32,0,0"
+    Margin="0,0,0,0"
     d:DataContext="{d:DesignInstance local:DashboardPage,
                                      IsDesignTimeCreatable=False}"
     d:DesignHeight="650"
@@ -16,7 +20,39 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
+    <Page.Resources>
+        <Style x:Key="MyGridViewHeaderStyle" TargetType="{x:Type GridViewColumnHeader}">
+            <Setter Property="Background" Value="{ui:ThemeResource CardBackgroundFillColorSecondaryBrush}" />
 
+            <!-- 2. (可选) 设置前景/文字颜色 -->
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+
+            <!-- 3. (可选) 移除鼠标悬浮时的背景色变化，让表头更“静态” -->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type GridViewColumnHeader}">
+                        <Border
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}">
+                            <ContentPresenter
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                RecognizesAccessKey="True"
+                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CenteredGridViewColumnCellStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <converters:ProduceStatusToStringConverter x:Key="ProduceStatusConverter" />
+        <converters:OrderProduceProcessConverter x:Key="OrderProduceProcessConverter" />
+    </Page.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -26,242 +62,400 @@
 
         <Border
             Grid.Row="0"
-            Height="200"
-            CornerRadius="8">
-            <Border.Background>
-                <ImageBrush
-                    ImageSource="pack://application:,,,/Assets/pexels-johannes-plenio-1103970.jpg"
-                    RenderOptions.BitmapScalingMode="HighQuality"
-                    Stretch="UniformToFill" />
-            </Border.Background>
-            <Border CornerRadius="8">
-                <Border.Background>
-                    <RadialGradientBrush>
-                        <GradientStop Offset="0" Color="#1F000000" />
-                        <GradientStop Offset="1" Color="#4F000000" />
-                    </RadialGradientBrush>
-                </Border.Background>
-                <Grid>
-                    <StackPanel
-                        Margin="48,0"
-                        HorizontalAlignment="Left"
+            Height="100"
+            Background="{ui:ThemeResource ApplicationBackgroundBrush}"
+            BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="24"> <!-- 使用Padding来创建内部边距 -->
+
+            <!-- 使用Grid作为双栏布局的基础 -->
+            <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <!-- 
+                第一列：宽度设为 "Auto"，它会自动适应内容的宽度。
+                这对于“机器状态”这种标签+开关的组合很合适。
+            -->
+                    <ColumnDefinition Width="Auto" />
+
+                    <!-- 
+                第二列：宽度设为 "*"，它会占据所有剩余的空间。
+                我们将排版测试按钮放在这里。
+            -->
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- 第一个元素：机器状态 -->
+                <StackPanel
+                    Grid.Column="0"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center">
+
+                    <TextBlock
+                        Text="机器状态:"
                         VerticalAlignment="Center"
-                        Background="Transparent">
-                        <ui:TextBlock
-                            FontTypography="Title"
-                            Foreground="#FFFFFF"
-                            Text="Fluent UI" />
-                        <ui:TextBlock
-                            FontTypography="Subtitle"
-                            Foreground="#B7FFFFFF"
-                            Text="Windows Presentation Foundation" />
-                        <ui:TextBlock
-                            FontTypography="BodyStrong"
-                            Foreground="#B7FFFFFF"
-                            Text="Build Fluent experiences on Windows using WPF UI." />
+                        Margin="0,0,10,0" />
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Ellipse
+                            Width="12" Height="12"
+                            Margin="0,0,10,0"
+                            VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <!-- 1. 默认状态：灰色，完全不透明 -->
+                                    <Setter Property="Fill" Value="Gray" />
+                                    <Setter Property="Opacity" Value="1.0" />
+
+                                    <Style.Triggers>
+                                        <!-- 规则 A: 静态颜色控制 -->
+                                        <!-- 这个DataTrigger负责设置“接单中”的静态底色 -->
+                                        <DataTrigger Binding="{Binding ViewModel.IsAcceptingOrders}" Value="True">
+                                            <Setter Property="Fill" Value="DarkGreen" />
+                                        </DataTrigger>
+
+                                        <!-- 规则 B: 状态依赖的闪烁动画控制 -->
+                                        <!-- 我们只在“接单中”且“网络活动中”这两个条件同时满足时，才触发闪烁 -->
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding ViewModel.IsAcceptingOrders}" Value="True" />
+                                                <Condition Binding="{Binding ViewModel.IsIndicatorBlinking}"
+                                                           Value="True" />
+                                            </MultiDataTrigger.Conditions>
+                                            <MultiDataTrigger.EnterActions>
+                                                <!-- 
+                            进入时，启动一个“红色闪烁”的动画。
+                            这个动画是无限循环的。
+                        -->
+                                                <BeginStoryboard x:Name="Blinking_BeginStoryboard">
+                                                    <Storyboard RepeatBehavior="Forever">
+                                                        <ColorAnimation
+                                                            Storyboard.TargetProperty="(Ellipse.Fill).(SolidColorBrush.Color)"
+                                                            From="Yellow" To="LawnGreen"
+                                                            Duration="0:0:0.3"
+                                                            AutoReverse="True" />
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </MultiDataTrigger.EnterActions>
+                                            <MultiDataTrigger.ExitActions>
+                                                <!-- 
+                            退出时（即IsIndicatorBlinking变为false），停止红色闪烁动画。
+                            动画停止后，Fill属性的控制权会释放，
+                            WPF会自动应用规则A的Setter，颜色恢复为LightGreen。
+                        -->
+                                                <StopStoryboard BeginStoryboardName="Blinking_BeginStoryboard" />
+                                            </MultiDataTrigger.ExitActions>
+                                        </MultiDataTrigger>
+
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
                     </StackPanel>
-                    <ui:TextBlock
-                        Margin="12"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Bottom"
-                        FontTypography="Caption"
-                        Foreground="#57FFFFFF"
-                        Text="Created by lepo.co" />
-                </Grid>
-            </Border>
+                    <ui:ToggleSwitch
+                        OffContent="停机"
+                        OnContent="接单中"
+                        IsChecked="{Binding ViewModel.IsAcceptingOrders, Mode=TwoWay}" />
+                </StackPanel>
+
+                <!-- 第二个元素：排版功能 -->
+                <!-- 
+            将这个StackPanel放在第二列。
+            HorizontalAlignment="Right" 会让按钮靠右对齐，
+            这在UI布局中通常更好看。
+        -->
+                <StackPanel
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Margin="0,0,150,0">
+
+                    <!-- TextBlock通常用于显示文本，按钮不应该放在里面 -->
+                    <TextBlock
+                        FontSize="18"
+                        FontWeight="DemiBold"
+                        Text="排版功能"
+                        VerticalAlignment="Center"
+                        Margin="0,0,12,0" /> <!-- 按钮和文字之间加点间距 -->
+
+                    <ui:Button
+                        Appearance="Primary"
+                        Click="Test"
+                        Content="排版测试" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center">
+                    <ui:Button
+                        Grid.Column="1"
+                        Command="{Binding ViewModel.ToggleLightOrDarkCommand}"
+                        Icon="{ui:SymbolIcon WeatherSunny24}"
+                        ToolTip="切换主题" />
+                    <Separator
+                        Grid.Column="2"
+                        Height="16"
+                        Margin="4,0,4,0" />
+                    <ui:Anchor
+                        Grid.Column="3"
+                        CommandParameter="copy"
+                        Icon="{ui:SymbolIcon PersonLink28}"
+                        NavigateUri="http://factory.sds-diy.xyz"
+                        ToolTip="管理后台" />
+                    <ui:Anchor
+                        Grid.Column="4"
+                        Margin="4,0,0,0"
+                        Icon="{ui:SymbolIcon PersonFeedback24}"
+                        NavigateUri="https://github.com/lepoco/wpfui/issues/new?assignees=pomianowski&amp;labels=bug,gallery&amp;template=bug_report.yaml&amp;title=WPF+UI+Gallery+Problem"
+                        ToolTip="反馈" />
+                </StackPanel>
+            </Grid>
         </Border>
+        <Border
+            Grid.Row="2"
+            Margin="0 12 0 0"
+            Background="{ui:ThemeResource ApplicationBackgroundBrush}"
+            BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
 
-        <!--<controls:GalleryNavigationPresenter
-            Grid.Row="1"
-            Margin="0,24,0,0"
-            Padding="0"
-            ItemsSource="{Binding ViewModel.NavigationCards, Mode=OneWay}" />-->
+            <!-- 使用一个Grid来组织表头和TreeView -->
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- 第0行：给表头 -->
+                    <RowDefinition Height="*" />   <!-- 第1行：给TreeView -->
+                </Grid.RowDefinitions>
 
-        <Grid Grid.Row="1" Margin="0,24,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <ui:CardAction
-                Grid.Row="0"
-                Grid.Column="0"
-                Margin="0,0,4,0"
-                Padding="0"
-                VerticalAlignment="Stretch"
-                Command="{Binding ViewModel.CardClickCommand, Mode=OneWay}"
-                CommandParameter="BasicInput"
-                IsChevronVisible="False">
-                <Grid>
+                <!-- 1. 定义共享的列宽 -->
+                <Grid.Resources>
+                    <GridLength x:Key="Col0_CheckBox">50</GridLength>
+                    <GridLength x:Key="Col1_BatchNum">180</GridLength>
+                    <GridLength x:Key="Col2_Total">100</GridLength>
+                    <GridLength x:Key="Col3_Status">*</GridLength>
+                </Grid.Resources>
+
+                <!-- 1. [表头]：这是一个独立的Grid，放在第0行 -->
+                <Grid Grid.Row="0" MinHeight="40" Margin="0,0,0,8" Background="{ui:ThemeResource CardBackgroundFillColorSecondaryBrush}"> <!-- 表头和列表之间加点间距 -->
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="{StaticResource Col0_CheckBox}" />
+                        <ColumnDefinition Width="{StaticResource Col1_BatchNum}" />
+                        <ColumnDefinition Width="{StaticResource Col2_Total}" />
+                        <ColumnDefinition Width="{StaticResource Col3_Status}" />
                     </Grid.ColumnDefinitions>
 
-                    <Image
-                        Width="60"
-                        Margin="24,0,0,0"
-                        Source="pack://application:,,,/Assets/WinUiGallery/Button.png" />
-
-                    <StackPanel
-                        Grid.Column="1"
-                        Margin="24"
-                        VerticalAlignment="Center">
-                        <ui:TextBlock
-                            Margin="0"
-                            FontTypography="BodyStrong"
-                            Text="Basic input"
-                            TextWrapping="WrapWithOverflow" />
-                        <ui:TextBlock
-                            Appearance="Secondary"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="Buttons, CheckBoxes, Sliders..."
-                            TextWrapping="WrapWithOverflow" />
-                    </StackPanel>
+                    <TextBlock Grid.Column="0" Text="全选" FontWeight="SemiBold"
+                               Style="{StaticResource CenteredGridViewColumnCellStyle}" />
+                    <TextBlock Grid.Column="1" Text="批次号" FontWeight="SemiBold"
+                               Style="{StaticResource CenteredGridViewColumnCellStyle}" />
+                    <TextBlock Grid.Column="2" Text="总单数" FontWeight="SemiBold"
+                               Style="{StaticResource CenteredGridViewColumnCellStyle}" />
+                    <TextBlock Grid.Column="3" Text="状态" FontWeight="SemiBold"
+                               Style="{StaticResource CenteredGridViewColumnCellStyle}" />
                 </Grid>
-            </ui:CardAction>
 
-            <ui:CardAction
-                Grid.Row="0"
-                Grid.Column="1"
-                Margin="4,0,4,0"
-                Padding="0"
-                VerticalAlignment="Stretch"
-                Command="{Binding ViewModel.CardClickCommand, Mode=OneWay}"
-                CommandParameter="DialogsAndFlyouts"
-                IsChevronVisible="False">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+                <!-- 
+            2. [TreeView]：放在第1行，它现在是一个纯粹的数据列表，
+               不再包含任何非数据项的子元素。
+        -->
+                <TreeView
+                    Grid.Row="1"
+                    ItemsSource="{Binding ViewModel.BatchItems}"
+                    Background="Transparent"
+                    BorderThickness="0">
+                    <TreeView.Resources>
+                        <!-- 模板定义保持不变 -->
+                        <DataTemplate DataType="{x:Type vo:BatchOrderVo}">
+                            <Grid Margin="30,0,0,0"
+                                  d:DataContext="{d:DesignInstance Type=vo:BatchOrderVo, IsDesignTimeCreatable=True}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{StaticResource Col0_CheckBox}" />
+                                    <ColumnDefinition Width="{StaticResource Col1_BatchNum}" />
+                                    <ColumnDefinition Width="180" /> <!-- 二级表头的“项批次”列 -->
+                                    <ColumnDefinition Width="180" /> <!-- 二级表头的“纸样”列 -->
+                                    <ColumnDefinition Width="180" /> <!-- 二级表头的“SKU”列 -->
+                                    <ColumnDefinition Width="180" /><!-- 二级表头的“支付时间”列 -->
+                                    <ColumnDefinition Width="*" />   <!-- 二级表头的“状态”列 -->
+                                </Grid.ColumnDefinitions>
 
-                    <Image
-                        Width="60"
-                        Margin="24,0,0,0"
-                        Source="pack://application:,,,/Assets/WinUiGallery/Flyout.png" />
+                                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding OrderNo}"
+                                           Style="{StaticResource CenteredGridViewColumnCellStyle}" />
+                                <TextBlock Grid.Column="2" Text="{Binding BatchNum}"
+                                           Style="{StaticResource CenteredGridViewColumnCellStyle}" />
+                                <TextBlock Grid.Column="3" Text="{Binding PatternName}"
+                                           Style="{StaticResource CenteredGridViewColumnCellStyle}" />
+                                <TextBlock Grid.Column="4" Text="{Binding SkuAlias}"
+                                           Style="{StaticResource CenteredGridViewColumnCellStyle}" />
+                                <TextBlock Grid.Column="5" Text="{Binding PayTime}"
+                                           Style="{StaticResource CenteredGridViewColumnCellStyle}" />
+                                <TextBlock Grid.Column="6" Text="{Binding OrderProduceProcess , Converter={StaticResource OrderProduceProcessConverter}}"
+                                           Style="{StaticResource CenteredGridViewColumnCellStyle}" />
+                            </Grid>
+                        </DataTemplate>
 
-                    <StackPanel
-                        Grid.Column="1"
-                        Margin="24"
-                        VerticalAlignment="Center">
-                        <ui:TextBlock
-                            Margin="0"
-                            FontTypography="BodyStrong"
-                            Text="Dialogs &amp; Flyouts"
-                            TextWrapping="WrapWithOverflow" />
-                        <ui:TextBlock
-                            Appearance="Secondary"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="Contextual notifications."
-                            TextWrapping="WrapWithOverflow" />
+                         <!-- [核心修复在这里] -->
+                <!-- 一级模板 (ProduceBatchVo) -->
+                <HierarchicalDataTemplate DataType="{x:Type vo:ProduceBatchVo}" 
+                                          ItemsSource="{Binding BatchOrderVoList}">
+                    <!-- 
+                        我们将一级行的内容和一个包含二级表头和子项的StackPanel
+                        垂直地放在一起。
+                    -->
+                    <StackPanel>
+                        <!-- 1. 一级行的内容 (Grid) - 不变 -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{StaticResource Col0_CheckBox}"/>
+                                <ColumnDefinition Width="{StaticResource Col1_BatchNum}"/>
+                                <ColumnDefinition Width="{StaticResource Col2_Total}"/>
+                                <ColumnDefinition Width="{StaticResource Col3_Status}"/>
+                            </Grid.ColumnDefinitions>
+                        
+                            <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" IsThreeState="True"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ProduceBatchNum}" Style="{StaticResource CenteredGridViewColumnCellStyle}"/>
+                            <TextBlock Grid.Column="2" Text="{Binding OrderTotal}" Style="{StaticResource CenteredGridViewColumnCellStyle}"/>
+                            <TextBlock Grid.Column="3" Text="{Binding ProduceBatchStatus, Converter={StaticResource ProduceStatusConverter}}" Style="{StaticResource CenteredGridViewColumnCellStyle}"/>
+                        </Grid>
+                        
+                        <!-- 2. 二级内容的容器，包括二级表头和子项列表 -->
+                        <StackPanel Margin="30,0,0,0"> <!-- 整体缩进 -->
+                            <!-- 3. 二级表头 -->
+                            <!-- 
+                                我们使用一个DataTrigger来控制这个表头的可见性。
+                                只有当TreeViewItem被展开(IsExpanded=True) 
+                                且 有子项(HasItems=True)时，才显示它。
+                            -->
+                            <Grid x:Name="SecondLevelHeaderGrid" Visibility="Collapsed" 
+                                  Margin="0,8,0,4" Background="{ui:ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{StaticResource Col0_CheckBox}"/>
+                                    <ColumnDefinition Width="{StaticResource Col1_BatchNum}"/>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                                
+                                <TextBlock Grid.Column="1" Text="订单号" FontWeight="SemiBold" Style="{StaticResource CenteredGridViewColumnCellStyle}"/>
+                                <TextBlock Grid.Column="2" Text="项批次号" FontWeight="SemiBold" Style="{StaticResource CenteredGridViewColumnCellStyle}"/>
+                                <TextBlock Grid.Column="3" Text="纸样" FontWeight="SemiBold" Style="{StaticResource CenteredGridViewColumnCellStyle}"/>
+                                <TextBlock Grid.Column="4" Text="SKU" FontWeight="SemiBold" Style="{StaticResource CenteredGridViewColumnCellStyle}"/>
+                                <TextBlock Grid.Column="5" Text="支付时间" FontWeight="SemiBold" Style="{StaticResource CenteredGridViewColumnCellStyle}"/>
+                                <TextBlock Grid.Column="6" Text="状态" FontWeight="SemiBold" Style="{StaticResource CenteredGridViewColumnCellStyle}"/>
+                            </Grid>
+
+                            <!-- 4. 子项的呈现位置 -->
+                            <ItemsPresenter />
+                        </StackPanel>
                     </StackPanel>
-                </Grid>
-            </ui:CardAction>
+                    
+                    <!-- 5. 控制二级表头可见性的触发器 -->
+                    <HierarchicalDataTemplate.Triggers>
+                        <!-- 
+                            RelativeSource FindAncestor 找到包含此模板的 TreeViewItem。
+                            MultiDataTrigger 确保两个条件都满足。
+                        -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding Path=IsExpanded, RelativeSource={RelativeSource AncestorType=TreeViewItem}}" Value="True"/>
+                                <Condition Binding="{Binding Path=HasItems, RelativeSource={RelativeSource AncestorType=TreeViewItem}}" Value="True"/>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="SecondLevelHeaderGrid" Property="Visibility" Value="Visible"/>
+                        </MultiDataTrigger>
+                    </HierarchicalDataTemplate.Triggers>
+                </HierarchicalDataTemplate>
+                    </TreeView.Resources>
+                    <!-- 4. 为TreeViewItem添加样式，以包含二级表头 -->
+                    <!-- 在 DashboardPage.xaml 中 -->
 
-            <ui:CardAction
-                Grid.Row="0"
-                Grid.Column="2"
-                Margin="4,0,4,0"
-                Padding="0"
-                VerticalAlignment="Stretch"
-                Command="{Binding ViewModel.CardClickCommand, Mode=OneWay}"
-                CommandParameter="Navigation"
-                IsChevronVisible="False">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+<TreeView.ItemContainerStyle>
+    <Style TargetType="{x:Type TreeViewItem}">
+        <Setter Property="IsExpanded" Value="True" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Padding" Value="0" /> <!-- 移除默认的内边距 -->
+        <Setter Property="Background" Value="Transparent" /> <!-- 确保背景透明 -->
+        <Setter Property="BorderThickness" Value="0" />
 
-                    <Image
-                        Width="60"
-                        Margin="24,0,0,0"
-                        Source="pack://application:,,,/Assets/WinUiGallery/MenuBar.png" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TreeViewItem}">
+                    <!-- 1. 使用一个Grid来组织 Header 和 子项 -->
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" /> <!-- 第0行: Header (主要内容) -->
+                            <RowDefinition Height="Auto" /> <!-- 第1行: 子项 -->
+                        </Grid.RowDefinitions>
 
-                    <StackPanel
-                        Grid.Column="1"
-                        Margin="24"
-                        VerticalAlignment="Center">
-                        <ui:TextBlock
-                            Margin="0"
-                            FontTypography="BodyStrong"
-                            Text="Navigation"
-                            TextWrapping="WrapWithOverflow" />
-                        <ui:TextBlock
-                            Appearance="Secondary"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="Managing the displayed pages."
-                            TextWrapping="WrapWithOverflow" />
-                    </StackPanel>
-                </Grid>
-            </ui:CardAction>
-        </Grid>
+                        <!-- 
+                            2. 创建一个可点击的区域，并设置其背景。
+                               这个Border是响应IsSelected状态的地方。
+                        -->
+                        <Border
+                            x:Name="Bd"
+                            Grid.Row="0"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="true">
+                            <!-- 
+                                3. ContentPresenter 用于显示您在DataTemplate/HierarchicalDataTemplate
+                                   中定义的“行内容”。
+                            -->
+                            <ContentPresenter
+                                x:Name="PART_Header"
+                                ContentSource="Header"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        </Border>
+                        
+                        <!-- 
+                            4. [核心修复] ItemsPresenter 用于显示子项。
+                               我们把它放在一个 Border 里以便控制缩进。
+                        -->
+                        <Border 
+                            x:Name="ItemsHostBorder"
+                            Grid.Row="1" 
+                            Visibility="Collapsed"> <!-- 默认隐藏 -->
+                            <ItemsPresenter x:Name="ItemsHost" />
+                        </Border>
+                    </Grid>
 
-        <StackPanel Grid.Row="2" Margin="0,24,0,0">
-            <TextBlock
-                FontSize="18"
-                FontWeight="DemiBold"
-                Text="Learn more" />
-            <ui:HyperlinkButton
-                Margin="8,8,0,0"
-                Padding="4"
-                Content="Documentation"
-                NavigateUri="https://wpfui.lepo.co/"
-                ToolTip="https://wpfui.lepo.co/" />
-            <ui:HyperlinkButton
-                Margin="8,0,0,0"
-                Padding="4"
-                Content="Microsoft Store"
-                NavigateUri="https://apps.microsoft.com/store/detail/wpf-ui/9N9LKV8R9VGM"
-                ToolTip="https://apps.microsoft.com/store/detail/wpf-ui/9N9LKV8R9VGM" />
-            <ui:HyperlinkButton
-                Margin="8,0,0,0"
-                Padding="4"
-                Content="GitHub"
-                NavigateUri="https://github.com/lepoco/wpfui"
-                ToolTip="https://github.com/lepoco/wpfui" />
-            <ui:HyperlinkButton
-                Margin="8,0,0,0"
-                Padding="4"
-                Content="NuGet"
-                NavigateUri="https://www.nuget.org/packages/wpf-ui/"
-                ToolTip="https://www.nuget.org/packages/wpf-ui/" />
-            <ui:HyperlinkButton
-                Margin="8,0,0,0"
-                Padding="4"
-                Content="Visual Studio Marketplace"
-                NavigateUri="https://marketplace.visualstudio.com/items?itemName=lepo.wpf-ui"
-                ToolTip="https://marketplace.visualstudio.com/items?itemName=lepo.wpf-ui" />
-        </StackPanel>
-        
-        <TextBlock
-            Grid.Row="3"
-            Margin="0,24,0,0"
-            FontSize="18"
-            FontWeight="DemiBold"
-            Text="Batch List" />
-        <ui:Button
-            Width="200"
-            Margin="0,12,0,0"
-            Appearance="Primary"
-            Click="Test"
-            Content="排版测试" />
-        <ListView
-            Grid.Row="4"
-            Margin="0,12,0,0"
-            ItemsSource="{Binding ViewModel.BatchItems}">
-            <ListView.View>
-                <GridView>
-                    <GridViewColumn DisplayMemberBinding="{Binding ProduceBatchNumber}" Header="Batch Number" />
-                    <GridViewColumn DisplayMemberBinding="{Binding NumTotal}" Header="Total" />
-                    <GridViewColumn DisplayMemberBinding="{Binding Status}" Header="Status" />
-                    <GridViewColumn DisplayMemberBinding="{Binding ProduceBatchNumberTotal}" Header="Batch Number Total" />
-                </GridView>
-            </ListView.View>
-        </ListView>
+                    <!-- 5. 触发器来控制展开/折叠和移除选中效果 -->
+                    <ControlTemplate.Triggers>
+                        <!-- 当IsExpanded为True时，显示子项的容器 -->
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ItemsHostBorder" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        
+                        <!-- 
+                            [核心修复]
+                            当IsSelected为True时，我们什么也不做！
+                            由于我们在模板的任何地方都没有定义蓝色的背景，
+                            所以即使被选中，也不会有任何视觉变化。
+                        -->
+                        <Trigger Property="IsSelected" Value="True">
+                            <!-- 这个触发器是空的，它覆盖了默认的蓝色背景行为 -->
+                        </Trigger>
+                        
+                        <!-- (可选) 如果您想在鼠标悬浮时有一个轻微的背景变化，可以添加这个 -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{ui:ThemeResource ControlFillColorSecondaryBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</TreeView.ItemContainerStyle>
+                </TreeView>
+
+            </Grid>
+        </Border>
     </Grid>
+
 </Page>

@@ -3,10 +3,13 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
+using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Services.Contracts;
 using Wpf.Ui.Gallery.ViewModels.Windows;
 using Wpf.Ui.Gallery.Views.Pages;
+using Wpf.Ui.Tray.Controls;
 
 namespace Wpf.Ui.Gallery.Views.Windows;
 
@@ -27,9 +30,18 @@ public partial class MainWindow : IWindow
 
         InitializeComponent();
 
+        Loaded += async (sender, args) =>
+        {
+            await ViewModel.InitializeAsync();
+        };
+
         snackbarService.SetSnackbarPresenter(SnackbarPresenter);
         navigationService.SetNavigationControl(NavigationView);
         contentDialogService.SetDialogHost(RootContentDialog);
+        
+        ApplicationThemeManager.Apply(
+            LocalAppConfig.AppSetting.ApplicationTheme
+        );
     }
 
     public MainWindowViewModel ViewModel { get; }
@@ -83,5 +95,21 @@ public partial class MainWindow : IWindow
         }
 
         _isUserClosedPane = true;
+    }
+    
+    private void OnStateChanged(object sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Minimized)
+        {
+            //Hide();
+            //WindowState = WindowState.Normal;
+        }
+    }
+
+    private void NotifyIcon_OnLeftClick(NotifyIcon sender, RoutedEventArgs e)
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
     }
 }

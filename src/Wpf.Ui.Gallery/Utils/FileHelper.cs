@@ -4,71 +4,202 @@
 // All Rights Reserved.
 
 using System.Net.Http;
+using System.Text.Json;
+using Wpf.Ui.Gallery.Config;
+using Wpf.Ui.Gallery.Dto;
+using Wpf.Ui.Gallery.Dto.Machine;
+using Wpf.Ui.Gallery.LocalConfig;
 
 namespace Wpf.Ui.Gallery.Utils;
 
 public static class FileHelper
 {
-    // 使用一个静态的信号量来处理可能的跨线程文件访问冲突，特别是在高并发场景下。
-    // 对于同一个文件路径，我们希望写入操作是原子的。
-    // 注意：这是一个简单的全局锁，对于极高并发写入不同文件，可以考虑更精细的锁策略。
-    private static readonly SemaphoreSlim _fileLock = new SemaphoreSlim(1, 1);
+    // <summary>
+    /// 配置JSON序列化器的选项，使其生成的JSON字符串带缩进，更易于阅读。
+    /// </summary>
+    private static readonly JsonSerializerOptions _options = new() { WriteIndented = true };
+
+    #region 同步方法 (Synchronous Methods)
 
     /// <summary>
-    /// Asynchronously writes the specified text to a file, creating the directory if it does not exist.
-    /// This method is robust, thread-safe, and ensures the path integrity before writing.
+    /// 将一个对象序列化为JSON格式，并同步写入到指定的文件路径。
+    /// 如果目录不存在，会自动创建。
     /// </summary>
-    /// <param name="path">The full path of the file to write to.</param>
-    /// <param name="content">The text content to write to the file.</param>
-    /// <param name="encoding">The character encoding to use. Defaults to UTF-8.</param>
-    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-    /// <returns>A task that represents the asynchronous write operation.</returns>
-
-    // 朝某个完整路径的文件写入数据 如果路径上包含不存在的目录 则创建目录
-    public static async Task WriteTextRobustAsync(
-        string path,
-        string content,
-        Encoding? encoding = null,
-        CancellationToken cancellationToken = default)
+    /// <typeparam name="T">要序列化的对象类型。</typeparam>
+    /// <param name="filePath">目标文件的完整路径。</param>
+    /// <param name="objectToWrite">要写入文件的对象实例。</param>
+    /// <exception cref="ArgumentNullException">当 objectToWrite 为 null 时抛出。</exception>
+    /// <exception cref="Exception">封装了文件写入或序列化过程中可能出现的其他异常。</exception>
+    public static void WriteToJsonFile<T>(T objectToWrite)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        
+        if (!LocalAppConfig._filePathRegistry.TryGetValue(typeof(T), out var filePath))
         {
-            throw new ArgumentNullException(nameof(path), "File path cannot be null or empty.");
+            throw new KeyNotFoundException($"The type '{typeof(T).FullName}' has not been registered in the AppDataManager.[此泛型未保存在本地磁盘]");
+        }
+        
+        if (objectToWrite == null)
+        {
+            throw new ArgumentNullException(nameof(objectToWrite));
         }
 
-        // 1. 获取目标文件所在的目录路径
-        // Path.GetDirectoryName is smart enough to handle file paths at the root.
-        string? directoryPath = Path.GetDirectoryName(path);
-
-        // 如果 directoryPath 是 null 或空，说明路径有问题（例如，不是一个有效的文件路径）
-        // 或者文件就在驱动器的根目录（如 "C:\myfile.txt"），这种情况下无需创建目录。
-        if (string.IsNullOrWhiteSpace(directoryPath))
-        {
-            // For root paths like "C:\file.txt", GetDirectoryName returns null.
-            // We can proceed if the root exists.
-            if (!Directory.Exists(Path.GetPathRoot(path)))
-            {
-                throw new DirectoryNotFoundException($"The root directory for path '{path}' was not found.");
-            }
-        }
-        else
-        {
-            // 2. 检查目录是否存在，如果不存在，则递归创建所有父目录
-            // Directory.CreateDirectory is idempotent: it does nothing if the directory already exists.
-            Directory.CreateDirectory(directoryPath);
-        }
-
-        // 3. 使用信号量来确保文件写入的线程安全
-        await _fileLock.WaitAsync(cancellationToken);
         try
         {
-            // 4. 执行异步文件写入
-            // 使用 File.WriteAllTextAsync, 它比手动管理 FileStream 更简洁高效
-            await File.WriteAllTextAsync(path, content, encoding ?? Encoding.UTF8, cancellationToken);
+            // 确保目标目录存在
+            string directoryName = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directoryName))
+            {
+                Directory.CreateDirectory(directoryName);
+            }
+
+            // 序列化对象为JSON字符串
+            string jsonString = JsonSerializer.Serialize(objectToWrite, _options);
+
+            // 将JSON字符串写入文件
+            File.WriteAllText(filePath, jsonString);
         }
-        finally
+        catch (Exception ex)
         {
-            _fileLock.Release();
+            // 抛出带有更多上下文信息的新异常，便于调试
+            throw new Exception($"Failed to write to file '{filePath}'.", ex);
         }
     }
+
+    /// <summary>
+    /// 同步读取一个JSON文件，并将其反序列化为指定类型的对象。
+    /// </summary>
+    /// <typeparam name="T">期望反序列化成的目标类型。</typeparam>
+    /// <param name="filePath">源文件的完整路径。</param>
+    /// <returns>反序列化后的对象实例。</returns>
+    /// <exception cref="FileNotFoundException">当指定的文件不存在时抛出。</exception>
+    /// <exception cref="JsonException">当文件内容不是有效的JSON或无法转换为目标类型时抛出。</exception>
+    /// <exception cref="Exception">封装了文件读取或反序列化过程中可能出现的其他异常。</exception>
+    public static T ReadFromJsonFile<T>(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException("File not found.", filePath);
+        }
+
+        try
+        {
+            // 从文件读取JSON字符串
+            string jsonString = File.ReadAllText(filePath);
+
+            // 反序列化JSON字符串为对象
+            T deserializedObject = JsonSerializer.Deserialize<T>(jsonString);
+
+            return deserializedObject;
+        }
+        catch (JsonException ex)
+        {
+            // 专门处理JSON解析错误
+            throw new JsonException(
+                $"Failed to deserialize file '{filePath}' as type '{typeof(T).Name}'. Check for malformed JSON.", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to read from file '{filePath}'.", ex);
+        }
+    }
+
+    #endregion
+
+    #region 异步方法 (Asynchronous Methods)
+
+    /// <summary>
+    /// 将一个对象序列化为JSON格式，并异步写入到指定的文件路径。
+    /// 如果目录不存在，会自动创建。
+    /// </summary>
+    public static async Task WriteToJsonFileAsync<T>(string filePath, T objectToWrite)
+    {
+        if (objectToWrite == null)
+        {
+            throw new ArgumentNullException(nameof(objectToWrite));
+        }
+
+        try
+        {
+            string directoryName = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directoryName))
+            {
+                Directory.CreateDirectory(directoryName);
+            }
+
+            string jsonString = JsonSerializer.Serialize(objectToWrite, _options);
+
+            await File.WriteAllTextAsync(filePath, jsonString);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to write to file '{filePath}' asynchronously.", ex);
+        }
+    }
+
+    /// <summary>
+    /// 异步读取一个JSON文件，并将其反序列化为指定类型的对象。
+    /// </summary>
+    public static async Task<T> ReadFromJsonFileAsync<T>(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException("File not found.", filePath);
+        }
+
+        try
+        {
+            string jsonString = await File.ReadAllTextAsync(filePath);
+
+            T deserializedObject = JsonSerializer.Deserialize<T>(jsonString);
+
+            return deserializedObject;
+        }
+        catch (JsonException ex)
+        {
+            throw new JsonException(
+                $"Failed to deserialize file '{filePath}' as type '{typeof(T).Name}'. Check for malformed JSON.", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to read from file '{filePath}' asynchronously.", ex);
+        }
+    }
+
+    #endregion
+    
+    
+    public static T ReadFromJsonFileAuto<T>()
+    {
+        if (!LocalAppConfig._filePathRegistry.TryGetValue(typeof(T), out var filePath))
+        {
+            throw new KeyNotFoundException($"The type '{typeof(T).FullName}' has not been registered in the AppDataManager.[此泛型未保存在本地磁盘]");
+        }
+        
+        if (!File.Exists(filePath))
+        {
+            //throw new FileNotFoundException("File not found.", filePath);
+            return default;
+        }
+        
+        try
+        {
+            // 从文件读取JSON字符串
+            string jsonString = File.ReadAllText(filePath);
+
+            // 反序列化JSON字符串为对象
+            T deserializedObject = JsonSerializer.Deserialize<T>(jsonString);
+
+            return deserializedObject;
+        }
+        catch (JsonException ex)
+        {
+            // 专门处理JSON解析错误
+            throw new JsonException(
+                $"Failed to deserialize file '{filePath}' as type '{typeof(T).Name}'. Check for malformed JSON.", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to read from file '{filePath}'.", ex);
+        }
+    } 
 }

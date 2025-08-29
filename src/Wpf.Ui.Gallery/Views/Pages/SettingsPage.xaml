@@ -86,12 +86,12 @@
                         Grid.Row="0"
                         Grid.Column="0"
                         FontTypography="Body"
-                        Text="WPF UI" />
+                        Text="POD Maker" />
                     <ui:TextBlock
                         Grid.Row="1"
                         Grid.Column="0"
                         Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
-                        Text="© 2025 lepo.co | Leszek Pomianowski &amp; WPF UI Contributors" />
+                        Text="© 2025 Pod Maker support" />
                     <TextBlock
                         Grid.Row="0"
                         Grid.RowSpan="2"
@@ -122,7 +122,7 @@
                     Background="Transparent"
                     BorderThickness="0,1,0,0"
                     CornerRadius="0"
-                    NavigateUri="https://github.com/lepoco/wpfui/issues/new/choose">
+                    NavigateUri="https://github.com/willp11/print-on-demand.git">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
