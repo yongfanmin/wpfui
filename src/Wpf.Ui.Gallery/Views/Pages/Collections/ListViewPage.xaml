@@ -118,6 +118,17 @@
         </controls:ControlExample>
 
         <controls:ControlExample Margin="0,36,0,0" HeaderText="ListView with GridView">
+            <controls:ControlExample.XamlCode>
+                &lt;ListView ItemsSource=&quot;{Binding ViewModel.BasicListViewItems}&quot;&gt;\n
+                \t&lt;ListView.View&gt;\n
+                \t\t&lt;ui:GridView&gt;\n
+                \t\t\t&lt;GridViewColumn DisplayMemberBinding=&quot;{Binding FirstName}&quot; Header=&quot;First Name&quot; MinWidth=&amp;quot;100&amp;quot; MaxWidth=&amp;quot;200&amp;quot;/&gt;\n
+                \t\t\t&lt;GridViewColumn DisplayMemberBinding=&quot;{Binding LastName}&quot; Header=&quot;Last Name&quot;/&gt;\n
+                \t\t\t&lt;GridViewColumn DisplayMemberBinding=&quot;{Binding Company}&quot; Header=&quot;Company&quot;/&gt;\n
+                \t\t&lt;/ui:GridView&gt;\n
+                \t&lt;/ListView.View&gt;\n
+                &lt;/ListView&gt;
+            </controls:ControlExample.XamlCode>
             <ui:ListView
                 MaxHeight="200"
                 d:ItemsSource="{d:SampleData ItemCount=2}"

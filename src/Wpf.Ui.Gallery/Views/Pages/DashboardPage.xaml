@@ -4,14 +4,10 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:Wpf.Ui.Gallery.Views.Pages"
-    xmlns:windows="clr-namespace:Wpf.Ui.Gallery.Views.Windows"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    xmlns:controls="clr-namespace:Wpf.Ui.Gallery.Controls"
-    xmlns:converters="clr-namespace:Wpf.Ui.Gallery.Converters"
-    xmlns:vo="clr-namespace:Wpf.Ui.Gallery.Vo"
     Title="Dashboard Page"
-    Margin="0,0,0,0"
+    Margin="0,32,0,0"
     d:DataContext="{d:DesignInstance local:DashboardPage,
                                      IsDesignTimeCreatable=False}"
     d:DesignHeight="650"
@@ -20,53 +16,7 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
-    <Page.Resources>
-        <Style x:Key="SelectableReadOnlyCellStyle" TargetType="{x:Type TextBox}">
-            <!-- 1. 核心：设为只读 -->
-            <Setter Property="IsReadOnly" Value="True" />
-    
-            <!-- 2. 外观：让它看起来完全像一个普通的TextBlock -->
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="4,2" /> <!-- 添加一点内边距，让文本不贴边 -->
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-    
-            <!-- 3. 行为：移除获得焦点时的边框 -->
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-        </Style>
-        <Style x:Key="MyGridViewHeaderStyle" TargetType="{x:Type GridViewColumnHeader}">
-            <Setter Property="Background" Value="{ui:ThemeResource CardBackgroundFillColorSecondaryBrush}" />
 
-            <!-- 2. (可选) 设置前景/文字颜色 -->
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-
-            <!-- 3. (可选) 移除鼠标悬浮时的背景色变化，让表头更“静态” -->
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type GridViewColumnHeader}">
-                        <Border
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            Padding="{TemplateBinding Padding}">
-                            <ContentPresenter
-                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                RecognizesAccessKey="True"
-                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="CenteredGridViewColumnCellStyle" TargetType="{x:Type TextBlock}">
-            <Setter Property="TextAlignment" Value="Center" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-        <converters:ProduceStatusToStringConverter x:Key="ProduceStatusConverter" />
-        <converters:OrderProduceProcessConverter x:Key="OrderProduceProcessConverter" />
-    </Page.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -76,233 +26,217 @@
 
         <Border
             Grid.Row="0"
-            Height="100"
-            Background="{ui:ThemeResource ApplicationBackgroundBrush}"
-            BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="1"
-            CornerRadius="8"
-            Padding="24"> <!-- 使用Padding来创建内部边距 -->
-
-            <!-- 使用Grid作为双栏布局的基础 -->
-            <Grid VerticalAlignment="Center">
-                <Grid.ColumnDefinitions>
-                    <!-- 
-                第一列：宽度设为 "Auto"，它会自动适应内容的宽度。
-                这对于“机器状态”这种标签+开关的组合很合适。
-            -->
-                    <ColumnDefinition Width="Auto" />
-
-                    <!-- 
-                第二列：宽度设为 "*"，它会占据所有剩余的空间。
-                我们将排版测试按钮放在这里。
-            -->
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <!-- 第一个元素：机器状态 -->
-                <StackPanel
-                    Grid.Column="0"
-                    Orientation="Horizontal"
-                    VerticalAlignment="Center">
-
-                    <TextBlock
-                        Text="机器状态:"
-                        VerticalAlignment="Center"
-                        Margin="0,0,10,0" />
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Ellipse
-                            Width="12" Height="12"
-                            Margin="0,0,10,0"
-                            VerticalAlignment="Center">
-                            <Ellipse.Style>
-                                <Style TargetType="Ellipse">
-                                    <!-- 1. 默认状态：灰色，完全不透明 -->
-                                    <Setter Property="Fill" Value="Gray" />
-                                    <Setter Property="Opacity" Value="1.0" />
-
-                                    <Style.Triggers>
-                                        <!-- 规则 A: 静态颜色控制 -->
-                                        <!-- 这个DataTrigger负责设置“接单中”的静态底色 -->
-                                        <DataTrigger Binding="{Binding ViewModel.IsAcceptingOrders}" Value="True">
-                                            <Setter Property="Fill" Value="DarkGreen" />
-                                        </DataTrigger>
-
-                                        <!-- 规则 B: 状态依赖的闪烁动画控制 -->
-                                        <!-- 我们只在“接单中”且“网络活动中”这两个条件同时满足时，才触发闪烁 -->
-                                        <MultiDataTrigger>
-                                            <MultiDataTrigger.Conditions>
-                                                <Condition Binding="{Binding ViewModel.IsAcceptingOrders}" Value="True" />
-                                                <Condition Binding="{Binding ViewModel.IsIndicatorBlinking}"
-                                                           Value="True" />
-                                            </MultiDataTrigger.Conditions>
-                                            <MultiDataTrigger.EnterActions>
-                                                <!-- 
-                            进入时，启动一个“红色闪烁”的动画。
-                            这个动画是无限循环的。
-                        -->
-                                                <BeginStoryboard x:Name="Blinking_BeginStoryboard">
-                                                    <Storyboard RepeatBehavior="Forever">
-                                                        <ColorAnimation
-                                                            Storyboard.TargetProperty="(Ellipse.Fill).(SolidColorBrush.Color)"
-                                                            From="Yellow" To="LawnGreen"
-                                                            Duration="0:0:0.3"
-                                                            AutoReverse="True" />
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </MultiDataTrigger.EnterActions>
-                                            <MultiDataTrigger.ExitActions>
-                                                <!-- 
-                            退出时（即IsIndicatorBlinking变为false），停止红色闪烁动画。
-                            动画停止后，Fill属性的控制权会释放，
-                            WPF会自动应用规则A的Setter，颜色恢复为LightGreen。
-                        -->
-                                                <StopStoryboard BeginStoryboardName="Blinking_BeginStoryboard" />
-                                            </MultiDataTrigger.ExitActions>
-                                        </MultiDataTrigger>
-
-                                    </Style.Triggers>
-                                </Style>
-                            </Ellipse.Style>
-                        </Ellipse>
-                    </StackPanel>
-                    <ui:ToggleSwitch
-                        OffContent="停机"
-                        OnContent="接单中"
-                        IsChecked="{Binding ViewModel.IsAcceptingOrders, Mode=TwoWay}" />
-                </StackPanel>
-
-                <!-- 第二个元素：排版功能 -->
-                <!-- 
-            将这个StackPanel放在第二列。
-            HorizontalAlignment="Right" 会让按钮靠右对齐，
-            这在UI布局中通常更好看。
-        -->
-                <!--<StackPanel
-                    Grid.Column="1"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    Margin="0,0,220,0">
-
-                    ~1~ TextBlock通常用于显示文本，按钮不应该放在里面 @1@
-                    <TextBlock
-                        FontSize="18"
-                        FontWeight="DemiBold"
-                        Text="排版功能"
-                        VerticalAlignment="Center"
-                        Margin="0,0,12,0" /> ~1~ 按钮和文字之间加点间距 @1@
-
-                    <ui:Button
-                        Appearance="Primary"
-                        Click="Test"
-                        Content="排版测试" />
-                </StackPanel>-->
-                <StackPanel 
-                    Grid.Column="1"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    Margin="0,0,400,0">
-                    <ui:TextBox
-                        Name="BatchNoTextBox"
-                        Width="200"
-                        Text="{Binding ViewModel.BatchNo, UpdateSourceTrigger=PropertyChanged}" 
-                        PlaceholderText="输入批次号" />
-                    <ui:Button
-                        Content="生产"
-                        Margin="10,0,0,0"
-                        Command="{Binding ViewModel.ConfirmCommand}" />
-                </StackPanel>
-                <StackPanel
-                    Grid.Column="2"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center">
-                    <ui:Button
-                        Grid.Column="1"
-                        Command="{Binding ViewModel.OpenFolderCommand, Mode=OneWay}"
-                        Icon="{ui:SymbolIcon FolderOpen24}"
-                        ToolTip="稿件目录" />
-                    <Separator
-                        Grid.Column="3"
-                        Height="16"
-                        Margin="4,0,4,0" />
-                    <ui:Button
-                        Grid.Column="2"
-                        Command="{Binding ViewModel.ToggleLightOrDarkCommand}"
-                        Icon="{ui:SymbolIcon WeatherSunny24}"
-                        ToolTip="切换主题" />
-                    <Separator
-                        Grid.Column="3"
-                        Height="16"
-                        Margin="4,0,4,0" />
-                    <ui:Anchor
-                        Grid.Column="4"
-                        CommandParameter="copy"
-                        Icon="{ui:SymbolIcon PersonLink28}"
-                        NavigateUri="http://factory.sds-diy.xyz"
-                        ToolTip="管理后台" />
-                    <Separator
-                        Grid.Column="3"
-                        Height="16"
-                        Margin="4,0,4,0" />
-                    <ui:Anchor
-                        Grid.Column="5"
-                        Margin="4,0,0,0"
-                        Icon="{ui:SymbolIcon PersonFeedback24}"
-                        NavigateUri="https://github.com/lepoco/wpfui/issues/new?assignees=pomianowski&amp;labels=bug,gallery&amp;template=bug_report.yaml&amp;title=WPF+UI+Gallery+Problem"
-                        ToolTip="反馈" />
-                </StackPanel>
-            </Grid>
-        </Border>
-        <Border
-            Grid.Row="2"
-            Margin="0 12 0 0"
-            Background="{ui:ThemeResource ApplicationBackgroundBrush}"
-            BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="1"
+            Height="200"
             CornerRadius="8">
-            <ui:DataGrid 
-                         ItemsSource="{Binding ViewModel.ProductBatchCollection, Mode=TwoWay}" 
-                         AutoGenerateColumns="False"
-                         CanUserAddRows="False"
-                         IsReadOnly="True"
-                         >
-                <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="生产批次">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}" 
-                                         Text="{Binding ProduceBatchNum}" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="项总数" Binding="{Binding ProduceBatchItemProcess, Mode=OneWay}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="数据加载" Binding="{Binding DataDownloadProgress, Mode=OneWay}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="图片下载" Binding="{Binding ImgDownloadProgress, Mode=OneWay}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="印花渲染" Binding="{Binding PiecePrintProgress, Mode=OneWay}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="排版完成" Binding="{Binding LayoutCreateProgress, Mode=OneWay}"></DataGridTextColumn>
-                    <DataGridTemplateColumn Header="接收时间">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}" 
-                                         Text="{Binding FactoryGetTime, StringFormat='yy年M月d日 HH:mm'}" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="批次状态" Binding="{Binding ProduceBatchStatus}"></DataGridTextColumn>
-                    <DataGridTemplateColumn Header="操作">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button Content="查看批次详情"
-                                        Command="{Binding DataContext.ViewModel.OpenProduceItemWindowCommand, RelativeSource={RelativeSource AncestorType={x:Type local:DashboardPage}}}"
-                                        CommandParameter="{Binding}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </ui:DataGrid>
+            <Border.Background>
+                <ImageBrush
+                    ImageSource="pack://application:,,,/Assets/pexels-johannes-plenio-1103970.jpg"
+                    RenderOptions.BitmapScalingMode="HighQuality"
+                    Stretch="UniformToFill" />
+            </Border.Background>
+            <Border CornerRadius="8">
+                <Border.Background>
+                    <RadialGradientBrush>
+                        <GradientStop Offset="0" Color="#1F000000" />
+                        <GradientStop Offset="1" Color="#4F000000" />
+                    </RadialGradientBrush>
+                </Border.Background>
+                <Grid>
+                    <StackPanel
+                        Margin="48,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Background="Transparent">
+                        <ui:TextBlock
+                            FontTypography="Title"
+                            Foreground="#FFFFFF"
+                            Text="Fluent UI" />
+                        <ui:TextBlock
+                            FontTypography="Subtitle"
+                            Foreground="#B7FFFFFF"
+                            Text="Windows Presentation Foundation" />
+                        <ui:TextBlock
+                            FontTypography="BodyStrong"
+                            Foreground="#B7FFFFFF"
+                            Text="Build Fluent experiences on Windows using WPF UI." />
+                    </StackPanel>
+                    <ui:TextBlock
+                        Margin="12"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        FontTypography="Caption"
+                        Foreground="#57FFFFFF"
+                        Text="Created by lepo.co" />
+                </Grid>
+            </Border>
         </Border>
-    </Grid>
 
+        <!--<controls:GalleryNavigationPresenter
+            Grid.Row="1"
+            Margin="0,24,0,0"
+            Padding="0"
+            ItemsSource="{Binding ViewModel.NavigationCards, Mode=OneWay}" />-->
+
+        <Grid Grid.Row="1" Margin="0,24,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <ui:CardAction
+                Grid.Row="0"
+                Grid.Column="0"
+                Margin="0,0,4,0"
+                Padding="0"
+                VerticalAlignment="Stretch"
+                Command="{Binding ViewModel.CardClickCommand, Mode=OneWay}"
+                CommandParameter="BasicInput"
+                IsChevronVisible="False">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Image
+                        Width="60"
+                        Margin="24,0,0,0"
+                        Source="pack://application:,,,/Assets/WinUiGallery/Button.png" />
+
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="24"
+                        VerticalAlignment="Center">
+                        <ui:TextBlock
+                            Margin="0"
+                            FontTypography="BodyStrong"
+                            Text="Basic input"
+                            TextWrapping="WrapWithOverflow" />
+                        <ui:TextBlock
+                            Appearance="Secondary"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="Buttons, CheckBoxes, Sliders..."
+                            TextWrapping="WrapWithOverflow" />
+                    </StackPanel>
+                </Grid>
+            </ui:CardAction>
+
+            <ui:CardAction
+                Grid.Row="0"
+                Grid.Column="1"
+                Margin="4,0,4,0"
+                Padding="0"
+                VerticalAlignment="Stretch"
+                Command="{Binding ViewModel.CardClickCommand, Mode=OneWay}"
+                CommandParameter="DialogsAndFlyouts"
+                IsChevronVisible="False">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Image
+                        Width="60"
+                        Margin="24,0,0,0"
+                        Source="pack://application:,,,/Assets/WinUiGallery/Flyout.png" />
+
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="24"
+                        VerticalAlignment="Center">
+                        <ui:TextBlock
+                            Margin="0"
+                            FontTypography="BodyStrong"
+                            Text="Dialogs &amp; Flyouts"
+                            TextWrapping="WrapWithOverflow" />
+                        <ui:TextBlock
+                            Appearance="Secondary"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="Contextual notifications."
+                            TextWrapping="WrapWithOverflow" />
+                    </StackPanel>
+                </Grid>
+            </ui:CardAction>
+
+            <ui:CardAction
+                Grid.Row="0"
+                Grid.Column="2"
+                Margin="4,0,4,0"
+                Padding="0"
+                VerticalAlignment="Stretch"
+                Command="{Binding ViewModel.CardClickCommand, Mode=OneWay}"
+                CommandParameter="Navigation"
+                IsChevronVisible="False">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Image
+                        Width="60"
+                        Margin="24,0,0,0"
+                        Source="pack://application:,,,/Assets/WinUiGallery/MenuBar.png" />
+
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="24"
+                        VerticalAlignment="Center">
+                        <ui:TextBlock
+                            Margin="0"
+                            FontTypography="BodyStrong"
+                            Text="Navigation"
+                            TextWrapping="WrapWithOverflow" />
+                        <ui:TextBlock
+                            Appearance="Secondary"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="Managing the displayed pages."
+                            TextWrapping="WrapWithOverflow" />
+                    </StackPanel>
+                </Grid>
+            </ui:CardAction>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Margin="0,24,0,0">
+            <TextBlock
+                FontSize="18"
+                FontWeight="DemiBold"
+                Text="Learn more" />
+            <ui:HyperlinkButton
+                Margin="8,8,0,0"
+                Padding="4"
+                Content="Documentation"
+                NavigateUri="https://wpfui.lepo.co/"
+                ToolTip="https://wpfui.lepo.co/" />
+            <ui:HyperlinkButton
+                Margin="8,0,0,0"
+                Padding="4"
+                Content="Microsoft Store"
+                NavigateUri="https://apps.microsoft.com/store/detail/wpf-ui/9N9LKV8R9VGM"
+                ToolTip="https://apps.microsoft.com/store/detail/wpf-ui/9N9LKV8R9VGM" />
+            <ui:HyperlinkButton
+                Margin="8,0,0,0"
+                Padding="4"
+                Content="GitHub"
+                NavigateUri="https://github.com/lepoco/wpfui"
+                ToolTip="https://github.com/lepoco/wpfui" />
+            <ui:HyperlinkButton
+                Margin="8,0,0,0"
+                Padding="4"
+                Content="NuGet"
+                NavigateUri="https://www.nuget.org/packages/wpf-ui/"
+                ToolTip="https://www.nuget.org/packages/wpf-ui/" />
+            <ui:HyperlinkButton
+                Margin="8,0,0,0"
+                Padding="4"
+                Content="Visual Studio Marketplace"
+                NavigateUri="https://marketplace.visualstudio.com/items?itemName=lepo.wpf-ui"
+                ToolTip="https://marketplace.visualstudio.com/items?itemName=lepo.wpf-ui" />
+        </StackPanel>
+    </Grid>
 </Page>

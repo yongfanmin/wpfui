@@ -7,11 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using Microsoft.Extensions.Localization;
 using Wpf.Ui.Controls;
-using Wpf.Ui.Extensions;
-using Wpf.Ui.Gallery.Dto.Machine;
 using Wpf.Ui.Gallery.Resources;
-using Wpf.Ui.Gallery.Services;
-using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.Views.Pages;
 using Wpf.Ui.Gallery.Views.Pages.BasicInput;
 using Wpf.Ui.Gallery.Views.Pages.Collections;
@@ -25,139 +21,19 @@ using Wpf.Ui.Gallery.Views.Pages.OpSystem;
 using Wpf.Ui.Gallery.Views.Pages.StatusAndInfo;
 using Wpf.Ui.Gallery.Views.Pages.Text;
 using Wpf.Ui.Gallery.Views.Pages.Windows;
-using Wpf.Ui.Gallery.Views.Windows;
 
 namespace Wpf.Ui.Gallery.ViewModels.Windows;
 
-//public partial class MainWindowViewModel(IStringLocalizer<Translations> localizer) : ViewModel
-
-public partial class MainWindowViewModel : ViewModel
+public partial class MainWindowViewModel(IStringLocalizer<Translations> localizer) : ViewModel
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly LoginInfoService _loginInfoService;
-    //[ObservableProperty]
-    //private string _applicationTitle = localizer["WPF UI Gallery"];
+    [ObservableProperty]
+    private string _applicationTitle = localizer["WPF UI Gallery"];
 
     [ObservableProperty]
-    private string _applicationTitle;
-
-    [ObservableProperty]
-    private string _userName = string.Empty;
-
-    [ObservableProperty] private bool _isNetworkActive = false;
-    
-    private bool _isInitialized = false;
-    private readonly INavigationService _navigationService;
-    private readonly IContentDialogService _contentDialogService;
-
-    public MainWindowViewModel(
-        IStringLocalizer<Translations> localizer,
-        IServiceProvider serviceProvider,
-        LoginInfoService loginInfoService,
-        INavigationService navigationService,
-        IContentDialogService contentDialogService
-    )
-    {
-        _serviceProvider = serviceProvider;
-        _loginInfoService = loginInfoService;
-        _navigationService = navigationService;
-        _contentDialogService = contentDialogService;
-        _applicationTitle = localizer["获取用户名称失败"];
-
-        if (_loginInfoService.CurrentLoginInfo is not null)
-        {
-            UserName = _loginInfoService.CurrentLoginInfo.UserInfo.UserName;
-        }
-    }
-
-    public async Task InitializeAsync()
-    {
-        if (_isInitialized)
-            return;
-
-        string machineUniqueId = MachineUniqueId.GetId();
-        MachineConfig machineConfig = FileHelper.ReadFromJsonFileAuto<MachineConfig>();
-
-        if (machineConfig is null)
-        {
-            PopulateNavigationItems();
-            _navigationService.Navigate(typeof(Views.Pages.DashboardPage));
-            // 暂时跳过校验 逻辑有点问题
-            // Populate with ONLY the settings item
-            /*MenuItems.Clear();
-            FooterMenuItems.Clear();
-            FooterMenuItems.Add(new NavigationViewItem()
-            {
-                Content = "Settings",
-                Icon = new SymbolIcon { Symbol = SymbolRegular.Settings24 },
-                TargetPageType = typeof(Views.Pages.SettingsPage)
-            });
-
-            // Navigate to settings and show the dialog
-            _navigationService.Navigate(typeof(Views.Pages.SettingsPage));
-
-            // 强制弹出提示框
-            var machineConfigNotExistBox = await _contentDialogService.ShowSimpleDialogAsync(
-                new SimpleContentDialogCreateOptions()
-                {
-                    Title = "软件初始化警告",
-                    Content = "机器未配置 请先配置此机器参数.",
-                    PrimaryButtonText = "前往配置机器",
-                    CloseButtonText = "退出软件",
-                }
-            );*/
-        }
-        else if(machineConfig.MachineUniqueId != machineUniqueId)
-        {
-            var machineConfigModifyBox = await _contentDialogService.ShowSimpleDialogAsync(
-                new SimpleContentDialogCreateOptions()
-                {
-                    Title = "软件初始化警告",
-                    Content = "机器有变化 请重新配置此机器参数.",
-                    PrimaryButtonText = "前往配置机器",
-                    CloseButtonText = "退出软件",
-                }
-            );
-            if (machineConfigModifyBox == ContentDialogResult.Primary)
-            {
-                // 跳到配置页面
-                _navigationService.Navigate(typeof(Views.Pages.SettingsPage));
-            }
-            else
-            {
-                // 关闭程序
-                Application.Current.Shutdown();
-            }
-        }
-        else
-        {
-            // If config is fine, populate the full menu
-            PopulateNavigationItems();
-            _navigationService.Navigate(typeof(Views.Pages.DashboardPage));
-        }
-        
-        _isInitialized = true;
-    }
-
-    public void PopulateNavigationItems()
-    {
-        MenuItems.Clear();
-        FooterMenuItems.Clear();
-
-        // MenuItems.Add(new NavigationViewItem("Home", SymbolRegular.Home24, typeof(DashboardPage)));
-        /*MenuItems.Add(new NavigationViewItem()
-        {
-            Content = "生产",
-            Icon = new SymbolIcon { Symbol = SymbolRegular.BuildingFactory32 },
-            MenuItemsSource = new object[]
-            {
-                new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)),
-                new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)),
-            },
-        });*/
-        MenuItems.Add(new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)));
-        MenuItems.Add(new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
-        MenuItems.Add(new NavigationViewItem()
+    private ObservableCollection<object> _menuItems =
+    [
+        new NavigationViewItem("Home", SymbolRegular.Home24, typeof(DashboardPage)),
+        new NavigationViewItem()
         {
             Content = "Design guidance",
             Icon = new SymbolIcon { Symbol = SymbolRegular.DesignIdeas24 },
@@ -167,10 +43,10 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem("Icons", SymbolRegular.Diversity24, typeof(IconsPage)),
                 new NavigationViewItem("Colors", SymbolRegular.Color24, typeof(ColorsPage)),
             },
-        });
-        MenuItems.Add(new NavigationViewItem("All samples", SymbolRegular.List24, typeof(AllControlsPage)));
-        MenuItems.Add(new NavigationViewItemSeparator());
-        MenuItems.Add(new NavigationViewItem("Basic Input", SymbolRegular.CheckboxChecked24, typeof(BasicInputPage))
+        },
+        new NavigationViewItem("All samples", SymbolRegular.List24, typeof(AllControlsPage)),
+        new NavigationViewItemSeparator(),
+        new NavigationViewItem("Basic Input", SymbolRegular.CheckboxChecked24, typeof(BasicInputPage))
         {
             MenuItemsSource = new object[]
             {
@@ -188,8 +64,8 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem(nameof(SplitButton), typeof(SplitButtonPage)),
                 new NavigationViewItem(nameof(Slider), typeof(SliderPage)),
             },
-        });
-        MenuItems.Add(new NavigationViewItem
+        },
+        new NavigationViewItem
         {
             Content = "Collections",
             Icon = new SymbolIcon { Symbol = SymbolRegular.Table24 },
@@ -197,8 +73,6 @@ public partial class MainWindowViewModel : ViewModel
             MenuItemsSource = new object[]
             {
                 new NavigationViewItem(nameof(System.Windows.Controls.DataGrid), typeof(DataGridPage)),
-                // 项批次菜单
-                new NavigationViewItem("Produce Batch Items",  typeof(ProduceBatchItemPage)),
                 new NavigationViewItem(nameof(ListBox), typeof(ListBoxPage)),
                 new NavigationViewItem(nameof(Ui.Controls.ListView), typeof(ListViewPage)),
                 new NavigationViewItem(nameof(TreeView), typeof(TreeViewPage)),
@@ -206,8 +80,8 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem("TreeList", typeof(TreeListPage)),
 #endif
             },
-        });
-        MenuItems.Add(new NavigationViewItem("Date & time", SymbolRegular.CalendarClock24, typeof(DateAndTimePage))
+        },
+        new NavigationViewItem("Date & time", SymbolRegular.CalendarClock24, typeof(DateAndTimePage))
         {
             MenuItemsSource = new object[]
             {
@@ -216,8 +90,8 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem(nameof(DatePicker), typeof(DatePickerPage)),
                 new NavigationViewItem(nameof(TimePicker), typeof(TimePickerPage)),
             },
-        });
-        MenuItems.Add(new NavigationViewItem("Dialogs & flyouts", SymbolRegular.Chat24, typeof(DialogsAndFlyoutsPage))
+        },
+        new NavigationViewItem("Dialogs & flyouts", SymbolRegular.Chat24, typeof(DialogsAndFlyoutsPage))
         {
             MenuItemsSource = new object[]
             {
@@ -226,9 +100,9 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem(nameof(Flyout), typeof(FlyoutPage)),
                 new NavigationViewItem(nameof(Wpf.Ui.Controls.MessageBox), typeof(MessageBoxPage)),
             },
-        });
+        },
 #if DEBUG
-        MenuItems.Add(new NavigationViewItem("Layout", SymbolRegular.News24, typeof(LayoutPage))
+        new NavigationViewItem("Layout", SymbolRegular.News24, typeof(LayoutPage))
         {
             MenuItemsSource = new object[]
             {
@@ -236,9 +110,9 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem("CardControl", typeof(CardControlPage)),
                 new NavigationViewItem("CardAction", typeof(CardActionPage)),
             },
-        });
+        },
 #endif
-        MenuItems.Add(new NavigationViewItem
+        new NavigationViewItem
         {
             Content = "Media",
             Icon = new SymbolIcon { Symbol = SymbolRegular.PlayCircle24 },
@@ -250,8 +124,8 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem("WebView", typeof(WebViewPage)),
                 new NavigationViewItem("WebBrowser", typeof(WebBrowserPage)),
             },
-        });
-        MenuItems.Add(new NavigationViewItem("Navigation", SymbolRegular.Navigation24, typeof(NavigationPage))
+        },
+        new NavigationViewItem("Navigation", SymbolRegular.Navigation24, typeof(NavigationPage))
         {
             MenuItemsSource = new object[]
             {
@@ -261,8 +135,8 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem("Multilevel navigation", typeof(MultilevelNavigationPage)),
                 new NavigationViewItem("TabControl", typeof(TabControlPage)),
             },
-        });
-        MenuItems.Add(new NavigationViewItem(
+        },
+        new NavigationViewItem(
             "Status & info",
             SymbolRegular.ChatBubblesQuestion24,
             typeof(StatusAndInfoPage)
@@ -276,8 +150,8 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem("ProgressRing", typeof(ProgressRingPage)),
                 new NavigationViewItem("ToolTip", typeof(ToolTipPage)),
             },
-        });
-        MenuItems.Add(new NavigationViewItem("Text", SymbolRegular.DrawText24, typeof(TextPage))
+        },
+        new NavigationViewItem("Text", SymbolRegular.DrawText24, typeof(TextPage))
         {
             MenuItemsSource = new object[]
             {
@@ -289,40 +163,23 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem(nameof(Wpf.Ui.Controls.TextBlock), typeof(TextBlockPage)),
                 new NavigationViewItem(nameof(Wpf.Ui.Controls.TextBox), typeof(TextBoxPage)),
             },
-        });
-        MenuItems.Add(new NavigationViewItem("System", SymbolRegular.Desktop24, typeof(OpSystemPage))
+        },
+        new NavigationViewItem("System", SymbolRegular.Desktop24, typeof(OpSystemPage))
         {
             MenuItemsSource = new object[]
             {
                 new NavigationViewItem("Clipboard", typeof(ClipboardPage)),
                 new NavigationViewItem("FilePicker", typeof(FilePickerPage)),
             },
-        });
-        MenuItems.Add(new NavigationViewItem("Windows", SymbolRegular.WindowApps24, typeof(WindowsPage)));
-
-        FooterMenuItems.Add(new NavigationViewItem("Settings", SymbolRegular.Settings24, typeof(SettingsPage)));
-    }
-
-    [RelayCommand]
-    private void Logout()
-    {
-        _loginInfoService.ClearLoginRequest();
-
-        var loginWindow = _serviceProvider.GetRequiredService<LoginWindow>();
-        loginWindow.Show();
-
-        // Close main window
-        foreach (var window in Application.Current.Windows.OfType<MainWindow>())
-        {
-            window.Close();
-        }
-    }
-    
-    [ObservableProperty]
-    private ObservableCollection<object> _menuItems = new();
+        },
+        new NavigationViewItem("Windows", SymbolRegular.WindowApps24, typeof(WindowsPage)),
+    ];
 
     [ObservableProperty]
-    private ObservableCollection<object> _footerMenuItems = new();
+    private ObservableCollection<object> _footerMenuItems =
+    [
+        new NavigationViewItem("Settings", SymbolRegular.Settings24, typeof(SettingsPage)),
+    ];
 
     [ObservableProperty]
     private ObservableCollection<Wpf.Ui.Controls.MenuItem> _trayMenuItems =
@@ -330,5 +187,4 @@ public partial class MainWindowViewModel : ViewModel
         new Wpf.Ui.Controls.MenuItem { Header = "Home", Tag = "tray_home" },
         new Wpf.Ui.Controls.MenuItem { Header = "Close", Tag = "tray_close" },
     ];
-    
 }

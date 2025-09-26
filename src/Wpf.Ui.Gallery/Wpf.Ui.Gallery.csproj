@@ -72,9 +72,6 @@
 
   <ItemGroup>
     <Folder Include="Assets\Monaco\" />
-    <Folder Include="Comparer\" />
-    <Folder Include="Dto\ApiRequest\" />
-    <Folder Include="Services\Order\" />
   </ItemGroup>
 
   <ItemGroup>

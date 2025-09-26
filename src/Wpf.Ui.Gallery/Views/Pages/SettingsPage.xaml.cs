@@ -4,7 +4,6 @@
 // All Rights Reserved.
 
 using Wpf.Ui.Controls;
-using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.ViewModels.Pages;
 
 namespace Wpf.Ui.Gallery.Views.Pages;

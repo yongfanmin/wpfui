@@ -21,8 +21,6 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ExtendsContentIntoTitleBar="True"
     SizeChanged="MainWindow_OnSizeChanged"
-    StateChanged="OnStateChanged"
-    Closing="OnClosing"
     WindowBackdropType="Mica"
     WindowCornerPreference="Default"
     WindowStartupLocation="CenterScreen"
@@ -38,13 +36,13 @@
     <Grid>
         <ui:NavigationView
             x:Name="NavigationView"
+            Padding="42,0,42,0"
             BreadcrumbBar="{Binding ElementName=BreadcrumbBar}"
             EnableDebugMessages="True"
             FooterMenuItemsSource="{Binding ViewModel.FooterMenuItems, Mode=OneWay}"
             FrameMargin="0"
             IsBackButtonVisible="Visible"
             IsPaneToggleVisible="True"
-            IsPaneOpen="False"
             MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
             OpenPaneLength="310"
             PaneClosed="NavigationView_OnPaneClosed"
@@ -55,6 +53,7 @@
             Transition="FadeInWithSlide">
             <ui:NavigationView.Header>
                 <StackPanel Margin="42,32,42,20">
+                    <ui:BreadcrumbBar x:Name="BreadcrumbBar" />
                     <controls:PageControlDocumentation Margin="0,10,0,0" NavigationView="{Binding ElementName=NavigationView}" />
                 </StackPanel>
             </ui:NavigationView.Header>
@@ -73,28 +72,28 @@
                 </Grid>
             </ui:NavigationView.ContentOverlay>
         </ui:NavigationView>
-        
+
+        <ContentPresenter x:Name="RootContentDialog" Grid.Row="0" />
+
         <ui:TitleBar
             x:Name="TitleBar"
+            Title="{Binding ViewModel.ApplicationTitle}"
             Grid.Row="0"
-            CloseWindowByDoubleClickOnIcon="True"
-            ShowClose="True"
-            ShowMinimize="True"
-            ShowMaximize="True"
-        ><!--Title="{Binding ViewModel.ApplicationTitle}"-->
-            <ui:TitleBar.Header>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock
-                        Margin="0,0,8,0"
-                        VerticalAlignment="Center"
-                        Text="{Binding ViewModel.UserName}" />
-                </StackPanel>
-            </ui:TitleBar.Header>
+            CloseWindowByDoubleClickOnIcon="True">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon Source="pack://application:,,,/Assets/wpfui.png" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
-        <ContentPresenter x:Name="RootContentDialog" Grid.Row="0" />
-        
+
+        <tray:NotifyIcon
+            Grid.Row="0"
+            FocusOnLeftClick="True"
+            Icon="pack://application:,,,/Assets/wpfui.png"
+            MenuOnRightClick="True"
+            TooltipText="WPF UI Gallery">
+            <tray:NotifyIcon.Menu>
+                <ContextMenu ItemsSource="{Binding ViewModel.TrayMenuItems, Mode=OneWay}" />
+            </tray:NotifyIcon.Menu>
+        </tray:NotifyIcon>
     </Grid>
 </ui:FluentWindow>
