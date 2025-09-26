@@ -4,14 +4,20 @@
 // All Rights Reserved.
 
 using Lepo.i18n.DependencyInjection;
+using Refit;
 using Wpf.Ui.DependencyInjection;
+using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.DependencyModel;
+using Wpf.Ui.Gallery.Handlers;
+using Wpf.Ui.Gallery.ImageProcessor;
 using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Resources;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Contracts;
+using Wpf.Ui.Gallery.Services.Creator;
 using Wpf.Ui.Gallery.Services.Database;
+using Wpf.Ui.Gallery.Services.Downloader;
 using Wpf.Ui.Gallery.ViewModels.Pages;
 using Wpf.Ui.Gallery.ViewModels.Windows;
 using Wpf.Ui.Gallery.Views.Pages;
@@ -26,6 +32,9 @@ public partial class App
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
     // https://docs.microsoft.com/dotnet/core/extensions/configuration
     // https://docs.microsoft.com/dotnet/core/extensions/logging
+    
+    private static readonly string _domain = "http://factory.sds-diy.xyz";
+    
     private static readonly IHost _host = Host.CreateDefaultBuilder()
         .ConfigureAppConfiguration(c =>
         {
@@ -49,6 +58,11 @@ public partial class App
                 // Login 登录窗口
                 _ = services.AddSingleton<LoginWindow>();
                 _ = services.AddSingleton<LoginWindowViewModel>();
+                _ = services.AddSingleton<ProduceBatchItemPage>();
+                _ = services.AddSingleton<ProduceBatchItemViewModel>();
+
+                _ = services.AddSingleton<SettingsPage>();
+                _ = services.AddSingleton<SettingsViewModel>();
                 // Top-level pages
                 _ = services.AddSingleton<DashboardPage>();
                 _ = services.AddSingleton<DashboardViewModel>();
@@ -56,6 +70,18 @@ public partial class App
                 _ = services.AddSingleton<AllControlsViewModel>();
                 _ = services.AddSingleton<SettingsPage>();
                 _ = services.AddSingleton<SettingsViewModel>();
+                
+                
+                // 图片下载
+                _ = services.AddSingleton<IImageDownloader, ImageDownloader>();
+
+                // 图片创建
+                _ = services.AddSingleton<IImageCreator, ImageCreator>();
+
+                // 生产图处理
+                _ = services.AddSingleton<IProduceImageProcessor, ProduceImageProcessor>();
+
+                _ = services.AddSingleton<IDatabaseService, DatabaseService>();
 
                 // All other pages and view models
                 _ = services.AddTransientFromNamespace("Wpf.Ui.Gallery.Views", GalleryAssembly.Asssembly);
@@ -68,6 +94,42 @@ public partial class App
                 {
                     b.FromResource<Translations>(new("pl-PL"));
                 });
+                
+                _ = services
+                    .AddRefitClient<ILoginApi>()
+                    .ConfigureHttpClient(c =>
+                    {
+                        //接口域名 接口地址 登录接口
+                        c.BaseAddress = new Uri(_domain);
+                    });
+                _ = services
+                    .AddRefitClient<ILayoutApi>()
+                    .ConfigureHttpClient(c =>
+                    {
+                        //接口域名 接口地址 排版接口
+                        c.BaseAddress = new Uri(_domain);
+                    });
+                _ = services
+                    .AddRefitClient<IProduceBatchApi>()
+                    .ConfigureHttpClient(c =>
+                    {
+                        //接口域名 接口地址 生产批次接口
+                        c.BaseAddress = new Uri(_domain);
+                    }).AddHttpMessageHandler<NetworkActivityHandler>();
+                _ = services
+                    .AddRefitClient<IProduceBatchInfoApi>()
+                    .ConfigureHttpClient(c =>
+                    {
+                        //接口域名 接口地址 生产批次信息接口
+                        c.BaseAddress = new Uri(_domain);
+                    }).AddHttpMessageHandler<NetworkActivityHandler>();
+                _ = services
+                    .AddRefitClient<IProduceBatchDetailApi>()
+                    .ConfigureHttpClient(c =>
+                    {
+                        //接口域名 接口地址 生产批次详情接口
+                        c.BaseAddress = new Uri(_domain);
+                    }).AddHttpMessageHandler<NetworkActivityHandler>();
             }
         )
         .Build();
