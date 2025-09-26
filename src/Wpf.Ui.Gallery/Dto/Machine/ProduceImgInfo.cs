@@ -28,4 +28,6 @@ public class ProduceImgInfo
     
     // 保存本地所需的信息 保存目录 名称 ...
     public SaveLocalInfo SaveLocalInfo { get; set; }
+    
+    public QrCode QrCode { get; set; }
 }

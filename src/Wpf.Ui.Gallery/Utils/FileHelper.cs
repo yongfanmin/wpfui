@@ -4,11 +4,13 @@
 // All Rights Reserved.
 
 using System.Net.Http;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.Machine;
 using Wpf.Ui.Gallery.LocalConfig;
+using System.IO;
 
 namespace Wpf.Ui.Gallery.Utils;
 
@@ -17,7 +19,12 @@ public static class FileHelper
     // <summary>
     /// 配置JSON序列化器的选项，使其生成的JSON字符串带缩进，更易于阅读。
     /// </summary>
-    private static readonly JsonSerializerOptions _options = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _options = new()
+    {
+        WriteIndented = true,
+        // 2. 设置编码器，以防止中文字符被转义成unicode
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping 
+    };
 
     #region 同步方法 (Synchronous Methods)
 
@@ -201,5 +208,89 @@ public static class FileHelper
         {
             throw new Exception($"Failed to read from file '{filePath}'.", ex);
         }
-    } 
+    }
+    
+     public static void CopyFile(string sourceFilePath, string destinationFilePath)
+        {
+            // --- 1. 参数校验 ---
+            if (string.IsNullOrWhiteSpace(sourceFilePath))
+            {
+                throw new ArgumentException("Source file path cannot be null or empty.", nameof(sourceFilePath));
+            }
+            if (string.IsNullOrWhiteSpace(destinationFilePath))
+            {
+                throw new ArgumentException("Destination file path cannot be null or empty.", nameof(destinationFilePath));
+            }
+            if (!File.Exists(sourceFilePath))
+            {
+                throw new FileNotFoundException("The source file was not found.", sourceFilePath);
+            }
+
+            try
+            {
+                // --- 2. [核心] 确保目标目录存在 ---
+                string? destinationDirectory = Path.GetDirectoryName(destinationFilePath);
+                if (!string.IsNullOrEmpty(destinationDirectory))
+                {
+                    Directory.CreateDirectory(destinationDirectory);
+                }
+
+                // --- 3. [核心] 执行文件复制 ---
+                // File.Copy 的第三个参数 `overwrite` 设置为 true，
+                // 即可实现“如果目标文件存在则覆盖”的功能。
+                File.Copy(sourceFilePath, destinationFilePath, true);
+            }
+            catch (Exception ex)
+            {
+                // 封装异常，提供更多上下文信息
+                throw new Exception($"Failed to copy file from '{sourceFilePath}' to '{destinationFilePath}'.", ex);
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously copies an existing file to a new file, overwriting the destination file if it already exists.
+        /// </summary>
+        public static async Task CopyFileAsync(string sourceFilePath, string destinationFilePath)
+        {
+            // --- 异步版本的实现 ---
+            if (string.IsNullOrWhiteSpace(sourceFilePath))
+            {
+                throw new ArgumentException("Source file path cannot be null or empty.", nameof(sourceFilePath));
+            }
+            if (string.IsNullOrWhiteSpace(destinationFilePath))
+            {
+                throw new ArgumentException("Destination file path cannot be null or empty.", nameof(destinationFilePath));
+            }
+            if (!File.Exists(sourceFilePath))
+            {
+                throw new FileNotFoundException("The source file was not found.", sourceFilePath);
+            }
+
+            try
+            {
+                string? destinationDirectory = Path.GetDirectoryName(destinationFilePath);
+                if (!string.IsNullOrEmpty(destinationDirectory))
+                {
+                    Directory.CreateDirectory(destinationDirectory);
+                }
+
+                // .NET 6+ 提供了 File.CopyAsync 但是不知道为什么我使用了 .NET9 却没有这份方法 暂时不处理
+                // #if NET6_0_OR_GREATER
+                // await File.CopyAsync(sourceFilePath, destinationFilePath, true);
+                // #else
+                // 对于旧版.NET，我们可以用流来模拟异步复制
+                await using (FileStream sourceStream = File.Open(sourceFilePath, FileMode.Open, FileAccess.Read))
+                {
+                    await using (FileStream destinationStream = File.Create(destinationFilePath))
+                    {
+                        await sourceStream.CopyToAsync(destinationStream);
+                    }
+                }
+                // #endif
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to copy file from '{sourceFilePath}' to '{destinationFilePath}' asynchronously.", ex);
+            }
+        }
 }

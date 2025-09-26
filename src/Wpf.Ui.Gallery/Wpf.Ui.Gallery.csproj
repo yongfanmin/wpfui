@@ -32,6 +32,7 @@
     <PackageReference Include="Refit.HttpClientFactory" />
     <PackageReference Include="ReflectionEventing" />
     <PackageReference Include="ReflectionEventing.DependencyInjection" />
+    <PackageReference Include="ZXing.Net" />
   </ItemGroup>
 
   <ItemGroup>
@@ -71,11 +72,14 @@
 
   <ItemGroup>
     <Folder Include="Assets\Monaco\" />
+    <Folder Include="Comparer\" />
     <Folder Include="Dto\ApiRequest\" />
     <Folder Include="Services\Order\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="sqlite-net-pcl" />
+    <PackageReference Include="sqlite-net-sqlcipher" />
     <PackageReference Include="StyleCop.Analyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

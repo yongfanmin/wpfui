@@ -24,14 +24,30 @@ public class ProduceBatchRequest
     //public string? MachineId { get; set; }
 }
 
+
+public class BatchNo2Produce
+{
+    [JsonPropertyName("batchNo")]
+    public string BatchNo { get; set; }
+}
+
 public interface IProduceBatchApi
 {
     [Post("/api/factoryInterface/getProduceList")]
-    Task<FactoryApiResponse<List<ProduceBatchItem>>> getProduceBatchList(
+    Task<FactoryApiResponse<List<ProduceBatchInfo>>> getProduceBatchList(
         [Body] ProduceBatchRequest request,
         // TODO 接口端使用非标准鉴权方式
         [Header("Token")] string token,
         // TODO 非标准写法
         [Header("machineid")] string machineid
         );
+    
+    [Post("/api/factoryInterface/setOrderProduceBatchNoCreating")]
+    Task<FactoryApiResponse<Object>> setBatchNo2Produce(
+        [Body] BatchNo2Produce request,
+        // TODO 接口端使用非标准鉴权方式
+        [Header("Token")] string token,
+        // TODO 非标准写法
+        [Header("machineid")] string machineid
+    );
 }

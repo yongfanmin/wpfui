@@ -21,7 +21,7 @@ public class ProduceBatchDetailRequest
 public interface IProduceBatchDetailApi
 {
     [Post("/api/factoryInterface/getOrderProduceInfoByBatchNo")]
-    Task<FactoryApiResponse<List<OrderPrintBatch>>> getProduceBatchDetail(
+    Task<FactoryApiResponse<List<ProduceBatchItemDetail>>> getProduceBatchDetail(
         [Body] ProduceBatchDetailRequest request,
         // TODO 接口端使用非标准鉴权方式
         [Header("Token")] string token,

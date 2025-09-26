@@ -22,6 +22,7 @@
     ExtendsContentIntoTitleBar="True"
     SizeChanged="MainWindow_OnSizeChanged"
     StateChanged="OnStateChanged"
+    Closing="OnClosing"
     WindowBackdropType="Mica"
     WindowCornerPreference="Default"
     WindowStartupLocation="CenterScreen"
@@ -37,13 +38,13 @@
     <Grid>
         <ui:NavigationView
             x:Name="NavigationView"
-            Padding="42,0,42,0"
             BreadcrumbBar="{Binding ElementName=BreadcrumbBar}"
             EnableDebugMessages="True"
             FooterMenuItemsSource="{Binding ViewModel.FooterMenuItems, Mode=OneWay}"
             FrameMargin="0"
             IsBackButtonVisible="Visible"
             IsPaneToggleVisible="True"
+            IsPaneOpen="False"
             MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
             OpenPaneLength="310"
             PaneClosed="NavigationView_OnPaneClosed"
@@ -72,8 +73,6 @@
                 </Grid>
             </ui:NavigationView.ContentOverlay>
         </ui:NavigationView>
-
-        <ContentPresenter x:Name="RootContentDialog" Grid.Row="0" />
         
         <ui:TitleBar
             x:Name="TitleBar"
@@ -95,18 +94,7 @@
                 <ui:ImageIcon Source="pack://application:,,,/Assets/wpfui.png" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
-
-        <!--<tray:NotifyIcon
-            x:Name="NotifyIcon"
-            Grid.Row="0"
-            FocusOnLeftClick="True"
-            Icon="pack://application:,,,/Assets/wpfui.png"
-            LeftClick="NotifyIcon_OnLeftClick"
-            MenuOnRightClick="True"
-            TooltipText="{Binding}">
-            <tray:NotifyIcon.Menu>
-                <ContextMenu ItemsSource="{Binding ViewModel.TrayMenuItems, Mode=OneWay}" />
-            </tray:NotifyIcon.Menu>
-        </tray:NotifyIcon>-->
+        <ContentPresenter x:Name="RootContentDialog" Grid.Row="0" />
+        
     </Grid>
 </ui:FluentWindow>

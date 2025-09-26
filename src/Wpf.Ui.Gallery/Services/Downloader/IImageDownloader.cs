@@ -15,4 +15,10 @@ public interface IImageDownloader
         string directoryPath,
         string fileName,
         CancellationToken cancellationToken = default);
+    
+    LocalImgInfo? DownloadImage(
+        string imageUrl,
+        string directoryPath,
+        string fileName,
+        CancellationToken cancellationToken = default);
 }

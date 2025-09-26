@@ -5,6 +5,7 @@
 
 using NetVips;
 using Wpf.Ui.Gallery.Constant;
+using Wpf.Ui.Gallery.Converters;
 using Wpf.Ui.Gallery.Utils;
 
 namespace Wpf.Ui.Gallery.Services.Creator;
@@ -97,25 +98,25 @@ public class ImageCreator : IImageCreator
         switch (format)
         {
             case ImgSupportFormat.Jpeg:
-                fullPath = filePathWithoutExtension + ".jpg";
+                fullPath = filePathWithoutExtension + ImgFormat2Extend.GetExtend(format);
                 // strip 移除EXIF信息 无法这样写
                 //image.Jpegsave(fullPath, q: 95, strip: true, optimizeCoding: true);
                 image.Jpegsave(fullPath, q: 95, optimizeCoding: true);
                 break;
 
             case ImgSupportFormat.Png:
-                fullPath = filePathWithoutExtension + ".png";
+                fullPath = filePathWithoutExtension + ImgFormat2Extend.GetExtend(format);
                 // image.Pngsave(fullPath, compression: 6, interlace: false, filter: Enums.PngFilter.All);
                 image.Pngsave(fullPath, compression: 6, interlace: false, filter: Enums.ForeignPngFilter.All);
                 break;
 
             case ImgSupportFormat.Tiff:
-                fullPath = filePathWithoutExtension + ".tif";
+                fullPath = filePathWithoutExtension + ImgFormat2Extend.GetExtend(format);
                 image.Tiffsave(fullPath, compression: Enums.ForeignTiffCompression.Lzw, tile: true, pyramid: true);
                 break;
 
             case ImgSupportFormat.Webp:
-                fullPath = filePathWithoutExtension + ".webp";
+                fullPath = filePathWithoutExtension + ImgFormat2Extend.GetExtend(format);
                 // lossless: 无损压缩, q: 质量 (有损时)
                 image.Webpsave(fullPath, lossless: true);
                 break;

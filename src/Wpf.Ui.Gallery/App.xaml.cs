@@ -6,8 +6,10 @@
 using System.Net.Http;
 using Lepo.i18n.DependencyInjection;
 using Refit;
+using Wpf.Ui.Controls;
 using Wpf.Ui.DependencyInjection;
 using Wpf.Ui.Gallery.Apis;
+using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.DependencyModel;
 using Wpf.Ui.Gallery.Handlers;
 using Wpf.Ui.Gallery.ImageProcessor;
@@ -16,6 +18,7 @@ using Wpf.Ui.Gallery.Resources;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Contracts;
 using Wpf.Ui.Gallery.Services.Creator;
+using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Services.Downloader;
 using Wpf.Ui.Gallery.ViewModels.Pages;
 using Wpf.Ui.Gallery.ViewModels.Pages.BasicInput;
@@ -54,7 +57,7 @@ public partial class App
                 // 1. 确保 HttpClient 已经被注册 (作为单例是最佳实践)
                 _ = services.AddSingleton<HttpClient>();
                 // Main window container with navigation
-                _ = services.AddSingleton<IWindow, MainWindow>();
+                _ = services.AddSingleton<FluentWindow, MainWindow>();
                 _ = services.AddSingleton<MainWindowViewModel>();
                 _ = services.AddSingleton<INavigationService, NavigationService>();
                 _ = services.AddSingleton<ISnackbarService, SnackbarService>();
@@ -76,9 +79,12 @@ public partial class App
                 // Top-level pages
                 _ = services.AddSingleton<IconsPage>();
                 _ = services.AddSingleton<IconsViewModel>();
-                
+
                 _ = services.AddSingleton<DashboardPage>();
                 _ = services.AddSingleton<DashboardViewModel>();
+
+                _ = services.AddSingleton<ProduceBatchItemPage>();
+                _ = services.AddSingleton<ProduceBatchItemViewModel>();
 
                 _ = services.AddSingleton<AllControlsPage>();
                 _ = services.AddSingleton<AllControlsViewModel>();
@@ -120,6 +126,8 @@ public partial class App
                 // 生产图处理
                 _ = services.AddSingleton<IProduceImageProcessor, ProduceImageProcessor>();
 
+                _ = services.AddSingleton<IDatabaseService, DatabaseService>();
+
                 // All other pages and view models
                 /*_ = services.AddTransientFromNamespace("Wpf.Ui.Gallery.Views", GalleryAssembly.Asssembly);
                 _ = services.AddTransientFromNamespace(
@@ -137,6 +145,13 @@ public partial class App
                     .ConfigureHttpClient(c =>
                     {
                         //接口域名 接口地址 登录接口
+                        c.BaseAddress = new Uri(_domain);
+                    });
+                _ = services
+                    .AddRefitClient<ILayoutApi>()
+                    .ConfigureHttpClient(c =>
+                    {
+                        //接口域名 接口地址 排版接口
                         c.BaseAddress = new Uri(_domain);
                     });
                 _ = services
@@ -176,7 +191,7 @@ public partial class App
     }
 
     /// <summary>
-    /// Occurs when the application is loading.
+    /// 启动 初始化 启动后事件
     /// </summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
@@ -188,6 +203,8 @@ public partial class App
         //程序启动 进入程序 开启程序 打开软件
         //_host.Start();
 
+        initDatabase();
+        
         _host.StartAsync();
 
         //var loginWindow = GetRequiredService<LoginWindow>();
@@ -195,6 +212,9 @@ public partial class App
         var loginWindow = GetRequiredService<LoginWindow>();
         // 弹出登录窗口
         loginWindow.Show();
+        
+        //初始化线程池
+        ThreadPoolConfig.Initialize();
     }
 
     /// <summary>
@@ -213,5 +233,11 @@ public partial class App
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         // For more info see https://docs.microsoft.com/en-us/dotnet/api/system.windows.application.dispatcherunhandledexception?view=windowsdesktop-6.0
+    }
+
+    private void initDatabase()
+    {
+        IDatabaseService databaseService = GetRequiredService<IDatabaseService>();
+        databaseService.InitializeDatabase();
     }
 }

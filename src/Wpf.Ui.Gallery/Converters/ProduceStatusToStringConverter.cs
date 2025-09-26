@@ -22,10 +22,10 @@ public class ProduceStatusToStringConverter : IValueConverter
             int intValue = convertibleValue.ToInt32(CultureInfo.InvariantCulture);
 
             // 2. 检查这个整数值是否是 ProduceBatchStatus 枚举的一个有效成员
-            if (Enum.IsDefined(typeof(OrderProduceStatus), intValue))
+            if (Enum.IsDefined(typeof(ProduceBatchStatus), intValue))
             {
                 // 3. 如果是，先将其转换为枚举类型
-                OrderProduceStatus status = (OrderProduceStatus)intValue;
+                ProduceBatchStatus status = (ProduceBatchStatus)intValue;
                     
                 // 4. 然后，获取该枚举成员的名称字符串 (即中文名称)
                 return status.ToString();
@@ -39,6 +39,38 @@ public class ProduceStatusToStringConverter : IValueConverter
             // 如果转换整数失败
             return "无效状态";
         }
+    }
+
+    public static ProduceBatchStatus Convert(object value)
+    {
+        // 1. 检查输入值是否可以被转换为 int
+        if (value is not IConvertible convertibleValue)
+        {
+            Console.WriteLine($"无法格式化的批次状态{value}");
+            return ProduceBatchStatus.等待生产数据;
+        }
+            
+        try
+        {
+            int intValue = convertibleValue.ToInt32(CultureInfo.InvariantCulture);
+
+            // 2. 检查这个整数值是否是 ProduceBatchStatus 枚举的一个有效成员
+            if (Enum.IsDefined(typeof(ProduceBatchStatus), intValue))
+            {
+                // 3. 如果是，先将其转换为枚举类型
+                return (ProduceBatchStatus)intValue;
+            }
+                
+            // 5. 如果整数值在枚举中未定义（例如，后端返回了一个新的状态码5）
+            Console.WriteLine($"无法格式化的批次状态 未知代码{intValue}");
+        }
+        catch (Exception)
+        {
+            // 如果转换整数失败
+            Console.WriteLine($"无法格式化的批次状态{value}");
+        }
+
+        return ProduceBatchStatus.等待生产数据;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

@@ -23,7 +23,7 @@ public class MachineConfig
     }*/
     public List<ManufacturerProcess> ManufacturerProcessList { get; set; }
     // 布料打印宽度 单位毫米 一般宽度固定 长度根据面料卷长度而定
-    public int PrintWidthMm { get; set; }
+    public decimal PrintWidthMm { get; set; }
     // 打印分辨率
     public int Dpi { get; set; }
     // 打印机支持的图片格式 多选框

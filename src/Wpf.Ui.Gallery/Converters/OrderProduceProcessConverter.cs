@@ -22,10 +22,10 @@ public class OrderProduceProcessConverter : IValueConverter
             int intValue = convertibleValue.ToInt32(CultureInfo.InvariantCulture);
 
             // 2. 检查这个整数值是否是 OrderProduceProcess 枚举的一个有效成员
-            if (Enum.IsDefined(typeof(OrderProduceProcess), intValue))
+            if (Enum.IsDefined(typeof(ProduceBatchItemProcess), intValue))
             {
                 // 3. 如果是，先将其转换为枚举类型
-                OrderProduceProcess status = (OrderProduceProcess)intValue;
+                ProduceBatchItemProcess status = (ProduceBatchItemProcess)intValue;
                     
                 // 4. 然后，获取该枚举成员的名称字符串 (即中文名称)
                 return status.ToString();

@@ -9,5 +9,5 @@ namespace Wpf.Ui.Gallery.ImageProcessor;
 
 public interface IProduceImageProcessor
 {
-    public Task<List<ProductionTask>> processProductionTask(List<ProductionTask> productionTasks);
+    public ProduceBatchTaskResult ProcessProductionTask(UniqueBatchItem uniqueBatchItem);
 }

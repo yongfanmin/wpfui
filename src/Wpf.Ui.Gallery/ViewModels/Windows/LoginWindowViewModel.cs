@@ -83,7 +83,7 @@ public partial class LoginWindowViewModel : ObservableObject
                     _loginInfoService.ClearLoginRequest();
                 }
                 _loginInfoService.SetSessionOnly(response.Data);
-                var mainWindow = _serviceProvider.GetRequiredService<IWindow>();
+                var mainWindow = _serviceProvider.GetRequiredService<FluentWindow>();
                 mainWindow.Show();
                 // 关闭登录弹窗
                 Application.Current.Windows.OfType<LoginWindow>().FirstOrDefault()?.Close();
@@ -111,6 +111,7 @@ public partial class LoginWindowViewModel : ObservableObject
         }
         catch (Exception e)
         {
+            Console.WriteLine(e);
             IsLoading = false;
             var messageBox = new Wpf.Ui.Controls.MessageBox
             {

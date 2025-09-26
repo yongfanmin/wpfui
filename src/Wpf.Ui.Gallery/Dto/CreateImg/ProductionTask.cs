@@ -4,16 +4,16 @@
 // All Rights Reserved.
 
 using Wpf.Ui.Gallery.Constant;
+using Wpf.Ui.Gallery.Dto.FormatAdapter;
 
 namespace Wpf.Ui.Gallery.Dto.CreateImg;
 
 // 生产任务 (一个裁片+多印花图 = 一个生产任务)
 public class ProductionTask
 {
-    
     public RenderType RenderType { get; set; }
     
-    public string PatternPieceTitle { get; set; }
+    public string? PatternPieceTitle { get; set; }
     public int FactoryId { get; set; }
     /// <summary>
     /// 任务的唯一标识，例如 "S2508...-后片"
@@ -23,11 +23,24 @@ public class ProductionTask
     //公版id
     public long DesignProductId { get; set; }
     
+    public OrderAttributes OrderAttributes { get; set; }
+    
+    public string ProductName { get; set; }
+    
     //单号
     public string OrderNo { get; set; }
     
+    // 生产批次号
+    public string ProduceBatchNum { get; set; }
+    
+    // 工位批次号
+    public long BatchNum { get; set; }
+    
     //裁片序号
     public int ViewId { get; set; }
+    
+    //打印面名称/裁片名称
+    public string ViewName { get; set; }
 
     /// <summary>
     /// 裁片模板图的URL
@@ -59,4 +72,10 @@ public class ProductionTask
     /// 此裁片上所有的印花图层
     /// </summary>
     public List<PrintLayerInfo> PrintLayers { get; set; }
+ 
+    // 切花裁切类型
+    public PrintCropType PrintCropType { get; set; }
+    
+    // 印花裁剪区域
+    public PrintCropArea PrintCropArea { get; set; }
 }

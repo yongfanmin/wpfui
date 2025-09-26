@@ -7,13 +7,6 @@ namespace Wpf.Ui.Gallery.Config;
 
 public class FileName
 {
-    
-    
-    
-    
-    
-    
-
     // 公版裁片图 本地保存的路径
     public static string getPatternPieceImgPath(int factoryId, long designProductId)
     {
@@ -48,31 +41,36 @@ public class FileName
                Path.DirectorySeparatorChar;
     }
 
-    // 订单的公版裁片图对应的印花图 本地保存的路径
-    public static string getOrderPatternPrintImgPath(string orderNo, int factoryId, long galleryId)
+    // 订单的公版裁片图对应的印花图 本地保存的路径 (工位批次才是唯一的, 一个商户单有多个子订单, 商户单单号不是唯一值, 子订单对应的工位批次号才是唯一的)
+    public static string getOrderPatternPrintImgPath(long batchNo, int factoryId, long galleryId)
     {
         // Cache/[工厂]/Order/Pattern-piece/图库id/ [印花图]
         return AppContext.BaseDirectory + "Cache" +
                Path.DirectorySeparatorChar + "Factory-" + factoryId +
-               Path.DirectorySeparatorChar + "Order-" + orderNo +
+               Path.DirectorySeparatorChar + "Order-batch-" + batchNo +
                Path.DirectorySeparatorChar + "Pattern-print" +
                //Path.DirectorySeparatorChar + "Print-img-" + galleryId +
                Path.DirectorySeparatorChar;
     }
-    
+
     // 订单的公版裁片图对应的印花图  缩略图 本地保存的路径
-    public static string getOrderPatternPrintImgThumbPath(string orderNo, int factoryId, long galleryId)
+    public static string getOrderPatternPrintImgThumbPath(long batchNo, int factoryId, long galleryId)
     {
         // Cache/[工厂]/Order/Pattern-piece/图库id/ [印花图]
         return AppContext.BaseDirectory + "Cache" +
                Path.DirectorySeparatorChar + "Factory-" + factoryId +
-               Path.DirectorySeparatorChar + "Order-" + orderNo +
+               Path.DirectorySeparatorChar + "Order-batch-" + batchNo +
                Path.DirectorySeparatorChar + "Pattern-print-thumb" +
                //Path.DirectorySeparatorChar + "Print-img-" + galleryId +
                Path.DirectorySeparatorChar;
     }
 
-    public static string ProduceImgLayoutName = "ProduceImgLayout";
+    public static readonly string ProduceImgLayoutName = "ProduceImgLayout";
 
 
+    public static readonly string DefaultPrintedPatternFilePath =
+        AppContext.BaseDirectory + "Cache" + Path.DirectorySeparatorChar + ProduceImgLayoutName + Path.DirectorySeparatorChar;
+    
+    public static readonly string DatabaseFilePath = AppContext.BaseDirectory + "Database" + Path.DirectorySeparatorChar;
+    public static readonly string DatabaseFileName = "Local.db";
 }

@@ -66,6 +66,8 @@
                 Width="200"
                 Margin="0,12,0,0"
                 Appearance="Primary"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
                 Command="{Binding LoginCommand}"
                 Content="登录" />
         </StackPanel>

@@ -40,7 +40,7 @@ public static class ImageHelper
             throw new ArgumentException("目标DPI必须为正数。", nameof(targetDpi));
 
         // --- Step 1: 计算目标物理尺寸在目标DPI下需要多少像素 ---
-        
+
         // 1a. 将目标的毫米宽度转换为英寸
         double targetWidthInches = decimal.ToDouble(targetMillimeterWidth) / MillimetersPerInch;
 
@@ -52,7 +52,7 @@ public static class ImageHelper
         double scaleFactor = requiredPixelsDouble / currentPixelWidth;
         return scaleFactor;
     }
-    
+
     /// <summary>
     /// 将给定的物理长度（毫米）和分辨率（DPI）转换为像素数量。
     /// </summary>
@@ -82,5 +82,66 @@ public static class ImageHelper
         // 3. 将结果四舍五入为最接近的整数并返回
         //    因为像素不能是小数
         return (int)Math.Round(pixels);
+    }
+
+    // 计算矩形的外接圆的外接矩形的宽高 (用于平铺渲染 预先渲染一个最大图 避免平铺图进行旋转的时候部分底版缺少印花图虚渲染)
+    public static (double Width, double Height) getTileSafeBackgroundSize(
+        double backgroundWidth,
+        double backgroundHeight,
+        double imgWidth,
+        double imgHeight
+    )
+    {
+        // 因为图片需要进行偏移量位移对位, 偏移量最大校正值等于图片的宽高, 所以需要加上图片的宽高两倍(移动到裁片四个角顶点上 印花图外溢的情况)才是安全值
+        backgroundWidth = (backgroundWidth + (imgWidth * 2));
+        backgroundHeight = (backgroundHeight + (imgHeight * 2));
+        // 参数校验，确保输入的宽高是有效的
+        if (backgroundWidth < 0 || backgroundHeight < 0)
+        {
+            throw new ArgumentException("Width and height must be non-negative.");
+        }
+
+        // 1. 使用勾股定理计算对角线的平方
+        //    为了避免不必要的中间变量，我们可以直接计算
+        double diagonalSquared = (backgroundWidth * backgroundWidth) + (backgroundHeight * backgroundHeight);
+
+        // 2. 计算平方根，得到对角线长度
+        double diagonalLength = Math.Sqrt(diagonalSquared);
+
+        // 3. 对角线的长度就是最终正方形的边长
+        //    返回一个元组(tuple)，清晰地表示宽度和高度
+        return (diagonalLength, diagonalLength);
+    }
+    
+    
+    // 图片居中裁剪保留
+    public static Image CropFromCenter(Image sourceImage, int cropWidth, int cropHeight)
+    {
+        // --- 1. 参数校验 ---
+        if (sourceImage == null)
+        {
+            throw new ArgumentNullException(nameof(sourceImage));
+        }
+
+        if (cropWidth <= 0 || cropHeight <= 0)
+        {
+            throw new ArgumentException("Crop dimensions must be positive.");
+        }
+            
+        // 确保裁剪尺寸不超过原始图像尺寸
+        if (cropWidth > sourceImage.Width || cropHeight > sourceImage.Height)
+        {
+            throw new ArgumentException("Crop dimensions cannot be larger than the source image.");
+        }
+
+        // --- 2. 计算居中位置的左上角坐标 ---
+        int left = (sourceImage.Width - cropWidth) / 2;
+        int top = (sourceImage.Height - cropHeight) / 2;
+
+        // --- 3. 执行裁剪操作 ---
+        // .Crop() 方法会返回一个新的 Image 对象
+        Image croppedImage = sourceImage.Crop(left, top, cropWidth, cropHeight);
+
+        return croppedImage;
     }
 }

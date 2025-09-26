@@ -12,33 +12,34 @@ namespace Wpf.Ui.Gallery.Dto.CreateImg;
 /// </summary>
 public class PrintLayerInfo
 {
-    
     // 设计图 印花图对应的图库id
     public long GalleryId { get; set; }
+
     /// <summary>
     /// 印花图的URL
     /// </summary>
     public string DesignImageUrl { get; set; }
-    
+
     // 印花图片下载到本地地址
     public LocalImgInfo DesignImageLocalImg { get; set; }
-    
+
     /// <summary>
     /// 印花图在设计器画布上的物理尺寸（毫米）
     /// </summary>
     public RealSize DesignImageSizeMm { get; set; }
 
     // --- 变换信息 ---
-    
+
     /// <summary>
-    /// X轴方向的缩放比例
+    /// X轴方向的缩放比例  TODO 没用到此参数
     /// </summary>
     public decimal ScaleX { get; set; }
 
     /// <summary>
-    /// Y轴方向的缩放比例
+    /// Y轴方向的缩放比例  TODO 没用到此参数
     /// </summary>
     public decimal ScaleY { get; set; }
+
     // 左上角基准点
     /// <summary>
     /// 在设计器画布上的水平位移（像素或其他坐标单位，取决于transform的上下文）
@@ -49,12 +50,20 @@ public class PrintLayerInfo
     /// 在设计器画布上的垂直位移（像素或其他坐标单位）
     /// </summary>
     public decimal TranslateY { get; set; }
-    
+
     /// <summary>
     /// 旋转角度（度）
     /// </summary>
     public decimal Rotation { get; set; }
     
+    public bool XFlip { get; set; } // 水平翻转
+    
+    public bool YFlip { get; set; } // 垂直翻转
+    
+    
     // 打印层级 目前是跟裁片序号一致 2025-8-19
     public int ZIndex { get; set; }
+
+    // 工具栏-平铺
+    public TileTool TileTool { get; set; }
 }
