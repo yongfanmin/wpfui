@@ -12,6 +12,9 @@ namespace Wpf.Ui.Gallery.Views.Windows;
 
 public partial class MainWindow : IWindow
 {
+    private readonly IServiceProvider _serviceProvider;
+    private readonly INavigationService _navigationService;
+
     public MainWindow(
         MainWindowViewModel viewModel,
         INavigationService navigationService,
@@ -20,6 +23,11 @@ public partial class MainWindow : IWindow
         IContentDialogService contentDialogService
     )
     {
+        _serviceProvider = serviceProvider;
+        _navigationService = navigationService;
+
+        Visibility = Visibility.Hidden;
+
         Appearance.SystemThemeWatcher.Watch(this);
 
         ViewModel = viewModel;
@@ -30,9 +38,27 @@ public partial class MainWindow : IWindow
         snackbarService.SetSnackbarPresenter(SnackbarPresenter);
         navigationService.SetNavigationControl(NavigationView);
         contentDialogService.SetDialogHost(RootContentDialog);
+
+        Loaded += OnLoaded;
     }
 
     public MainWindowViewModel ViewModel { get; }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        var loginWindow = _serviceProvider.GetRequiredService<LoginWindow>();
+        var result = loginWindow.ShowDialog();
+
+        if (result is not true)
+        {
+            Close();
+            return;
+        }
+
+        Visibility = Visibility.Visible;
+
+        _navigationService.Navigate(typeof(DashboardPage));
+    }
 
     private bool _isUserClosedPane;
 
