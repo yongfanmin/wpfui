@@ -49,6 +49,7 @@ public partial class App
                 // Login 登录窗口
                 _ = services.AddSingleton<LoginWindow>();
                 _ = services.AddSingleton<LoginWindowViewModel>();
+                _ = services.AddSingleton<Services.LoginInfoService>();
                 // Top-level pages
                 _ = services.AddSingleton<DashboardPage>();
                 _ = services.AddSingleton<DashboardViewModel>();
