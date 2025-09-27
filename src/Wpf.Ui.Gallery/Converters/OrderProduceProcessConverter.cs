@@ -16,7 +16,7 @@ public class OrderProduceProcessConverter : IValueConverter
         {
             return "未知状态"; // 如果值不是数字类型，返回默认文本
         }
-            
+
         try
         {
             int intValue = convertibleValue.ToInt32(CultureInfo.InvariantCulture);
@@ -26,11 +26,11 @@ public class OrderProduceProcessConverter : IValueConverter
             {
                 // 3. 如果是，先将其转换为枚举类型
                 ProduceBatchItemProcess status = (ProduceBatchItemProcess)intValue;
-                    
+
                 // 4. 然后，获取该枚举成员的名称字符串 (即中文名称)
                 return status.ToString();
             }
-                
+
             // 5. 如果整数值在枚举中未定义（例如，后端返回了一个新的状态码5）
             return $"未知代码 ({intValue})";
         }

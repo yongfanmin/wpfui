@@ -8,7 +8,7 @@ using System.Text.Json.Serialization;
 
 namespace Wpf.Ui.Gallery.Converters;
 
-public class StringOrNumberToIntConverter: JsonConverter<int>
+public class StringOrNumberToIntConverter : JsonConverter<int>
 {
     public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

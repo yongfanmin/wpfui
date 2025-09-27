@@ -143,8 +143,9 @@ public partial class MainWindowViewModel : ViewModel
     {
         MenuItems.Clear();
         FooterMenuItems.Clear();
-
-        MenuItems.Add(new NavigationViewItem("Home", SymbolRegular.Home24, typeof(DashboardPage)));
+        
+        MenuItems.Add(new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)));
+        MenuItems.Add(new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
         /*MenuItems.Add(new NavigationViewItem()
         {
             Content = "生产",
@@ -197,8 +198,6 @@ public partial class MainWindowViewModel : ViewModel
             MenuItemsSource = new object[]
             {
                 new NavigationViewItem(nameof(System.Windows.Controls.DataGrid), typeof(DataGridPage)),
-                // 项批次菜单
-                new NavigationViewItem("Produce Batch Items",  typeof(ProduceBatchItemPage)),
                 new NavigationViewItem(nameof(ListBox), typeof(ListBoxPage)),
                 new NavigationViewItem(nameof(Ui.Controls.ListView), typeof(ListViewPage)),
                 new NavigationViewItem(nameof(TreeView), typeof(TreeViewPage)),

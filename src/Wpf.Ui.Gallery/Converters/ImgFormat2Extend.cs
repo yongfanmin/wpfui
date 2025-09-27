@@ -17,9 +17,9 @@ public class ImgFormat2Extend
                 return ".jpg";
             case ImgSupportFormat.Png:
                 return ".png";
-                case ImgSupportFormat.Tiff:
+            case ImgSupportFormat.Tiff:
                 return ".tiff";
-                case ImgSupportFormat.Webp:
+            case ImgSupportFormat.Webp:
                 return ".webp";
         }
 

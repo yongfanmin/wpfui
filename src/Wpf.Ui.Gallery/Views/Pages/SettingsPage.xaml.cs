@@ -3,15 +3,12 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
-using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.ViewModels.Pages;
 
 namespace Wpf.Ui.Gallery.Views.Pages;
 
 public partial class SettingsPage : INavigableView<SettingsViewModel>
 {
-    public SettingsViewModel ViewModel { get; }
-
     public SettingsPage(SettingsViewModel viewModel)
     {
         ViewModel = viewModel;
@@ -19,4 +16,6 @@ public partial class SettingsPage : INavigableView<SettingsViewModel>
 
         InitializeComponent();
     }
+
+    public SettingsViewModel ViewModel { get; }
 }

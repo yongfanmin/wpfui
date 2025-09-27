@@ -49,8 +49,9 @@ public partial class MainWindow : IWindow
 
     private bool _isPaneOpenedOrClosedFromCode;
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        await ViewModel.InitializeAsync();
         _navigationService.Navigate(typeof(DashboardPage));
     }
     

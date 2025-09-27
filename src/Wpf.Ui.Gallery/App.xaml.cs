@@ -32,16 +32,15 @@ public partial class App
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
     // https://docs.microsoft.com/dotnet/core/extensions/configuration
     // https://docs.microsoft.com/dotnet/core/extensions/logging
-    
+
     private static readonly string _domain = "http://factory.sds-diy.xyz";
-    
+
     private static readonly IHost _host = Host.CreateDefaultBuilder()
         .ConfigureAppConfiguration(c =>
         {
             _ = c.SetBasePath(AppContext.BaseDirectory);
         })
-        .ConfigureServices(
-            (_1, services) =>
+        .ConfigureServices((_1, services) =>
             {
                 _ = services.AddNavigationViewPageProvider();
 
@@ -58,7 +57,8 @@ public partial class App
                 // Login 登录窗口
                 _ = services.AddSingleton<LoginWindow>();
                 _ = services.AddSingleton<LoginWindowViewModel>();
-                _ = services.AddSingleton<Services.LoginInfoService>();
+                _ = services.AddSingleton<LoginInfoService>();
+
                 _ = services.AddSingleton<ProduceBatchItemPage>();
                 _ = services.AddSingleton<ProduceBatchItemViewModel>();
 
@@ -71,8 +71,8 @@ public partial class App
                 _ = services.AddSingleton<AllControlsViewModel>();
                 _ = services.AddSingleton<SettingsPage>();
                 _ = services.AddSingleton<SettingsViewModel>();
-                
-                
+
+
                 // 图片下载
                 _ = services.AddSingleton<IImageDownloader, ImageDownloader>();
 
@@ -92,12 +92,12 @@ public partial class App
                 );
 
                 _ = services.AddTransient<NetworkActivityHandler>();
-                
+
                 _ = services.AddStringLocalizer(b =>
                 {
                     b.FromResource<Translations>(new("pl-PL"));
                 });
-                
+
                 _ = services
                     .AddRefitClient<ILoginApi>()
                     .ConfigureHttpClient(c =>
@@ -162,7 +162,7 @@ public partial class App
         //_host.Start();
 
         initDatabase();
-        
+
         _host.StartAsync();
 
         //var loginWindow = GetRequiredService<LoginWindow>();
@@ -170,7 +170,7 @@ public partial class App
         var loginWindow = GetRequiredService<LoginWindow>();
         // 弹出登录窗口
         loginWindow.Show();
-        
+
         //初始化线程池
         ThreadPoolConfig.Initialize();
     }
@@ -192,7 +192,7 @@ public partial class App
     {
         // For more info see https://docs.microsoft.com/en-us/dotnet/api/system.windows.application.dispatcherunhandledexception?view=windowsdesktop-6.0
     }
-    
+
     private void initDatabase()
     {
         IDatabaseService databaseService = GetRequiredService<IDatabaseService>();
