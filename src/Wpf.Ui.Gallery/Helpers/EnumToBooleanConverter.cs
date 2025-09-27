@@ -11,15 +11,27 @@ internal sealed class EnumToBooleanConverter : IValueConverter
     {
         if (parameter is not string enumString)
         {
-            throw new ArgumentException("ExceptionEnumToBooleanConverterParameterMustBeAnEnumName");
+            return false;
         }
 
-        if (!Enum.IsDefined(typeof(Wpf.Ui.Appearance.ApplicationTheme), value))
+        if (value == null)
         {
-            throw new ArgumentException("ExceptionEnumToBooleanConverterValueMustBeAnEnum");
+            return false;
         }
 
-        var enumValue = Enum.Parse(typeof(Wpf.Ui.Appearance.ApplicationTheme), enumString);
+        var enumType = value.GetType();
+
+        if (!enumType.IsEnum)
+        {
+            return false;
+        }
+
+        if (!Enum.IsDefined(enumType, value))
+        {
+            return false;
+        }
+
+        var enumValue = Enum.Parse(enumType, enumString);
 
         return enumValue.Equals(value);
     }
@@ -28,9 +40,19 @@ internal sealed class EnumToBooleanConverter : IValueConverter
     {
         if (parameter is not string enumString)
         {
-            throw new ArgumentException("ExceptionEnumToBooleanConverterParameterMustBeAnEnumName");
+            return Binding.DoNothing;
         }
 
-        return Enum.Parse(typeof(Wpf.Ui.Appearance.ApplicationTheme), enumString);
+        if (value is false)
+        {
+            return Binding.DoNothing;
+        }
+
+        if (string.IsNullOrEmpty(enumString))
+        {
+            return Binding.DoNothing;
+        }
+
+        return Enum.Parse(targetType, enumString);
     }
 }

@@ -38,7 +38,6 @@ public partial class MainWindow : IWindow
         snackbarService.SetSnackbarPresenter(SnackbarPresenter);
         navigationService.SetNavigationControl(NavigationView);
         contentDialogService.SetDialogHost(RootContentDialog);
-        // navigationService.Navigate(typeof(DashboardPage));
         
         Loaded += OnLoaded;
     }
@@ -49,9 +48,9 @@ public partial class MainWindow : IWindow
 
     private bool _isPaneOpenedOrClosedFromCode;
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        _navigationService.Navigate(typeof(DashboardPage));
+        await ViewModel.InitializeAsync();
     }
     
     private void OnNavigationSelectionChanged(object sender, RoutedEventArgs e)
