@@ -3,7 +3,9 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
+using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Services.Contracts;
 using Wpf.Ui.Gallery.ViewModels.Windows;
 using Wpf.Ui.Gallery.Views.Pages;
@@ -12,9 +14,13 @@ namespace Wpf.Ui.Gallery.Views.Windows;
 
 public partial class MainWindow : IWindow
 {
-    private readonly IServiceProvider _serviceProvider;
     private readonly INavigationService _navigationService;
-    
+    private readonly IServiceProvider _serviceProvider;
+
+    private bool _isPaneOpenedOrClosedFromCode;
+
+    private bool _isUserClosedPane;
+
     public MainWindow(
         MainWindowViewModel viewModel,
         INavigationService navigationService,
@@ -27,8 +33,8 @@ public partial class MainWindow : IWindow
         _navigationService = navigationService;
 
         // Visibility = Visibility.Hidden;
-        
-        Appearance.SystemThemeWatcher.Watch(this);
+
+        SystemThemeWatcher.Watch(this);
 
         ViewModel = viewModel;
         DataContext = this;
@@ -38,24 +44,23 @@ public partial class MainWindow : IWindow
         snackbarService.SetSnackbarPresenter(SnackbarPresenter);
         navigationService.SetNavigationControl(NavigationView);
         contentDialogService.SetDialogHost(RootContentDialog);
-        
+        // navigationService.Navigate(typeof(DashboardPage));
+        ApplicationThemeManager.Apply(
+            LocalAppConfig.AppSetting.ApplicationTheme
+        );
         Loaded += OnLoaded;
     }
 
     public MainWindowViewModel ViewModel { get; }
 
-    private bool _isUserClosedPane;
-
-    private bool _isPaneOpenedOrClosedFromCode;
-
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         await ViewModel.InitializeAsync();
     }
-    
+
     private void OnNavigationSelectionChanged(object sender, RoutedEventArgs e)
     {
-        if (sender is not Wpf.Ui.Controls.NavigationView navigationView)
+        if (sender is not NavigationView navigationView)
         {
             return;
         }

@@ -2,6 +2,7 @@
   <ItemGroup>
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="File.TypeChecker" Version="4.3.0" />
     <PackageVersion Include="Lepo.i18n" Version="2.0.0" />
     <PackageVersion Include="Lepo.i18n.DependencyInjection" Version="2.0.0" />
     <PackageVersion Include="Lepo.i18n.Wpf" Version="2.0.0" />
@@ -16,15 +17,23 @@
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.2957.106" />
     <PackageVersion Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
     <PackageVersion Include="NativeMethods" Version="0.0.3" />
+    <PackageVersion Include="NetVips" Version="3.1.0" />
+    <PackageVersion Include="NetVips.Native.win-x64" Version="8.17.2" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="PolySharp" Version="1.15.0" />
+    <PackageVersion Include="Refit" Version="8.0.0" />
+    <PackageVersion Include="Refit.HttpClientFactory" Version="8.0.0" />
     <PackageVersion Include="ReflectionEventing" Version="3.1.0" />
     <PackageVersion Include="ReflectionEventing.DependencyInjection" Version="3.1.0" />
+    <PackageVersion Include="sqlite-net-pcl" Version="1.10.196-beta" />
+    <PackageVersion Include="sqlite-net-sqlcipher" Version="1.10.196-beta" />
     <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
     <PackageVersion Include="System.Drawing.Common" Version="9.0.1" />
+    <PackageVersion Include="System.Management" Version="10.0.0-rc.1.25451.107" />
     <PackageVersion Include="System.ValueTuple" Version="4.5.0" />
     <PackageVersion Include="WpfAnalyzers" Version="4.1.1" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="ZXing.Net" Version="0.16.10" />
   </ItemGroup>
 </Project>

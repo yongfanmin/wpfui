@@ -4,7 +4,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:Wpf.Ui.Gallery.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:helpers="clr-namespace:Wpf.Ui.Gallery.Helpers"
     xmlns:local="clr-namespace:Wpf.Ui.Gallery.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -39,9 +38,8 @@
                 </Grid>
             </ui:CardControl.Header>
             <ComboBox
-                Grid.Column="1"
                 MinWidth="200"
-                
+
                 SelectedIndex="{Binding ViewModel.CurrentApplicationTheme, Converter={StaticResource ThemeToIndexConverter}, Mode=TwoWay}">
                 <ComboBoxItem Content="Light" />
                 <ComboBoxItem Content="Dark" />
@@ -57,7 +55,6 @@
                     Text="Navigation style" />
             </ui:CardControl.Header>
             <ComboBox
-                Grid.Column="1"
                 MinWidth="200"
                 SelectedIndex="{Binding ViewModel.CurrentApplicationNavigationStyle, Converter={StaticResource PaneDisplayModeToIndexConverter}, Mode=TwoWay}">
                 <ComboBoxItem Content="Left compact" />
@@ -66,12 +63,102 @@
                 <ComboBoxItem Content="Bottom" />
             </ComboBox>
         </ui:CardControl>
+        <ui:TextBlock
+            Margin="0,24,0,8"
+            FontTypography="BodyStrong"
+            Text="软件设置" />
+        <ui:CardControl Margin="0,0,0,12" Icon="{ui:SymbolIcon FolderOpen24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="生产图存放位置" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{Binding ViewModel.PrintedPatternFilePath, Mode=OneWay}" />
+                </Grid>
+            </ui:CardControl.Header>
+            <ui:Button
+                Icon="{ui:SymbolIcon Pen32}"
+                Command="{Binding ViewModel.OpenFolderCommand, Mode=OneWay}"
+                ToolTip="更换位置" />
+        </ui:CardControl>
+        <ui:CardControl Margin="0,0,0,12" Icon="{ui:SymbolIcon CubeTree24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="文件夹归类" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="选择文件夹的归类方式" />
+                </Grid>
+            </ui:CardControl.Header>
+            <StackPanel>
+                <RadioButton
+                    Content="存在统一文件夹"
+                    IsChecked="{Binding ViewModel.ProduceImgLayoutFolderClassify, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AllInOne}"
+                    GroupName="FolderClassify"
+                    Command="{Binding ViewModel.FolderClassifyChangedCommand}"
+                    CommandParameter="AllInOne" />
+                <RadioButton
+                    Content="按单区分文件夹"
+                    IsChecked="{Binding ViewModel.ProduceImgLayoutFolderClassify, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=ByOrder}"
+                    GroupName="FolderClassify"
+                    Command="{Binding ViewModel.FolderClassifyChangedCommand}"
+                    CommandParameter="ByOrder" />
+                <RadioButton
+                    Content="按批次区分文件夹"
+                    IsChecked="{Binding ViewModel.ProduceImgLayoutFolderClassify, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=ByProduceBatch}"
+                    GroupName="FolderClassify"
+                    Command="{Binding ViewModel.FolderClassifyChangedCommand}"
+                    CommandParameter="ByProduceBatch" />
+                <RadioButton
+                    Content="按产品区分文件"
+                    IsChecked="{Binding ViewModel.ProduceImgLayoutFolderClassify, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=ByProduct}"
+                    GroupName="FolderClassify"
+                    Command="{Binding ViewModel.FolderClassifyChangedCommand}"
+                    CommandParameter="ByProduct" />
+            </StackPanel>
+        </ui:CardControl>
+        <ui:CardControl Margin="0,0,0,12" Icon="{ui:SymbolIcon Rename24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="生产图文件名称格式" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="当前格式预览" />
+                </Grid>
+            </ui:CardControl.Header>
+            <TextBlock Text="{Binding ViewModel.FileNameFormatString, Mode=OneWay}" VerticalAlignment="Center" />
+        </ui:CardControl>
 
         <ui:TextBlock
             Margin="0,24,0,8"
             FontTypography="BodyStrong"
             Text="About" />
-        <ui:CardExpander ContentPadding="0" Icon="{ui:ImageIcon 'pack://application:,,,/Assets/wpfui.png', Width=38, Height=35}">
+        <ui:CardExpander ContentPadding="0"
+                         Icon="{ui:ImageIcon 'pack://application:,,,/Assets/wpfui.png', Width=38, Height=35}">
             <ui:CardExpander.Header>
                 <Grid>
                     <Grid.RowDefinitions>
@@ -86,12 +173,12 @@
                         Grid.Row="0"
                         Grid.Column="0"
                         FontTypography="Body"
-                        Text="WPF UI" />
+                        Text="POD Maker" />
                     <ui:TextBlock
                         Grid.Row="1"
                         Grid.Column="0"
                         Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
-                        Text="© 2025 lepo.co | Leszek Pomianowski &amp; WPF UI Contributors" />
+                        Text="© 2025 Pod Maker support" />
                     <TextBlock
                         Grid.Row="0"
                         Grid.RowSpan="2"
@@ -122,7 +209,7 @@
                     Background="Transparent"
                     BorderThickness="0,1,0,0"
                     CornerRadius="0"
-                    NavigateUri="https://github.com/lepoco/wpfui/issues/new/choose">
+                    NavigateUri="https://github.com/willp11/print-on-demand.git">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

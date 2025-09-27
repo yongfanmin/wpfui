@@ -156,21 +156,21 @@ public partial class App
         // 读取本地磁盘配置
         LocalAppConfig.Load();
 
-        Console.InputEncoding = System.Text.Encoding.UTF8;
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Console.InputEncoding = Encoding.UTF8;
+        Console.OutputEncoding = Encoding.UTF8;
         //程序启动 进入程序 开启程序 打开软件
         //_host.Start();
 
         initDatabase();
-        
+
         _host.StartAsync();
 
         //var loginWindow = GetRequiredService<LoginWindow>();
         //loginWindow.Show();
-        var loginWindow = GetRequiredService<LoginWindow>();
+        LoginWindow loginWindow = GetRequiredService<LoginWindow>();
         // 弹出登录窗口
         loginWindow.Show();
-        
+
         //初始化线程池
         ThreadPoolConfig.Initialize();
     }

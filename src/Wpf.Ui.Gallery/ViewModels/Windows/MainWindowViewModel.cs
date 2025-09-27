@@ -143,8 +143,9 @@ public partial class MainWindowViewModel : ViewModel
     {
         MenuItems.Clear();
         FooterMenuItems.Clear();
-
-        MenuItems.Add(new NavigationViewItem("Home", SymbolRegular.Home24, typeof(DashboardPage)));
+        
+        MenuItems.Add(new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)));
+        MenuItems.Add(new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
         /*MenuItems.Add(new NavigationViewItem()
         {
             Content = "生产",
