@@ -12,8 +12,9 @@ namespace Wpf.Ui.Gallery.Views.Windows;
 
 public partial class MainWindow : IWindow
 {
+    private readonly IServiceProvider _serviceProvider;
     private readonly INavigationService _navigationService;
-
+    
     public MainWindow(
         MainWindowViewModel viewModel,
         INavigationService navigationService,
@@ -22,7 +23,11 @@ public partial class MainWindow : IWindow
         IContentDialogService contentDialogService
     )
     {
+        _serviceProvider = serviceProvider;
         _navigationService = navigationService;
+
+        // Visibility = Visibility.Hidden;
+        
         Appearance.SystemThemeWatcher.Watch(this);
 
         ViewModel = viewModel;

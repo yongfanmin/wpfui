@@ -75,12 +75,13 @@ public partial class MainWindowViewModel : ViewModel
         if (_isInitialized)
             return;
 
+        PopulateNavigationItems();
+
         string machineUniqueId = MachineUniqueId.GetId();
         MachineConfig machineConfig = FileHelper.ReadFromJsonFileAuto<MachineConfig>();
 
         if (machineConfig is null)
         {
-            PopulateNavigationItems();
             _navigationService.Navigate(typeof(Views.Pages.DashboardPage));
             // 暂时跳过校验 逻辑有点问题
             // Populate with ONLY the settings item
@@ -107,7 +108,7 @@ public partial class MainWindowViewModel : ViewModel
                 }
             );*/
         }
-        else if(machineConfig.MachineUniqueId != machineUniqueId)
+        else if (machineConfig.MachineUniqueId != machineUniqueId)
         {
             var machineConfigModifyBox = await _contentDialogService.ShowSimpleDialogAsync(
                 new SimpleContentDialogCreateOptions()
@@ -132,10 +133,9 @@ public partial class MainWindowViewModel : ViewModel
         else
         {
             // If config is fine, populate the full menu
-            PopulateNavigationItems();
             _navigationService.Navigate(typeof(Views.Pages.DashboardPage));
         }
-        
+
         _isInitialized = true;
     }
 
@@ -144,7 +144,7 @@ public partial class MainWindowViewModel : ViewModel
         MenuItems.Clear();
         FooterMenuItems.Clear();
 
-        // MenuItems.Add(new NavigationViewItem("Home", SymbolRegular.Home24, typeof(DashboardPage)));
+        MenuItems.Add(new NavigationViewItem("Home", SymbolRegular.Home24, typeof(DashboardPage)));
         /*MenuItems.Add(new NavigationViewItem()
         {
             Content = "生产",
@@ -155,8 +155,8 @@ public partial class MainWindowViewModel : ViewModel
                 new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)),
             },
         });*/
-        MenuItems.Add(new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)));
-        MenuItems.Add(new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
+        //MenuItems.Add(new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)));
+        //MenuItems.Add(new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
         MenuItems.Add(new NavigationViewItem()
         {
             Content = "Design guidance",
