@@ -45,14 +45,13 @@ public class ApplicationHostService : IHostedService
     /// </summary>
     private Task HandleActivationAsync()
     {
-        if (Application.Current.Windows.OfType<MainWindow>().Any())
+        if (Application.Current.Windows.OfType<LoginWindow>().Any())
         {
             return Task.CompletedTask;
         }
 
-        IWindow mainWindow = _serviceProvider.GetRequiredService<IWindow>();
-        mainWindow.Loaded += OnMainWindowLoaded;
-        mainWindow?.Show();
+        var loginWindow = _serviceProvider.GetRequiredService<LoginWindow>();
+        loginWindow?.Show();
 
         return Task.CompletedTask;
     }

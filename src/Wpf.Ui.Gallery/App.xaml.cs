@@ -100,12 +100,6 @@ public partial class App
         initDatabase();
         
         _host.StartAsync();
-
-        //var loginWindow = GetRequiredService<LoginWindow>();
-        //loginWindow.Show();
-        var loginWindow = GetRequiredService<LoginWindow>();
-        // 弹出登录窗口
-        loginWindow.Show();
         
         //初始化线程池
         ThreadPoolConfig.Initialize();

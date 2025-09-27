@@ -83,7 +83,7 @@ public partial class LoginWindowViewModel : ObservableObject
                     _loginInfoService.ClearLoginRequest();
                 }
                 _loginInfoService.SetSessionOnly(response.Data);
-                var mainWindow = _serviceProvider.GetRequiredService<FluentWindow>();
+                var mainWindow = _serviceProvider.GetRequiredService<IWindow>();
                 mainWindow.Show();
                 // 关闭登录弹窗
                 Application.Current.Windows.OfType<LoginWindow>().FirstOrDefault()?.Close();
