@@ -12,6 +12,8 @@ namespace Wpf.Ui.Gallery.Views.Windows;
 
 public partial class MainWindow : IWindow
 {
+    private readonly INavigationService _navigationService;
+
     public MainWindow(
         MainWindowViewModel viewModel,
         INavigationService navigationService,
@@ -20,6 +22,7 @@ public partial class MainWindow : IWindow
         IContentDialogService contentDialogService
     )
     {
+        _navigationService = navigationService;
         Appearance.SystemThemeWatcher.Watch(this);
 
         ViewModel = viewModel;
@@ -30,6 +33,9 @@ public partial class MainWindow : IWindow
         snackbarService.SetSnackbarPresenter(SnackbarPresenter);
         navigationService.SetNavigationControl(NavigationView);
         contentDialogService.SetDialogHost(RootContentDialog);
+        // navigationService.Navigate(typeof(DashboardPage));
+        
+        Loaded += OnLoaded;
     }
 
     public MainWindowViewModel ViewModel { get; }
@@ -38,6 +44,11 @@ public partial class MainWindow : IWindow
 
     private bool _isPaneOpenedOrClosedFromCode;
 
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        _navigationService.Navigate(typeof(DashboardPage));
+    }
+    
     private void OnNavigationSelectionChanged(object sender, RoutedEventArgs e)
     {
         if (sender is not Wpf.Ui.Controls.NavigationView navigationView)

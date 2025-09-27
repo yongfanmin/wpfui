@@ -45,19 +45,27 @@ public class ApplicationHostService : IHostedService
     /// </summary>
     private Task HandleActivationAsync()
     {
-        if (Application.Current.Windows.OfType<MainWindow>().Any())
+        /*if (Application.Current.Windows.OfType<MainWindow>().Any())
         {
             return Task.CompletedTask;
         }
 
         IWindow mainWindow = _serviceProvider.GetRequiredService<IWindow>();
         mainWindow.Loaded += OnMainWindowLoaded;
-        mainWindow?.Show();
+        mainWindow?.Show();*/
+        
+        // 启动默认打开首页换成打开登登录页
+        if (Application.Current.Windows.OfType<LoginWindow>().Any())
+        {
+            return Task.CompletedTask;
+        }
 
+        var loginWindow = _serviceProvider.GetRequiredService<LoginWindow>();
+        loginWindow?.Show();
         return Task.CompletedTask;
     }
 
-    private void OnMainWindowLoaded(object sender, RoutedEventArgs e)
+    /*private void OnMainWindowLoaded(object sender, RoutedEventArgs e)
     {
         if (sender is not MainWindow mainWindow)
         {
@@ -65,5 +73,5 @@ public class ApplicationHostService : IHostedService
         }
 
         _ = mainWindow.NavigationView.Navigate(typeof(DashboardPage));
-    }
+    }*/
 }
