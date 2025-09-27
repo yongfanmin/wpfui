@@ -91,6 +91,8 @@ public partial class App
                     GalleryAssembly.Asssembly
                 );
 
+                _ = services.AddTransient<NetworkActivityHandler>();
+                
                 _ = services.AddStringLocalizer(b =>
                 {
                     b.FromResource<Translations>(new("pl-PL"));

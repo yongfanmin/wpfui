@@ -29,35 +29,8 @@
                                 Margin="0,0,5,0"
                                 Command="{Binding Path=TemplateButtonCommand, RelativeSource={RelativeSource TemplatedParent}}"
                                 CommandParameter="xaml"
-                                Content="XAML source code" />
-                            <ui:Button
-                                Command="{Binding Path=TemplateButtonCommand, RelativeSource={RelativeSource TemplatedParent}}"
-                                CommandParameter="c#"
-                                Content="C# source code" />
+                                Content="测试版软件" />
                         </StackPanel>
-
-                        <ui:Button
-                            Grid.Column="1"
-                            Command="{Binding Path=TemplateButtonCommand, RelativeSource={RelativeSource TemplatedParent}}"
-                            CommandParameter="theme"
-                            Icon="{ui:SymbolIcon WeatherSunny24}"
-                            ToolTip="Toggle theme" />
-                        <Separator
-                            Grid.Column="2"
-                            Height="16"
-                            Margin="4,0,4,0" />
-                        <ui:Button
-                            Grid.Column="3"
-                            Command="{Binding Path=TemplateButtonCommand, RelativeSource={RelativeSource TemplatedParent}}"
-                            CommandParameter="copy"
-                            Icon="{ui:SymbolIcon Link24}"
-                            ToolTip="Copy link" />
-                        <ui:Anchor
-                            Grid.Column="4"
-                            Margin="4,0,0,0"
-                            Icon="{ui:SymbolIcon PersonFeedback24}"
-                            NavigateUri="https://github.com/lepoco/wpfui/issues/new?assignees=pomianowski&amp;labels=bug,gallery&amp;template=bug_report.yaml&amp;title=WPF+UI+Gallery+Problem"
-                            ToolTip="Send feedback" />
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>
