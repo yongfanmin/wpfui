@@ -84,9 +84,11 @@ public partial class LoginWindowViewModel : ObservableObject
                 }
                 _loginInfoService.SetSessionOnly(response.Data);
                 var mainWindow = _serviceProvider.GetRequiredService<IWindow>();
+                var loginWindow = Application.Current.Windows.OfType<LoginWindow>().FirstOrDefault();
+
+                Application.Current.MainWindow = mainWindow as Window;
+                loginWindow?.Close();
                 mainWindow.Show();
-                // 关闭登录弹窗
-                Application.Current.Windows.OfType<LoginWindow>().FirstOrDefault()?.Close();
             }
             else
             {
