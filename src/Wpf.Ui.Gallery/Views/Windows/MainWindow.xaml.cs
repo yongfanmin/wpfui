@@ -3,6 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using System.ComponentModel;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.LocalConfig;
@@ -103,5 +104,33 @@ public partial class MainWindow : IWindow
         }
 
         _isUserClosedPane = true;
+    }
+
+    private void MainWindow_OnClosing(object sender, CancelEventArgs e)
+    {
+        // 打印一条调试信息，确认事件已触发
+        System.Diagnostics.Debug.WriteLine("窗口关闭事件已被拦截。");
+
+        // 显示一个确认对话框
+        var result = System.Windows.MessageBox.Show(
+            "关闭软件生产将停止,是否确定关闭？",
+            "退出确认",
+            System.Windows.MessageBoxButton.YesNo,
+            MessageBoxImage.Question
+        );
+
+        // 检查用户的选择
+        if (result == System.Windows.MessageBoxResult.No)
+        {
+            // 如果用户点击了“否”，则取消关闭操作
+            e.Cancel = true;
+            System.Diagnostics.Debug.WriteLine("窗口关闭操作已被用户取消。");
+        }
+        else
+        {
+            // 如果用户点击了“是”，则不执行任何操作，窗口将继续正常关闭
+            // 在这里您可以添加一些清理资源的代码
+            System.Diagnostics.Debug.WriteLine("用户确认关闭，窗口将关闭。");
+        }
     }
 }
