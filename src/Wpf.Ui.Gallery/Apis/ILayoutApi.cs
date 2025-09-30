@@ -11,16 +11,15 @@ namespace Wpf.Ui.Gallery.Apis;
 
 public class LayoutRequest
 {
-    [JsonPropertyName("designProductId")]
+    [JsonPropertyName("design_template_id")]
     public long DesignProductId { get; set; }
 }
 
 public interface ILayoutApi
 {
-    [Get("/api/factoryInterface/getPatternPieceLayout")]
+    [Get("/api/v2/factoryInterface/getPatternPieceLayout")]
     Task<FactoryApiResponse<Object>> GetLayoutInfo([Body] LayoutRequest request,
         // TODO 接口端使用非标准鉴权方式
-        [Header("Token")] string token,
-        // TODO 非标准写法
-        [Header("machineid")] string machineid);
+        [Header("Token")] string token
+        );
 }

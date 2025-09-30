@@ -94,11 +94,13 @@
         </ui:TitleBar>
 
         <tray:NotifyIcon
+            x:Name="NotifyIcon"
             Grid.Row="0"
             FocusOnLeftClick="True"
             Icon="pack://application:,,,/Assets/wpfui.png"
+            Loaded="NotifyIcon_OnLoaded"
             MenuOnRightClick="True"
-            TooltipText="WPF UI Gallery">
+            TooltipText="生产软件">
             <tray:NotifyIcon.Menu>
                 <ContextMenu ItemsSource="{Binding ViewModel.TrayMenuItems, Mode=OneWay}" />
             </tray:NotifyIcon.Menu>

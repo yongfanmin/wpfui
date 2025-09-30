@@ -198,8 +198,6 @@ public partial class MainWindowViewModel : ViewModel
             MenuItemsSource = new object[]
             {
                 new NavigationViewItem(nameof(System.Windows.Controls.DataGrid), typeof(DataGridPage)),
-                // 项批次菜单
-                new NavigationViewItem("Produce Batch Items",  typeof(ProduceBatchItemPage)),
                 new NavigationViewItem(nameof(ListBox), typeof(ListBoxPage)),
                 new NavigationViewItem(nameof(Ui.Controls.ListView), typeof(ListViewPage)),
                 new NavigationViewItem(nameof(TreeView), typeof(TreeViewPage)),

@@ -17,8 +17,8 @@ public class ProduceBatchRequest
     [JsonPropertyName("num")]
     public int Num { get; set; }
 
-    [JsonPropertyName("designProductIds")]
-    public string? DesignProductIds { get; set; }
+    // [JsonPropertyName("designProductIds")]
+    // public string? DesignProductIds { get; set; }
 
     //JsonPropertyName("machineid")]
     //public string? MachineId { get; set; }
@@ -33,21 +33,17 @@ public class BatchNo2Produce
 
 public interface IProduceBatchApi
 {
-    [Post("/api/factoryInterface/getProduceList")]
+    [Post("/api/v2/factoryInterface/getProduceList")]
     Task<FactoryApiResponse<List<ProduceBatchInfo>>> getProduceBatchList(
         [Body] ProduceBatchRequest request,
         // TODO 接口端使用非标准鉴权方式
-        [Header("Token")] string token,
-        // TODO 非标准写法
-        [Header("machineid")] string machineid
+        [Header("Token")] string token
         );
     
-    [Post("/api/factoryInterface/setOrderProduceBatchNoCreating")]
+    [Post("/api/v2/factoryInterface/setOrderProduceBatchNoCreating")]
     Task<FactoryApiResponse<Object>> setBatchNo2Produce(
         [Body] BatchNo2Produce request,
         // TODO 接口端使用非标准鉴权方式
-        [Header("Token")] string token,
-        // TODO 非标准写法
-        [Header("machineid")] string machineid
+        [Header("Token")] string token
     );
 }

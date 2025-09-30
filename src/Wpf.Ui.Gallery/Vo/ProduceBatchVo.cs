@@ -17,7 +17,7 @@ public partial class ProduceBatchVo : ObservableObject
     // 批次下被授权生产产品
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ProduceBatchItemProcess))] // 当它变化时，也通知 ProduceBatchItemNum 更新
-    private int _availableProduceBatchItemCount;
+    private int _avlProduceBatchItemCount;
     
     // 项批次总数
     [ObservableProperty]
@@ -32,11 +32,11 @@ public partial class ProduceBatchVo : ObservableObject
     {
         get
         {
-            if (AvailableProduceBatchItemCount > 0 && AvailableProduceBatchItemCount >= ProduceBatchItemCount)
+            if (AvlProduceBatchItemCount > 0 && AvlProduceBatchItemCount >= ProduceBatchItemCount)
             {
                 return $"{ProduceBatchItemCount}";
             }
-            return $"{AvailableProduceBatchItemCount} / {ProduceBatchItemCount} 仅部分可生产";
+            return $"{AvlProduceBatchItemCount} / {ProduceBatchItemCount} 仅部分可生产";
         }
     }
 

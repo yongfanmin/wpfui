@@ -135,7 +135,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             ProductBatchCollection.Add(new ProduceBatchVo
             {
                 ProduceBatchNum = producePlanEntity.ProduceBatchNum,
-                AvailableProduceBatchItemCount = producePlanEntity.AvailableProduceBatchItemCount,
+                AvlProduceBatchItemCount = producePlanEntity.AvlProduceBatchItemCount,
                 DataDownloadCount = producePlanEntity.DataDownloadCount,
                 ImgDownloadCount = producePlanEntity.ImgDownloadCount,
                 PiecePrintCount = producePlanEntity.PiecePrintCount,
@@ -161,7 +161,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         {
             ProduceBatchVo produceBatchVo = new ProduceBatchVo();
             produceBatchVo.ProduceBatchNum = produceBatchItem.ProduceBatchNumber;
-            produceBatchVo.AvailableProduceBatchItemCount = produceBatchItem.NumTotal;
+            produceBatchVo.AvlProduceBatchItemCount = produceBatchItem.NumTotal;
             produceBatchVo.ProduceBatchItemCount = produceBatchItem.ProduceBatchNumberTotal;
             produceBatchVo.ProduceBatchStatus = ProduceStatusToStringConverter.Convert(produceBatchItem.Status);
             produceBatchVo.FactoryGetTime = DateTime.Now;
@@ -192,7 +192,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                     // 这是一个更健壮的设计，可以反映状态的变化
                     existingBatch.ProduceBatchNum = newBatch.ProduceBatchNum;
                     existingBatch.ProduceBatchItemCount = newBatch.ProduceBatchItemCount;
-                    existingBatch.AvailableProduceBatchItemCount = newBatch.AvailableProduceBatchItemCount;
+                    existingBatch.AvlProduceBatchItemCount = newBatch.AvlProduceBatchItemCount;
 
                     existingBatch.DataDownloadCount = 0;
                     existingBatch.ImgDownloadCount = 0;
@@ -256,7 +256,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         {
             // 获取订单
             ProduceBatchRequest produceBatchRequest = new ProduceBatchRequest();
-            // TODO 写死测试公版 T恤-3D 单幅3D教学 YM-女士T
+            /*// TODO 写死测试公版 T恤-3D 单幅3D教学 YM-女士T
             produceBatchRequest.DesignProductIds = "5666,5491,4800";
             // JD-桌布-偏白涤麻
             produceBatchRequest.DesignProductIds += ",5637";
@@ -273,16 +273,16 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             // 女士夏季T恤短袖（局部印）
             produceBatchRequest.DesignProductIds += ",5800";
             // 0001夏季男士短袖T恤
-            produceBatchRequest.DesignProductIds += ",5793";
+            produceBatchRequest.DesignProductIds += ",5793";*/
 
             // TODO 写死固定获取一条
             produceBatchRequest.Num = 10;
             // TODO 写死印花机编码(热转印,白墨)
-            string machineid = "68,405";
+            /*string machineid = "68,405";*/
             string token = _loginInfoService.getToken();
             // 获取并锁定批次
             FactoryApiResponse<List<ProduceBatchInfo>> produceBatchListResponse =
-                await _produceBatchApi.getProduceBatchList(produceBatchRequest, token, machineid);
+                await _produceBatchApi.getProduceBatchList(produceBatchRequest, token);
             if (produceBatchListResponse.IsSuccess)
             {
                 Console.WriteLine("批次信息抓取成功");
@@ -293,7 +293,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                     {
                         // 下载数据
                         List<UniqueBatchItemNum> uniqueBatchItemNumList =
-                            await DownloadProduceBatchDataAsync(produceBatchRequest.DesignProductIds, produceBatchInfo);
+                            await DownloadProduceBatchDataAsync(produceBatchInfo);
                         // 下载图片
                         await DownloadProduceBatchImgAsync(uniqueBatchItemNumList);
                         // 合成图片
@@ -412,12 +412,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                 updateProduceBatchItemDetail(
                     uniqueBatchItem,
                     ProduceBatchItemProcess.图片已加载
-                    );
+                );
                 // TODO 整批图片下载不完全的时候需要额外校验 部分出错不能算整批图片下载成功
-                updateProduceBatchItemStatus(
-                    uniqueBatchItem.ProduceBatchNum,
-                    uniqueBatchItem.BatchNum,
-                    ProduceBatchItemProcess.图片已加载);
             }
             catch (Exception ex)
             {
@@ -429,27 +425,26 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     }
 
 
-    public async Task<List<UniqueBatchItemNum>> DownloadProduceBatchDataAsync(string designProductIds,
+    public async Task<List<UniqueBatchItemNum>> DownloadProduceBatchDataAsync(
         ProduceBatchInfo produceBatchItem)
     {
-        string machineid = "68,405";
         string token = _loginInfoService.getToken();
         List<UniqueBatchItemNum> downloadDataList = new List<UniqueBatchItemNum>();
         ProduceBatchInfoRequest produceBatchInfoRequest = new ProduceBatchInfoRequest();
         // 这个批次有多少订单?
         produceBatchInfoRequest.Num = produceBatchItem.ProduceBatchNumberTotal;
         produceBatchInfoRequest.ProduceBatchNumber = produceBatchItem.ProduceBatchNumber;
-        produceBatchInfoRequest.DesignProductIds = designProductIds;
         // 获取项批次信息 (订单信息)
         FactoryApiResponse<List<ProductBatchItemInfo>> produceBatchOrderList =
-            await _produceBatchInfoApi.getProduceBatchInfo(produceBatchInfoRequest, token, machineid);
+            await _produceBatchInfoApi.getProduceBatchInfo(produceBatchInfoRequest, token);
         if (produceBatchOrderList.Data.Count != produceBatchItem.ProduceBatchNumberTotal ||
             produceBatchItem.ProduceBatchNumberTotal != produceBatchItem.NumTotal)
         {
             Console.WriteLine("批次号:" + produceBatchItem.ProduceBatchNumber + " 存在此账号为未被授权生产的产品");
         }
-
-        _databaseService.AddProduceBatchItemList(produceBatchItem.ProduceBatchNumber,
+        // 写入条目
+        _databaseService.AddProduceBatchItemList(
+            produceBatchItem.ProduceBatchNumber,
             produceBatchOrderList.Data);
         Console.WriteLine("项批次" + produceBatchItem.ProduceBatchNumber + "详情抓取成功");
         foreach (ProductBatchItemInfo produceBatchItemInfo in produceBatchOrderList.Data)
@@ -459,9 +454,9 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
 
             // 获取项位批次详情 (订单详情) 同一个订单不同产品不同批次号
             FactoryApiResponse<List<JsonNode?>> produceBatchOrderDetailObj =
-                await _produceBatchDetailApi.getProduceBatchDetailObjTest(produceBatchDetailRequest,
-                    token,
-                    machineid);
+                await _produceBatchDetailApi.getProduceBatchDetailObjTest(
+                    produceBatchDetailRequest,
+                    token);
             Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "-项位批次" +
                               produceBatchItemInfo.BatchNum + "详情抓取成功");
             List<ProduceBatchItemDetail> orderPrintBatchList =
@@ -513,17 +508,12 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
 
     public void updateProduceBatchItemDetail(UniqueBatchItem uniqueBatchItem,ProduceBatchItemProcess produceBatchItemProcess)
     {
-        foreach (ProduceBatchVo produceBatchVo in ProductBatchCollection)
-        {
-            if (produceBatchVo.ProduceBatchNum.Equals(uniqueBatchItem.ProduceBatchNum))
-            {
-                produceBatchVo.DataDownloadCount += 1;
-            }
-        }
-
         _databaseService.setProductBatchItemInfo(uniqueBatchItem.ProduceBatchNum, uniqueBatchItem.BatchNum,
             uniqueBatchItem);
-        _databaseService.updateProduceBatchProcess(uniqueBatchItem.ProduceBatchNum, produceBatchItemProcess);
+        updateProduceBatchItemStatus(
+            uniqueBatchItem.ProduceBatchNum,
+            uniqueBatchItem.BatchNum,
+            produceBatchItemProcess);
     }
 
     
@@ -557,9 +547,17 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                 else if (status.Equals(ProduceBatchItemProcess.生产稿件已合成))
                 {
                     produceBatchVo.LayoutCreateCount += 1;
+                    if (produceBatchVo.LayoutCreateCount == produceBatchVo.AvlProduceBatchItemCount)
+                    {
+                        // 条目需要排版的情况下这样判断是否生产准备就绪
+                        // 生产稿件全部合成 条目状态换成 "生产准备就绪"
+                        UpdateProduceBatchStatus(produceBatchNumber,ProduceBatchStatus.生产准备就绪);
+                    }
                 }
             }
         }
+
+        _databaseService.GetProducePlan(produceBatchNumber);
     }
 
     partial void OnIsAcceptingOrdersChanged(bool value)
@@ -637,13 +635,12 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         if (!string.IsNullOrWhiteSpace(BatchNo))
         {
             // TODO 写死印花机编码(热转印,白墨)
-            string machineid = "68,405";
+            // string machineid = "68,405";
             string token = _loginInfoService.getToken();
             BatchNo2Produce batchNo2Produce = new BatchNo2Produce();
             batchNo2Produce.BatchNo = BatchNo;
             FactoryApiResponse<Object> setBatchNo2ProduceResponse =
-                await _produceBatchApi.setBatchNo2Produce(batchNo2Produce, token,
-                    machineid);
+                await _produceBatchApi.setBatchNo2Produce(batchNo2Produce, token);
             var messageBox = new Wpf.Ui.Controls.MessageBox
             {
                 Title = "Login Failed",

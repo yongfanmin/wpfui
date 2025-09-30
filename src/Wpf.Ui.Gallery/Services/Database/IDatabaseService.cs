@@ -23,6 +23,8 @@ public interface IDatabaseService
     public void AddProduceBatchItemList(string produceBatchNumber, List<ProductBatchItemInfo> productBatchOrderInfoList);
 
     public List<ProducePlanEntity> GetProduceBatchList(int pageNum, int pageLen);
+    
+    public ProducePlanEntity GetProducePlan(string produceBatchNum);
 
     public List<ProduceItemEntity> GetProduceBatchItemList(string produceBatchNum);
     

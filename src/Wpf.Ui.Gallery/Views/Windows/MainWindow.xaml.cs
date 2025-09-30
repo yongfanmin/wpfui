@@ -10,6 +10,7 @@ using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Services.Contracts;
 using Wpf.Ui.Gallery.ViewModels.Windows;
 using Wpf.Ui.Gallery.Views.Pages;
+using Wpf.Ui.Tray.Controls;
 
 namespace Wpf.Ui.Gallery.Views.Windows;
 
@@ -105,7 +106,7 @@ public partial class MainWindow : IWindow
 
         _isUserClosedPane = true;
     }
-
+    
     private void MainWindow_OnClosing(object sender, CancelEventArgs e)
     {
         // 打印一条调试信息，确认事件已触发
@@ -132,5 +133,20 @@ public partial class MainWindow : IWindow
             // 在这里您可以添加一些清理资源的代码
             System.Diagnostics.Debug.WriteLine("用户确认关闭，窗口将关闭。");
         }
+    }
+    
+    private void NotifyIcon_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not NotifyIcon notifyIcon)
+        {
+            return;
+        }
+
+        if (notifyIcon.IsRegistered)
+        {
+            return;
+        }
+
+        notifyIcon.Register();
     }
 }

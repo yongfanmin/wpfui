@@ -67,7 +67,7 @@ public class DatabaseService : IDatabaseService
                     db.Insert(new ProducePlanEntity()
                     {
                         ProduceBatchNum = produceBatchVo.ProduceBatchNum,
-                        AvailableProduceBatchItemCount = produceBatchVo.AvailableProduceBatchItemCount,
+                        AvlProduceBatchItemCount = produceBatchVo.AvlProduceBatchItemCount,
                         ProduceBatchItemCount = produceBatchVo.ProduceBatchItemCount,
                         ProduceBatchStatus = produceBatchVo.ProduceBatchStatus,
                         FactoryGetTime = DateTime.Now
@@ -90,7 +90,7 @@ public class DatabaseService : IDatabaseService
                             new ProducePlanEntity()
                             {
                                 ProduceBatchNum = produceBatchVo.ProduceBatchNum,
-                                AvailableProduceBatchItemCount = produceBatchVo.AvailableProduceBatchItemCount,
+                                AvlProduceBatchItemCount = produceBatchVo.AvlProduceBatchItemCount,
                                 ProduceBatchItemCount = produceBatchVo.ProduceBatchItemCount,
                                 ProduceBatchStatus = produceBatchVo.ProduceBatchStatus,
                                 FactoryGetTime = DateTime.Now
@@ -207,6 +207,14 @@ public class DatabaseService : IDatabaseService
                 .Skip(recordsToSkip) // 3. 跳过前面所有页的数据
                 .Take(pageLen) // 4. 获取当前页所需数量的数据
                 .ToList(); // 5. 执行查询并将结果转换为 List<Order>
+        }
+    }
+
+    public ProducePlanEntity GetProducePlan(string produceBatchNum)
+    {
+        using (var db = GetConnection())
+        {
+            return db.Table<ProducePlanEntity>().FirstOrDefault(p => p.ProduceBatchNum.ToUpper() == produceBatchNum.ToUpper());
         }
     }
 

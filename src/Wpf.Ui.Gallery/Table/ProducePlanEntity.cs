@@ -17,7 +17,7 @@ public class ProducePlanEntity
     [Unique]
     public string ProduceBatchNum { get; set; }
     // 已授权项总数
-    public int AvailableProduceBatchItemCount { get; set; }
+    public int AvlProduceBatchItemCount { get; set; }
     // 批次项总数
     public int ProduceBatchItemCount { get; set; }
     // 生产数据下载数量

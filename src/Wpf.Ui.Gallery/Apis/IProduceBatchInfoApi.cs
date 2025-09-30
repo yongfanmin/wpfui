@@ -27,16 +27,14 @@ public class ProduceBatchInfoRequest
 
 public interface IProduceBatchInfoApi
 {
-    [Post("/api/factoryInterface/getWaitOrderProduceListSmt")]
+    [Post("/api/v2/factoryInterface/getWaitOrderProduceListSmt")]
     Task<FactoryApiResponse<List<ProductBatchItemInfo>>> getProduceBatchInfo(
         [Body] ProduceBatchInfoRequest request,
         // TODO 接口端使用非标准鉴权方式
-        [Header("Token")] string token,
-        // TODO 非标准写法
-        [Header("machineid")] string machineid
+        [Header("Token")] string token
     );
     
-    [Post("/api/factoryInterface/getWaitOrderProduceListSmt")]
+    [Post("/api/v2/factoryInterface/getWaitOrderProduceListSmt")]
     Task<Object> getProduceBatchInfoObj(
         [Body] ProduceBatchInfoRequest request,
         // TODO 接口端使用非标准鉴权方式

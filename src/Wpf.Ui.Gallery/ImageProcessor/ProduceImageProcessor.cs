@@ -123,9 +123,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"<UNK>[{uniqueBatchItem.ProduceBatchNum}]<UNK>");
+                        Console.WriteLine($"全印裁片合成失败 批次号:[{uniqueBatchItem.ProduceBatchNum}] 项:[{uniqueBatchItem.BatchNum}] {ex}");
                     }
-                    
                 }
                 else if (patternPieceTask.RenderType == RenderType.局部印_矩形框)
                 {
@@ -365,7 +364,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
             }
             catch (Exception ex)
             {
-                Console.WriteLine("<UNK>", ex);
+                Console.WriteLine($"裁片印花无法正常合成{ex}");
             }
 
 
@@ -448,13 +447,12 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
         int targetDpi = uniqueBatchItem.TargetDpi;
         // TODO 写死印花机编码(热转印,白墨)
-        string machineid = "68,405";
+        // string machineid = "68,405";
         string token = _loginInfoService.getToken();
         // 加载裁片排版信息
         FactoryApiResponse<Object> layoutResponse = await _layoutApi.GetLayoutInfo(
             new LayoutRequest() { DesignProductId = uniqueBatchItem.DesignProductId, },
-            token,
-            machineid);
+            token);
         Layout layout = JsonSerializer.Deserialize<Layout>(layoutResponse.Data.ToString());
         if (layout is null)
         {
@@ -467,7 +465,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         machineConfig.Dpi = targetDpi;
         machineConfig.PrintWidthMm = layout.LayoutArea.WidthMm; // 2米宽度料卷
 
-
+        // TODO 当前没用到的数据 直接写死值
         RollOfFabric rollOfFabric = new RollOfFabric();
         rollOfFabric.WidthMm = 550;
         rollOfFabric.CurrentMaxLengthMm = 30 * 1000; //当前剩余30米
@@ -732,7 +730,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("临时调试点,创建排版出错");
+                        Console.WriteLine($"创建排版出错: {ex}");
                     }
                 }
 

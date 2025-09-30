@@ -24,16 +24,24 @@
         <Style x:Key="SelectableReadOnlyCellStyle" TargetType="{x:Type TextBox}">
             <!-- 1. 核心：设为只读 -->
             <Setter Property="IsReadOnly" Value="True" />
-    
-            <!-- 2. 外观：让它看起来完全像一个普通的TextBlock -->
+
+            <!-- 2. 外观：让它看起来完全像一个普通的TextBlock，并且颜色跟随主题 -->
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="4,2" /> <!-- 添加一点内边距，让文本不贴边 -->
+            <!-- 核心修改：使用WPF UI的主题画刷来设置文字颜色 -->
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+    
+            <!-- 3. 行为：优化交互体验 -->
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <!-- 改进1：使用主题感知的选区颜色，而不是系统默认的蓝色 -->
+            <Setter Property="SelectionBrush" Value="{DynamicResource TextControlSelectionHighlightColorBrush}" />
+            <!-- 改进2：隐藏只读文本框中无用的闪烁光标 -->
+            <Setter Property="CaretBrush" Value="Transparent" />
+    
+            <!-- 4. 布局：保持原有的良好对齐方式 -->
+            <Setter Property="Padding" Value="4,2" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
-    
-            <!-- 3. 行为：移除获得焦点时的边框 -->
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         </Style>
         <Style x:Key="MyGridViewHeaderStyle" TargetType="{x:Type GridViewColumnHeader}">
             <Setter Property="Background" Value="{ui:ThemeResource CardBackgroundFillColorSecondaryBrush}" />
