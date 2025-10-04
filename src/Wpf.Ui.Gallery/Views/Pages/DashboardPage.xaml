@@ -14,6 +14,7 @@
     Margin="0,0,0,0"
     d:DataContext="{d:DesignInstance local:DashboardPage,
                                      IsDesignTimeCreatable=False}"
+    ScrollViewer.CanContentScroll="False"
     d:DesignHeight="650"
     d:DesignWidth="800"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
@@ -79,7 +80,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <Border
@@ -205,22 +206,6 @@
                         Click="Test"
                         Content="排版测试" />
                 </StackPanel>-->
-                <StackPanel 
-                    Grid.Column="1"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    Margin="0,0,400,0">
-                    <ui:TextBox
-                        Name="BatchNoTextBox"
-                        Width="200"
-                        Text="{Binding ViewModel.BatchNo, UpdateSourceTrigger=PropertyChanged}" 
-                        PlaceholderText="输入批次号" />
-                    <ui:Button
-                        Content="生产"
-                        Margin="10,0,0,0"
-                        Command="{Binding ViewModel.ConfirmCommand}" />
-                </StackPanel>
                 <StackPanel
                     Grid.Column="2"
                     Orientation="Horizontal"
@@ -264,18 +249,43 @@
             </Grid>
         </Border>
         <Border
+            Grid.Row="1"
+            Margin="0,12,0,0"
+            Padding="12"
+            Background="{ui:ThemeResource ApplicationBackgroundBrush}"
+            BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+            <ItemsControl ItemsSource="{Binding ViewModel.DateFilterButtons}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <ToggleButton
+                            Margin="0,0,8,0"
+                            Content="{Binding DisplayText}"
+                            IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                            Command="{Binding DataContext.ViewModel.DateFilterCommand, RelativeSource={RelativeSource AncestorType=local:DashboardPage}}"
+                            CommandParameter="{Binding Value}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+        <Border
             Grid.Row="2"
             Margin="0 12 0 0"
             Background="{ui:ThemeResource ApplicationBackgroundBrush}"
             BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="1"
             CornerRadius="8">
-            <ui:DataGrid 
-                         ItemsSource="{Binding ViewModel.ProductBatchCollection, Mode=TwoWay}" 
-                         AutoGenerateColumns="False"
-                         CanUserAddRows="False"
-                         IsReadOnly="True"
-                         >
+            <ui:DataGrid
+                ItemsSource="{Binding ViewModel.ProductBatchCollection, Mode=TwoWay}"
+                AutoGenerateColumns="False"
+                CanUserAddRows="False"
+                IsReadOnly="True">
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Header="生产批次">
                         <DataGridTemplateColumn.CellTemplate>
@@ -312,5 +322,4 @@
             </ui:DataGrid>
         </Border>
     </Grid>
-
 </Page>

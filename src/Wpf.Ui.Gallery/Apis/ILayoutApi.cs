@@ -13,6 +13,9 @@ public class LayoutRequest
 {
     [JsonPropertyName("design_template_id")]
     public long DesignProductId { get; set; }
+    
+    [JsonPropertyName("size_id")]
+    public long SizeId { get; set; }
 }
 
 public interface ILayoutApi

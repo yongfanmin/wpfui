@@ -31,7 +31,7 @@ public class ProductionTaskBuilder
                 // 只打印印花图 与裁片无关 (如 烫画)
                 var task = new ProductionTask
                 {
-                    RenderType = RenderTypeBuilder.getRenderType(batchItem.Is3d),
+                    RenderType = RenderTypeBuilder.getRenderType(batchItem.IsMultiPiece),
                     PatternPieceTitle = viewIdKey,
                     FactoryId = batchItem.FactoryId,
                     TaskId = $"{batchItem.ProduceBatchNumber}-{viewIdKey}",
@@ -46,9 +46,9 @@ public class ProductionTaskBuilder
                     PatternPieceImageUrl = null,
                     // CuttingPieceTargetWidthCm = decimal.Parse(cuttingPiece.WidthCm, CultureInfo.InvariantCulture),
                     // CuttingPieceTargetHeightCm = decimal.Parse(cuttingPiece.HeightCm, CultureInfo.InvariantCulture),
-                    PatternPieceTargetWidthMm = printInfo.RealSizeWidthMm,
+                    PatternPieceTargetWidthMm = printInfo.GetRealSizeWidthBySizeRatio(batchItem.Attributes.SizeId.ToString()),
                     //裁片视图 目前是等宽高的, 并且接口没有返回 实际高度 ；所以只能把实际宽度当作实际高度
-                    PatternPieceTargetHeightMm = printInfo.RealSizeWidthMm,
+                    PatternPieceTargetHeightMm = printInfo.GetRealSizeWidthBySizeRatio(batchItem.Attributes.SizeId.ToString()),
                     TargetDpi = printInfo.TargetDpi,
                     PrintLayers = new List<PrintLayerInfo>(),
                     PrintCropType = printCropType,
@@ -111,7 +111,7 @@ public class ProductionTaskBuilder
                     // 创建一个针对此裁片的新生产任务
                     var task = new ProductionTask
                     {
-                        RenderType = RenderTypeBuilder.getRenderType(batchItem.Is3d),
+                        RenderType = RenderTypeBuilder.getRenderType(batchItem.IsMultiPiece),
                         PatternPieceTitle = patternPiece.Title,
                         FactoryId = batchItem.FactoryId,
                         TaskId = $"{batchItem.ProduceBatchNumber}-{patternPiece.Title}",
@@ -125,9 +125,9 @@ public class ProductionTaskBuilder
                         PatternPieceImageUrl = patternPiece.PatternPieceImageUrl,
                         // CuttingPieceTargetWidthCm = decimal.Parse(cuttingPiece.WidthCm, CultureInfo.InvariantCulture),
                         // CuttingPieceTargetHeightCm = decimal.Parse(cuttingPiece.HeightCm, CultureInfo.InvariantCulture),
-                        PatternPieceTargetWidthMm = printInfo.RealSizeWidthMm,
+                        PatternPieceTargetWidthMm = printInfo.GetRealSizeWidthBySizeRatio(batchItem.Attributes.SizeId.ToString()),
                         //裁片视图 目前是等宽高的, 并且接口没有返回 实际高度 ；所以只能把实际宽度当作实际高度
-                        PatternPieceTargetHeightMm = printInfo.RealSizeWidthMm,
+                        PatternPieceTargetHeightMm = printInfo.GetRealSizeWidthBySizeRatio(batchItem.Attributes.SizeId.ToString()),
                         TargetDpi = printInfo.TargetDpi,
                         PrintLayers = new List<PrintLayerInfo>(),
                         PrintCropType = printCropType,

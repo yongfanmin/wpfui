@@ -451,8 +451,17 @@ public class ProduceImageProcessor : IProduceImageProcessor
         string token = _loginInfoService.getToken();
         // 加载裁片排版信息
         FactoryApiResponse<Object> layoutResponse = await _layoutApi.GetLayoutInfo(
-            new LayoutRequest() { DesignProductId = uniqueBatchItem.DesignProductId, },
+            new LayoutRequest()
+            {
+                DesignProductId = uniqueBatchItem.DesignProductId,
+                SizeId = uniqueBatchItem.SizeId,
+            },
             token);
+        if (layoutResponse.Data is null)
+        {
+            Console.WriteLine($"产品无法排版生产,产品ID{uniqueBatchItem.DesignProductId},尺码{uniqueBatchItem.SizeId}");
+            return;
+        }
         Layout layout = JsonSerializer.Deserialize<Layout>(layoutResponse.Data.ToString());
         if (layout is null)
         {

@@ -17,16 +17,20 @@ public interface IDatabaseService
 {
     public void InitializeDatabase();
     public void AddProduceBatch(ProduceBatchVo produceBatchVo);
+    
+    public void AddProduceBatchNeedLayoutItemCount(string produceBatchNum);
     public void UpdateProduceBatchStatus(string produceBatchNum, ProduceBatchStatus produceBatchStatus);
     public void AddProduceBatchItem(ProductBatchItemInfo productBatchItemInfo);
     
     public void AddProduceBatchItemList(string produceBatchNumber, List<ProductBatchItemInfo> productBatchOrderInfoList);
 
+    public List<ProducePlanEntity> GetProduceBatchList(string createTimeValue);
+    
     public List<ProducePlanEntity> GetProduceBatchList(int pageNum, int pageLen);
     
     public ProducePlanEntity GetProducePlan(string produceBatchNum);
 
-    public List<ProduceItemEntity> GetProduceBatchItemList(string produceBatchNum);
+    public List<ProduceItemEntity> GetProduceBatchItemList(string produceBatchNum,long batchNum);
     
     public List<ProduceItemEntity> GetProduceBatchItemList(List<UniqueBatchItemNum> uniqueBatchItemNumList);
     

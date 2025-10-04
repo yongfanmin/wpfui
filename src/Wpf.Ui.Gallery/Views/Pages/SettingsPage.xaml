@@ -30,7 +30,7 @@
                     <ui:TextBlock
                         Grid.Row="0"
                         FontTypography="Body"
-                        Text="App theme" />
+                        Text="软件主题" />
                     <ui:TextBlock
                         Grid.Row="1"
                         Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
@@ -46,8 +46,9 @@
                 <ComboBoxItem Content="High Contrast" />
             </ComboBox>
         </ui:CardControl>
-
-        <ui:CardControl Margin="0,0,0,12" Icon="{ui:SymbolIcon AlignSpaceEvenlyVertical20}">
+        <!-- 导航栏样式  先不支持 有bug 切换样式后导致菜单栏无法折叠
+-->
+        <!--<ui:CardControl Margin="0,0,0,12" Icon="{ui:SymbolIcon AlignSpaceEvenlyVertical20}">
             <ui:CardControl.Header>
                 <ui:TextBlock
                     Grid.Row="0"
@@ -62,7 +63,7 @@
                 <ComboBoxItem Content="Top" />
                 <ComboBoxItem Content="Bottom" />
             </ComboBox>
-        </ui:CardControl>
+        </ui:CardControl>-->
         <ui:TextBlock
             Margin="0,24,0,8"
             FontTypography="BodyStrong"
@@ -108,7 +109,7 @@
             </ui:CardControl.Header>
             <StackPanel>
                 <RadioButton
-                    Content="存在统一文件夹"
+                    Content="存放统一文件夹"
                     IsChecked="{Binding ViewModel.ProduceImgLayoutFolderClassify, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AllInOne}"
                     GroupName="FolderClassify"
                     Command="{Binding ViewModel.FolderClassifyChangedCommand}"

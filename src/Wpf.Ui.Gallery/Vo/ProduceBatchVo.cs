@@ -16,8 +16,12 @@ public partial class ProduceBatchVo : ObservableObject
 
     // 批次下被授权生产产品
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ProduceBatchItemProcess))] // 当它变化时，也通知 ProduceBatchItemNum 更新
+    [NotifyPropertyChangedFor(nameof(ProduceBatchItemProcess))] // 当它变化时，也通知 ProduceBatchItemProcess 更新
     private int _avlProduceBatchItemCount;
+    
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LayoutCreateProgress))]
+    private int _needLayoutCount;
     
     // 项批次总数
     [ObservableProperty]
@@ -46,16 +50,18 @@ public partial class ProduceBatchVo : ObservableObject
     private int _dataDownloadCount;
 
     private readonly string tips = "已加载";
+
+    private readonly string tips2 = "已完成";
     
     public string DataDownloadProgress
     {
         get
         {
-            if (ProduceBatchItemCount > 0 && DataDownloadCount >= ProduceBatchItemCount)
+            if (AvlProduceBatchItemCount > 0 && DataDownloadCount >= AvlProduceBatchItemCount)
             {
                 return tips;
             }
-            return $"{DataDownloadCount} / {ProduceBatchItemCount}";
+            return $"{DataDownloadCount} / {AvlProduceBatchItemCount}";
         }
     }
     
@@ -69,11 +75,11 @@ public partial class ProduceBatchVo : ObservableObject
     {
         get
         {
-            if (ProduceBatchItemCount > 0 && ImgDownloadCount >= ProduceBatchItemCount)
+            if (AvlProduceBatchItemCount > 0 && ImgDownloadCount >= AvlProduceBatchItemCount)
             {
                 return tips;
             }
-            return $"{ImgDownloadCount} / {ProduceBatchItemCount}";
+            return $"{ImgDownloadCount} / {AvlProduceBatchItemCount}";
         }
     }
     
@@ -87,11 +93,11 @@ public partial class ProduceBatchVo : ObservableObject
     {
         get
         {
-            if (ProduceBatchItemCount > 0 && PiecePrintCount >= ProduceBatchItemCount)
+            if (AvlProduceBatchItemCount > 0 && PiecePrintCount >= AvlProduceBatchItemCount)
             {
-                return tips;
+                return tips2;
             }
-            return $"{PiecePrintCount} / {ProduceBatchItemCount}";
+            return $"{PiecePrintCount} / {AvlProduceBatchItemCount}";
         }
     }
     
@@ -104,11 +110,16 @@ public partial class ProduceBatchVo : ObservableObject
     {
         get
         {
-            if (ProduceBatchItemCount > 0 && LayoutCreateCount >= ProduceBatchItemCount)
+            if (NeedLayoutCount > 0 && LayoutCreateCount >= NeedLayoutCount)
             {
-                return tips;
+                return tips2;
             }
-            return $"{LayoutCreateCount} / {ProduceBatchItemCount}";
+
+            if (NeedLayoutCount == 0 && LayoutCreateCount == 0)
+            {
+                return "-";
+            }
+            return $"{LayoutCreateCount} / {NeedLayoutCount}";
         }
     }
     

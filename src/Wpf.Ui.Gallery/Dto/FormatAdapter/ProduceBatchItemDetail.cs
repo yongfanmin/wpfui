@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Converters;
+using Wpf.Ui.Gallery.Dto.FormatAdapter.Converts;
 using Wpf.Ui.Gallery.Utils;
 
 
@@ -21,10 +22,6 @@ public class ProduceBatchItemDetail
     // 公版id
     [JsonPropertyName("design_product_id")]
     public long DesignProductId { get; set; }
-
-    [JsonPropertyName("is_3d")]
-    [JsonConverter(typeof(StringOrNumberToIntConverter))]
-    public int Is3d { get; set; }
 
     [JsonPropertyName("order_no")] public string OrderNo { get; set; }
 
@@ -63,6 +60,10 @@ public class ProduceBatchItemDetail
     
     [JsonPropertyName("face_alias")]
     public Dictionary<string,string> ViewNameMap { get; set; }
+    
+    [JsonPropertyName("is_3d")]
+    [JsonConverter(typeof(Is3d2MultiPieceConvert))]
+    public bool IsMultiPiece { get; set; }
 
     public static ProduceBatchItemDetail ConstructByJson(JsonNode jsonNode)
     {
@@ -230,6 +231,11 @@ public class PrintInfo
     [JsonPropertyName("actual_width")]
     [JsonConverter(typeof(StringToDecimalConverter))] // <-- 应用转换器 小数字符串转Dedimal类型
     public decimal RealSizeWidthMm { get; set; } // 裁片物理宽度 (毫米)
+
+    public decimal GetRealSizeWidthBySizeRatio(string sizeId)
+    {
+        return RealSizeWidthMm * SizePrintRatio[sizeId] / 100;
+    }
     
     [JsonPropertyName("width")]
     public decimal WidthPx { get; set; }
@@ -259,6 +265,9 @@ public class PrintInfo
 
     // 该视图下的所有裁片，Key是裁片名 (string)
     [JsonPropertyName("qp_data")] public Dictionary<string, PatternPieceInfo> PatternPieces { get; set; }
+    
+    [JsonPropertyName("size_print_ratio")] public Dictionary<string, decimal> SizePrintRatio { get; set; }
+    
 }
 
 // 单个裁片的信息

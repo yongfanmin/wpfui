@@ -71,6 +71,8 @@ public partial class App
                 _ = services.AddSingleton<AllControlsViewModel>();
                 _ = services.AddSingleton<SettingsPage>();
                 _ = services.AddSingleton<SettingsViewModel>();
+                _ = services.AddSingleton<ProcessStepScanPage>();
+                _ = services.AddSingleton<ProcessStepScanViewModel>();
                 
                 
                 // 图片下载

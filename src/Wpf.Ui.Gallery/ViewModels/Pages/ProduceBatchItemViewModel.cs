@@ -18,6 +18,8 @@ public sealed partial class ProduceBatchItemViewModel : ObservableObject, IRecip
 {
     [ObservableProperty] private string _selectedProduceBatchNumber = "";
     
+    [ObservableProperty] private string _selectedBatchNum = "";
+    
     private readonly IDatabaseService _databaseService;
 
     private readonly ObservableCollection<ProduceBatchItemVo> _originalProductBatchCollection = new ObservableCollection<ProduceBatchItemVo>();
@@ -53,7 +55,7 @@ public sealed partial class ProduceBatchItemViewModel : ObservableObject, IRecip
             return;
         }
 
-        List<ProduceItemEntity> produceBatchItemList = _databaseService.GetProduceBatchItemList(produceBatchNumber);
+        List<ProduceItemEntity> produceBatchItemList = _databaseService.GetProduceBatchItemList(produceBatchNumber, string.IsNullOrEmpty(SelectedBatchNum) ?  0:Convert.ToInt64(SelectedBatchNum));
         List<ProduceBatchItemVo> produceBatchItemVoList = new List<ProduceBatchItemVo>();
         foreach (ProduceItemEntity produceItemEntity in produceBatchItemList)
         {
