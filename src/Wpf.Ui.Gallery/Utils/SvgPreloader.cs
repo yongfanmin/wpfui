@@ -7,6 +7,8 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
+using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.Wpf;
 using SkiaSharp;
 using Svg;
 using Svg.Skia;
@@ -18,6 +20,7 @@ namespace Wpf.Ui.Gallery.Utils;
 
 public static class SvgPreloader
 {
+    
     public static bool IsSvg(Stream stream)
     {
         if (stream == null || !stream.CanRead)

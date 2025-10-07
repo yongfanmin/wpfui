@@ -46,8 +46,9 @@ public class ProduceBatchItemDetail
     [JsonPropertyName("product_config")] public Dictionary<string, List<ProductConfigItem>> ProductConfig { get; set; }
 
     // 文字转印花图列表
-    // [JsonPropertyName("logo_image_list")] public Dictionary<string, string> WordImgMap { get; set; }
-    [JsonPropertyName("logo_svg_list")] public Dictionary<string, string> WordImgMap { get; set; }
+    [JsonPropertyName("logo_image_list")] public Dictionary<string, string> WordImgMap { get; set; }
+    // SVG兼容性不太好 没有合适的库实现 有点问题 先不用 (扭曲旋转的文字无法渲染)
+    // [JsonPropertyName("logo_svg_list")] public Dictionary<string, string> WordImgMap { get; set; }
 
     // 这是一个混合格式 有的返回数组 有的返回json
     // 生产打印参数，Key是ViewId (string)

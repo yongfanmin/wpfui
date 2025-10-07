@@ -16,21 +16,70 @@
     <Page.InputBindings>
         <KeyBinding Key="Enter" Command="{Binding ViewModel.EnterConfirmCommand}" />
     </Page.InputBindings>
-
-    <Grid>
-        <StackPanel
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            Orientation="Horizontal">
-            <ui:TextBox
-                Name="BatchNoTextBox"
-                Width="200"
-                PlaceholderText="输入批次号"
-                Text="{Binding ViewModel.BatchNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-            <ui:Button
-                Margin="10,0,0,0"
-                Command="{Binding ViewModel.EnterConfirmCommand}"
-                Content="生产" />
-        </StackPanel>
-    </Grid>
+    <TabControl Margin="0,8,0,0">
+        <TabItem>
+            <TabItem.Header>
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Margin="0,0,6,0" Symbol="DrawImage24" />
+                    <TextBlock Text="开始印花生产" />
+                </StackPanel>
+            </TabItem.Header>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel 
+                    Grid.Row="0" 
+                    Margin="0,12,0,12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <ui:TextBox
+                        Name="BatchNoStartBox"
+                        FontWeight="Bold"
+                        Width="200"
+                        Margin="0,0,12,0"
+                        PlaceholderText="输入工位批次号"
+                        Text="{Binding ViewModel.BatchNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <ui:Button
+                        Margin="10,0,0,0"
+                        Command="{Binding ViewModel.EnterConfirmStartProduceCommand}"
+                        Content="开始生产" />
+                </StackPanel>
+            </Grid>
+        </TabItem>
+        <TabItem IsSelected="True">
+            <TabItem.Header>
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Margin="0,0,6,0" Symbol="BoxMultipleCheckmark24" />
+                    <TextBlock Text="生产完成" />
+                </StackPanel>
+            </TabItem.Header>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel 
+                    Grid.Row="0" 
+                    Margin="0,12,0,12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <ui:TextBox
+                        Name="BatchNoCompleteBox"
+                        FontWeight="Bold"
+                        Width="200"
+                        Margin="0,0,12,0"
+                        PlaceholderText="输入项批次号"
+                        Text="{Binding ViewModel.BatchNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <ui:Button
+                        Margin="10,0,0,0"
+                        Command="{Binding ViewModel.EnterConfirmCompleteProduceCommand}"
+                        Content="生产完成" />
+                </StackPanel>
+            </Grid>
+        </TabItem>
+    </TabControl>
 </Page>

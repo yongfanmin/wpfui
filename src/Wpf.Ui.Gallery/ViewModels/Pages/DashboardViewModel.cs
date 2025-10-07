@@ -727,29 +727,6 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     }
 
     [RelayCommand]
-    private async void OnConfirm()
-    {
-        if (!string.IsNullOrWhiteSpace(BatchNo))
-        {
-            // TODO 写死印花机编码(热转印,白墨)
-            // string machineid = "68,405";
-            string token = _loginInfoService.getToken();
-            BatchNo2Produce batchNo2Produce = new BatchNo2Produce();
-            batchNo2Produce.BatchNo = BatchNo;
-            FactoryApiResponse<Object> setBatchNo2ProduceResponse =
-                await _produceBatchApi.setBatchNo2Produce(batchNo2Produce, token);
-            var messageBox = new Wpf.Ui.Controls.MessageBox
-            {
-                Title = "Login Failed",
-                Content = setBatchNo2ProduceResponse.Msg ?? "An unknown error occurred.",
-                CloseButtonText = "OK"
-            };
-
-            _ = await messageBox.ShowDialogAsync();
-        }
-    }
-
-    [RelayCommand]
     private async void OnOpenProduceItemWindow(Object? produceBatchVoObj)
     {
         if (produceBatchVoObj is ProduceBatchVo batchVo)
