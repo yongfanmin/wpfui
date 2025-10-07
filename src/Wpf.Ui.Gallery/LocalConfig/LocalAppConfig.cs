@@ -3,6 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using Serilog.Events;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
@@ -22,6 +23,9 @@ public class AppSetting
 
     public ApplicationTheme ApplicationTheme { get; set; } = ApplicationTheme.Light;
 
+    // 日志输入等级
+    public LogEventLevel LogLevel { get; set; } = LogEventLevel.Error;
+    
     public int ComputerCpuThreads { get; set; } = Environment.ProcessorCount;
 
     // UI线程 默认保留1线程 防止程序或者其他应用卡死无响应

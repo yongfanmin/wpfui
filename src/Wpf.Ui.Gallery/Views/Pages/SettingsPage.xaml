@@ -19,7 +19,7 @@
         <ui:TextBlock
             Margin="0,0,0,8"
             FontTypography="BodyStrong"
-            Text="Appearance &amp; behavior" />
+            Text="基础设置" />
         <ui:CardControl Margin="0,0,0,12" Icon="{ui:SymbolIcon Color24}">
             <ui:CardControl.Header>
                 <Grid>
@@ -34,7 +34,7 @@
                     <ui:TextBlock
                         Grid.Row="1"
                         Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
-                        Text="Select which app theme to display" />
+                        Text="选择一个软件主题" />
                 </Grid>
             </ui:CardControl.Header>
             <ComboBox
@@ -157,7 +157,7 @@
         <ui:TextBlock
             Margin="0,24,0,8"
             FontTypography="BodyStrong"
-            Text="About" />
+            Text="关于软件" />
         <ui:CardExpander ContentPadding="0"
                          Icon="{ui:ImageIcon 'pack://application:,,,/Assets/wpfui.png', Width=38, Height=35}">
             <ui:CardExpander.Header>
@@ -241,5 +241,52 @@
                 <TextBlock Margin="16" Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
             </StackPanel>
         </ui:CardExpander>
+        <ui:TextBlock
+            Margin="0,24,0,8"
+            FontTypography="BodyStrong"
+            Text="技术人员设置" />
+        <ui:CardControl Margin="0,24,0,12" Icon="{ui:SymbolIcon Shield24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="日志等级" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="选择记录日志的等级" />
+                </Grid>
+            </ui:CardControl.Header>
+            <ComboBox
+                MinWidth="200"
+                ItemsSource="{Binding ViewModel.LogLevels}"
+                SelectedItem="{Binding ViewModel.SelectedLogLevel, Mode=TwoWay}" />
+        </ui:CardControl>
+        <ui:CardControl Margin="0,24,0,12" Icon="{ui:SymbolIcon Bug24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="日志存储" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="打开报错日志文件夹" />
+                </Grid>
+            </ui:CardControl.Header>
+            <ui:Button
+                Content="打开目录"
+                Command="{Binding ViewModel.OpenLogCommand, Mode=OneWay}" />
+        </ui:CardControl>
     </StackPanel>
 </Page>

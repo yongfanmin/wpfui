@@ -4,7 +4,11 @@
 // All Rights Reserved.
 
 using Lepo.i18n.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Refit;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 using Wpf.Ui.DependencyInjection;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Config;
@@ -35,7 +39,25 @@ public partial class App
     
     private static readonly string _domain = "http://factory.sds-diy.xyz";
     
+    public static readonly LoggingLevelSwitch LevelSwitch = new(LogEventLevel.Error);
+    
     private static readonly IHost _host = Host.CreateDefaultBuilder()
+        .UseSerilog(
+            (context, configuration) =>
+            {
+                configuration
+                    .MinimumLevel.ControlledBy(LevelSwitch)
+                    .Enrich.FromLogContext()
+                    .WriteTo.File(
+                        FileName.LogFileFullPath,
+                        rollingInterval: RollingInterval.Day,
+                        rollOnFileSizeLimit: true,
+                        fileSizeLimitBytes: 100 * 1024 * 1024,
+                        retainedFileCountLimit: 10,
+                        retainedFileTimeLimit: TimeSpan.FromDays(3)
+                    );
+            }
+        )
         .ConfigureAppConfiguration(c =>
         {
             _ = c.SetBasePath(AppContext.BaseDirectory);
@@ -157,7 +179,7 @@ public partial class App
     {
         // 读取本地磁盘配置
         LocalAppConfig.Load();
-
+        LevelSwitch.MinimumLevel = LocalAppConfig.AppSetting.LogLevel;
         Console.InputEncoding = Encoding.UTF8;
         Console.OutputEncoding = Encoding.UTF8;
         //程序启动 进入程序 开启程序 打开软件
@@ -192,7 +214,15 @@ public partial class App
     /// </summary>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        // For more info see https://docs.microsoft.com/en-us/dotnet/api/system.windows.application.dispatcherunhandledexception?view=windowsdesktop-6.0
+        try
+        {
+            var logger = GetRequiredService<ILogger<App>>();
+            logger.LogError(e.Exception, "An unhandled exception occurred.");
+        }
+        finally
+        {
+            e.Handled = true;
+        }
     }
     
     private void initDatabase()

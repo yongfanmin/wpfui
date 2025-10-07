@@ -4,9 +4,11 @@
 // All Rights Reserved.
 
 using Microsoft.Win32;
+using Serilog.Events;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Extensions;
+using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.ViewModels.Windows;
@@ -36,6 +38,12 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
     private ProduceImgLayoutFolderClassify _produceImgLayoutFolderClassify =
         ProduceImgLayoutFolderClassify.ByProduceBatch;
 
+    [ObservableProperty]
+    private IEnumerable<LogEventLevel> _logLevels = Enum.GetValues<LogEventLevel>();
+
+    [ObservableProperty]
+    private LogEventLevel _selectedLogLevel;
+
     public async Task OnNavigatedToAsync()
     {
         if (!_isInitialized)
@@ -47,6 +55,7 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
         PrintedPatternFilePath = LocalAppConfig.AppSetting.PrintedPatternFilePath;
         ProduceImgLayoutFolderClassify = LocalAppConfig.AppSetting.ProduceImgLayoutFolderClassify;
         UpdateFileNameFormatString();
+        SelectedLogLevel = LocalAppConfig.AppSetting.LogLevel;
     }
 
     /// <summary>
@@ -90,6 +99,13 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
     )
     {
         _ = navigationService.SetPaneDisplayMode(newValue);
+    }
+    
+    partial void OnSelectedLogLevelChanged(LogEventLevel value)
+    {
+        App.LevelSwitch.MinimumLevel = value;
+        LocalAppConfig.AppSetting.LogLevel = value;
+        LocalAppConfig.Save(LocalAppConfig.AppSetting);
     }
 
     private void InitializeViewModel()
@@ -164,6 +180,39 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
             LocalAppConfig.AppSetting.ProduceImgLayoutFolderClassify = folderClassify;
             LocalAppConfig.Save(LocalAppConfig.AppSetting);
             Console.WriteLine($"Folder classification changed to: {ProduceImgLayoutFolderClassify}");
+        }
+    }
+    
+    [RelayCommand]
+    private void OnOpenLog()
+    {
+        string path = FileName.LogFilePath;
+
+        // 1. 健壮性检查：确保路径存在
+        //    这可以防止因路径无效而导致无法预测的行为
+        if (!Directory.Exists(path))
+        {
+            var messageBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "无法打开日志文件夹", Content = "不存在错误日志 " + path, CloseButtonText = "OK"
+            };
+            _ = messageBox.ShowDialogAsync();
+            return;
+        }
+
+        try
+        {
+            // 2. 创建一个 ProcessStartInfo 对象
+            ProcessStartInfo startInfo = new ProcessStartInfo { FileName = path, UseShellExecute = true };
+
+            // 5. 启动进程
+            Process.Start(startInfo);
+        }
+        catch (Exception ex)
+        {
+            // 捕获可能发生的异常，例如权限问题
+            Console.WriteLine($"打开文件夹时发生错误: {ex}");
+            // File.WriteAllText("error.log", ex.ToString());
         }
     }
 }

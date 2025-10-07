@@ -18,6 +18,9 @@ public partial class ProduceBatchItemVo : ObservableObject
     
     // 单号
     public string OrderNo { get; set; }
+    
+    // 订单详情id
+    public int OrderDetailId { get; set; }
 
     // 纸样/样板/公版/版
     // public string? PatternName { get; set; }

@@ -41,14 +41,15 @@ public class ProductionTaskBuilder
                     ProduceBatchNum = batchItem.ProduceBatchNumber,
                     BatchNum = batchItem.BatchNum,
                     OrderNo = batchItem.OrderNo,
+                    OrderDetailId = batchItem.OrderDetailId,
                     ViewId = printInfo.ViewId,
                     ViewName = batchItem.ViewNameMap?.ContainsKey(viewIdKey) ?? false ? batchItem.ViewNameMap[viewIdKey] : string.Empty,
                     PatternPieceImageUrl = null,
                     // CuttingPieceTargetWidthCm = decimal.Parse(cuttingPiece.WidthCm, CultureInfo.InvariantCulture),
                     // CuttingPieceTargetHeightCm = decimal.Parse(cuttingPiece.HeightCm, CultureInfo.InvariantCulture),
-                    PatternPieceTargetWidthMm = printInfo.GetRealSizeWidthBySizeRatio(batchItem.Attributes.SizeId.ToString()),
+                    PatternPieceTargetWidthMm = printInfo.RealSizeWidthMm,
                     //裁片视图 目前是等宽高的, 并且接口没有返回 实际高度 ；所以只能把实际宽度当作实际高度
-                    PatternPieceTargetHeightMm = printInfo.GetRealSizeWidthBySizeRatio(batchItem.Attributes.SizeId.ToString()),
+                    PatternPieceTargetHeightMm = printInfo.RealSizeWidthMm,
                     TargetDpi = printInfo.TargetDpi,
                     PrintLayers = new List<PrintLayerInfo>(),
                     PrintCropType = printCropType,
@@ -97,6 +98,41 @@ public class ProductionTaskBuilder
                         task.PrintLayers.Add(layer);
                         // task.PrintCropArea = designImage.PrintCropArea;
                     }
+                }else
+                {
+                    // 目前文字印花使用后端生成的文字印花图层(或者svg图层)进行生产图制作 ； 而不是 文字+位移+旋转+字体+文字大小+颜色 等数据进行渲染
+                    foreach (string viewId in batchItem.WordImgMap.Keys)
+                    {
+                        string wordImgUrl = batchItem.WordImgMap[viewId];
+                            
+                        // 文字印花不支持特效
+                        TileTool tileTool = new TileTool();
+                        tileTool.TileType = TileType.无平铺;
+                        var layer = new PrintLayerInfo
+                        {
+                            GalleryId = -1,
+                            DesignImageUrl = wordImgUrl,
+                            // 印花图需要缩放到跟裁片一样的目标尺寸
+                            DesignImageSizeMm = new RealSize()
+                            {
+                                Width = printInfo.GetWidthMm(),
+                                Height = printInfo.GetHeightMm(),
+                            },
+                            //ScaleX = transform.ScaleX,
+                            //ScaleY = transform.ScaleY,
+                            //TranslateX = transform.TranslateX,
+                            //TranslateY = transform.TranslateY,
+                            TranslateX = 0,
+                            TranslateY = 0,
+                            Rotation = 0,
+                            XFlip = false,
+                            YFlip = false,
+                            //目前 裁片多印花图的层级索引等于裁片印花图的序号
+                            ZIndex = Convert.ToInt32(viewId),
+                            TileTool = tileTool,
+                        };
+                        task.PrintLayers.Add(layer);
+                    }
                 }
 
                 tasks.Add(task);
@@ -121,55 +157,95 @@ public class ProductionTaskBuilder
                         ProduceBatchNum = batchItem.ProduceBatchNumber,
                         BatchNum = batchItem.BatchNum,
                         OrderNo = batchItem.OrderNo,
+                        OrderDetailId = batchItem.OrderDetailId,
                         ViewId = printInfo.ViewId,
                         PatternPieceImageUrl = patternPiece.PatternPieceImageUrl,
                         // CuttingPieceTargetWidthCm = decimal.Parse(cuttingPiece.WidthCm, CultureInfo.InvariantCulture),
                         // CuttingPieceTargetHeightCm = decimal.Parse(cuttingPiece.HeightCm, CultureInfo.InvariantCulture),
-                        PatternPieceTargetWidthMm = printInfo.GetRealSizeWidthBySizeRatio(batchItem.Attributes.SizeId.ToString()),
+                        PatternPieceTargetWidthMm = printInfo.RealSizeWidthMm,
                         //裁片视图 目前是等宽高的, 并且接口没有返回 实际高度 ；所以只能把实际宽度当作实际高度
-                        PatternPieceTargetHeightMm = printInfo.GetRealSizeWidthBySizeRatio(batchItem.Attributes.SizeId.ToString()),
+                        PatternPieceTargetHeightMm = printInfo.RealSizeWidthMm,
                         TargetDpi = printInfo.TargetDpi,
                         PrintLayers = new List<PrintLayerInfo>(),
                         PrintCropType = printCropType,
                         // 印花裁剪区域应该再裁片上才对 但是目前数据是存放在印花图层上 强行校正数据存放位置在此 (下面的代码进行实际赋值)
                         PrintCropArea = null
                     };
-                    // 检查此视图上是否有对应的印花图配置
-                    if (batchItem.ProductConfig.TryGetValue(viewIdKey, out var configItems))
+                    // 由于无字段可以识别此项是否是纯印花图 或者是 印花图+文字印花  或者纯文字印花  所以使用此判断依据: 如果 product_config数量与logo_svg_list数量不相等 则存在文字印花 执行文字印花流程
+                    if (batchItem.ProductConfig.Count == batchItem.WordImgMap.Count)
                     {
-                        // 一个裁片上可能叠加了多个印花图
-                        foreach (var configItem in configItems)
+                        // 图片印花
+                        // 检查此视图上是否有对应的印花图配置
+                        if (batchItem.ProductConfig.TryGetValue(viewIdKey, out var configItems))
                         {
-                            var designImage = configItem.Image;
+                            // 一个裁片上可能叠加了多个印花图
+                            foreach (var configItem in configItems)
+                            {
+                                var designImage = configItem.Image;
 
-                            // 解析复杂的CSS变换矩阵 然后把居中变换和用户手动变换的矩阵信息合并
-                            var centerTransform = ParseTransformMatrix(designImage.CenterTransform);
-                            var userTransform = ParseTransformMatrix(designImage.UserTransform);
-                            var transform = MergeMatrix(centerTransform, userTransform);
+                                // 解析复杂的CSS变换矩阵 然后把居中变换和用户手动变换的矩阵信息合并
+                                var centerTransform = ParseTransformMatrix(designImage.CenterTransform);
+                                var userTransform = ParseTransformMatrix(designImage.UserTransform);
+                                var transform = MergeMatrix(centerTransform, userTransform);
+                                TileTool tileTool = new TileTool();
+                                tileTool.TileType = TileTypeBuilder.BuildTileTypeFromOriginString(designImage.TileType);
+                                tileTool.TileSpacingXMm = designImage.TileSpacingXMm;
+                                tileTool.TileSpacingYMm = designImage.TileSpacingYMm;
+                                var layer = new PrintLayerInfo
+                                {
+                                    GalleryId = designImage.GalleryId,
+                                    DesignImageUrl = designImage.DesignImageUrl,
+                                    DesignImageSizeMm = designImage.DimensionsMm,
+                                    //ScaleX = transform.ScaleX,
+                                    //ScaleY = transform.ScaleY,
+                                    //TranslateX = transform.TranslateX,
+                                    //TranslateY = transform.TranslateY,
+                                    TranslateX = designImage.OffsetX,
+                                    TranslateY = designImage.OffsetY,
+                                    Rotation = designImage.Rotate,
+                                    XFlip = designImage.XFlip,
+                                    YFlip = designImage.YFlip,
+                                    //目前 裁片多印花图的层级索引等于裁片印花图的序号
+                                    ZIndex = configItem.ViewId,
+                                    TileTool = tileTool,
+                                };
+                                task.PrintLayers.Add(layer);
+                                task.PrintCropArea = designImage.PrintCropArea;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // 目前文字印花使用后端生成的文字印花图层(或者svg图层)进行生产图制作 ； 而不是 文字+位移+旋转+字体+文字大小+颜色 等数据进行渲染
+                        if (batchItem.WordImgMap.ContainsKey(viewIdKey))
+                        {
+                            string wordImgUrl = batchItem.WordImgMap[viewIdKey];
+                            // 文字印花不支持特效
                             TileTool tileTool = new TileTool();
-                            tileTool.TileType = TileTypeBuilder.BuildTileTypeFromOriginString(designImage.TileType);
-                            tileTool.TileSpacingXMm = designImage.TileSpacingXMm;
-                            tileTool.TileSpacingYMm = designImage.TileSpacingYMm;
+                            tileTool.TileType = TileType.无平铺;
                             var layer = new PrintLayerInfo
                             {
-                                GalleryId = designImage.GalleryId,
-                                DesignImageUrl = designImage.DesignImageUrl,
-                                DesignImageSizeMm = designImage.DimensionsMm,
+                                GalleryId = -1,
+                                DesignImageUrl = wordImgUrl,
+                                DesignImageSizeMm = new RealSize()
+                                {
+                                    Width = printInfo.GetWidthMm(),
+                                    Height = printInfo.GetHeightMm(),
+                                },
                                 //ScaleX = transform.ScaleX,
                                 //ScaleY = transform.ScaleY,
                                 //TranslateX = transform.TranslateX,
                                 //TranslateY = transform.TranslateY,
-                                TranslateX = designImage.OffsetX,
-                                TranslateY = designImage.OffsetY,
-                                Rotation = designImage.Rotate,
-                                XFlip = designImage.XFlip,
-                                YFlip = designImage.YFlip,
+                                TranslateX = 0,
+                                TranslateY = 0,
+                                Rotation = 0,
+                                XFlip = false,
+                                YFlip = false,
                                 //目前 裁片多印花图的层级索引等于裁片印花图的序号
-                                ZIndex = configItem.ViewId,
+                                ZIndex = Convert.ToInt32(viewIdKey),
                                 TileTool = tileTool,
                             };
                             task.PrintLayers.Add(layer);
-                            task.PrintCropArea = designImage.PrintCropArea;
                         }
                     }
 

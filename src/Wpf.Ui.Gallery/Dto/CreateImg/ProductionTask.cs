@@ -30,6 +30,8 @@ public class ProductionTask
     //单号
     public string OrderNo { get; set; }
     
+    public int OrderDetailId { get; set; }
+    
     // 生产批次号
     public string ProduceBatchNum { get; set; }
     

@@ -311,6 +311,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         produceBatchItemVo.ProduceBatchNum = produceBatchItemDetail.ProduceBatchNumber;
         produceBatchItemVo.BatchNum = produceBatchItemDetail.BatchNum;
         produceBatchItemVo.OrderNo = produceBatchItemDetail.OrderNo;
+        produceBatchItemVo.OrderDetailId = produceBatchItemDetail.OrderDetailId;
         produceBatchItemVo.SkuAlias = produceBatchItemDetail.DesignName;
         //batchOrderVo.SkuAlias = "";
         //batchOrderVo.PayTime = "";
@@ -447,12 +448,19 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                         // 下载裁片对应印花图
                         foreach (PrintLayerInfo taskPrintLayer in productionTask.PrintLayers)
                         {
+                            string fileName = taskPrintLayer.GalleryId.ToString();
+                            if (taskPrintLayer.GalleryId == -1)
+                            {
+                                // 目前进入这个逻辑的是 文字印花  没有图库图片id ; 不能使用图库id命名文件
+                                fileName = Path.GetFileNameWithoutExtension(taskPrintLayer.DesignImageUrl);
+                                fileName = fileName.Replace("-ftp-product","-print-product");
+                            }
                             LocalImgInfo? patternPrintImg2localImg =
                                 await _imageDownloader.DownloadImageAsync(
                                     taskPrintLayer.DesignImageUrl,
                                     FileName.getPatternPrintImgPath(productionTask.FactoryId,
                                         taskPrintLayer.GalleryId),
-                                    taskPrintLayer.GalleryId.ToString());
+                                    fileName);
                             // TODO 图片为空 需要报错
                             taskPrintLayer.DesignImageLocalImg = patternPrintImg2localImg;
                         }
@@ -540,6 +548,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                         Color = produceBatchItemDetail.Attributes.ColorAlias,
                         ProductName = produceBatchItemDetail.DesignName,
                         OrderNo = produceBatchItemDetail.OrderNo,
+                        OrderDetailId = produceBatchItemDetail.OrderDetailId,
                         TargetDpi = targetDpi,
                         ProductionTasks = productionTasks
                     };

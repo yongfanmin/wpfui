@@ -32,6 +32,10 @@
     <PackageReference Include="Refit.HttpClientFactory" />
     <PackageReference Include="ReflectionEventing" />
     <PackageReference Include="ReflectionEventing.DependencyInjection" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Svg.Skia" />
     <PackageReference Include="ZXing.Net" />
   </ItemGroup>
 

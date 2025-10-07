@@ -24,6 +24,8 @@ public class ProduceBatchItemDetail
     public long DesignProductId { get; set; }
 
     [JsonPropertyName("order_no")] public string OrderNo { get; set; }
+    
+    [JsonPropertyName("order_detail_id")] public int OrderDetailId { get; set; }
 
     [JsonPropertyName("item_id")] public string ItemId { get; set; }
 
@@ -43,6 +45,10 @@ public class ProduceBatchItemDetail
     // 设计器配置，Key是ViewId (string)
     [JsonPropertyName("product_config")] public Dictionary<string, List<ProductConfigItem>> ProductConfig { get; set; }
 
+    // 文字转印花图列表
+    // [JsonPropertyName("logo_image_list")] public Dictionary<string, string> WordImgMap { get; set; }
+    [JsonPropertyName("logo_svg_list")] public Dictionary<string, string> WordImgMap { get; set; }
+
     // 这是一个混合格式 有的返回数组 有的返回json
     // 生产打印参数，Key是ViewId (string)
     [JsonPropertyName("produce_print_info")]
@@ -57,10 +63,9 @@ public class ProduceBatchItemDetail
     public int PrintCropType { get; set; }
 
     public ProduceBatchStatus ProduceBatchStatus { get; set; } = ProduceBatchStatus.等待生产数据;
-    
-    [JsonPropertyName("face_alias")]
-    public Dictionary<string,string> ViewNameMap { get; set; }
-    
+
+    [JsonPropertyName("face_alias")] public Dictionary<string, string> ViewNameMap { get; set; }
+
     [JsonPropertyName("is_3d")]
     [JsonConverter(typeof(Is3d2MultiPieceConvert))]
     public bool IsMultiPiece { get; set; }
@@ -73,13 +78,15 @@ public class ProduceBatchItemDetail
         // if (itemsNode == null)
         try
         {
-            ProduceBatchItemDetail produceBatchItemDetail = JsonSerializer.Deserialize<ProduceBatchItemDetail>(jsonNode.ToString());
+            ProduceBatchItemDetail produceBatchItemDetail =
+                JsonSerializer.Deserialize<ProduceBatchItemDetail>(jsonNode.ToString());
             if (produceBatchItemDetail == null)
             {
                 return null;
             }
             else
             {
+                string sizeId = produceBatchItemDetail.Attributes.SizeId.ToString();
                 foreach (string key in produceBatchItemDetail.ProductConfig.Keys)
                 {
                     if (!produceBatchItemDetail.ProducePrintInfo.ContainsKey(key))
@@ -95,6 +102,32 @@ public class ProduceBatchItemDetail
                 }
 
                 produceBatchItemDetail.ProducePrintInfo.Remove("0");
+                // 根据比例计算出真实 宽高/位移
+
+                foreach (string key in produceBatchItemDetail.ProducePrintInfo.Keys)
+                {
+                    PrintInfo printInfo = produceBatchItemDetail.ProducePrintInfo[key];
+                    printInfo.RealSizeWidthMm = printInfo.RealSizeWidthMm * printInfo.SizePrintRatio[sizeId] / 100;
+                    printInfo.HeightPx = printInfo.HeightPx * printInfo.SizePrintRatio[sizeId] / 100;
+                    printInfo.WidthPx = printInfo.WidthPx * printInfo.SizePrintRatio[sizeId] / 100;
+
+                    if (produceBatchItemDetail.ProductConfig.ContainsKey(key))
+                    {
+                        List<ProductConfigItem> productConfigItemList = produceBatchItemDetail.ProductConfig[key];
+                        foreach (ProductConfigItem productConfigItem in productConfigItemList)
+                        {
+                            productConfigItem.Image.DimensionsMm.Width = productConfigItem.Image.DimensionsMm.Width *
+                                printInfo.SizePrintRatio[sizeId] / 100;
+                            productConfigItem.Image.DimensionsMm.Height = productConfigItem.Image.DimensionsMm.Height *
+                                printInfo.SizePrintRatio[sizeId] / 100;
+                            productConfigItem.Image.OffsetX = productConfigItem.Image.OffsetX *
+                                printInfo.SizePrintRatio[sizeId] / 100;
+                            productConfigItem.Image.OffsetY = productConfigItem.Image.OffsetY *
+                                printInfo.SizePrintRatio[sizeId] / 100;
+                            //TODO 平铺效果也需要放大平铺间距???
+                        }
+                    }
+                }
 
                 return produceBatchItemDetail;
             }
@@ -212,12 +245,10 @@ public class DesignImageInfo
     [JsonPropertyName("vspacing")]
     public decimal TileSpacingYMm { get; set; } // 垂直间隙
 
-    [JsonPropertyName("xFlip")]
-    public bool XFlip { get; set; } // 水平翻转
-    
-    [JsonPropertyName("yFlip")]
-    public bool YFlip { get; set; } // 垂直翻转
-    
+    [JsonPropertyName("xFlip")] public bool XFlip { get; set; } // 水平翻转
+
+    [JsonPropertyName("yFlip")] public bool YFlip { get; set; } // 垂直翻转
+
     [JsonPropertyName("size")] public PrintCropArea PrintCropArea { get; set; }
 }
 
@@ -232,21 +263,20 @@ public class PrintInfo
     [JsonConverter(typeof(StringToDecimalConverter))] // <-- 应用转换器 小数字符串转Dedimal类型
     public decimal RealSizeWidthMm { get; set; } // 裁片物理宽度 (毫米)
 
-    public decimal GetRealSizeWidthBySizeRatio(string sizeId)
+    // 重写get太过复杂 调用的地方全部都需要改一遍 直接再set的时候按照尺码重新写入值
+    /*public decimal GetRealSizeWidthBySizeRatio(string sizeId)
     {
         return RealSizeWidthMm * SizePrintRatio[sizeId] / 100;
-    }
-    
-    [JsonPropertyName("width")]
-    public decimal WidthPx { get; set; }
+    }*/
+
+    [JsonPropertyName("width")] public decimal WidthPx { get; set; }
 
     public decimal GetWidthMm()
     {
         return RealSizeWidthMm;
     }
-    
-    [JsonPropertyName("height")]
-    public decimal HeightPx { get; set; }
+
+    [JsonPropertyName("height")] public decimal HeightPx { get; set; }
 
     public decimal GetHeightMm()
     {
@@ -265,9 +295,8 @@ public class PrintInfo
 
     // 该视图下的所有裁片，Key是裁片名 (string)
     [JsonPropertyName("qp_data")] public Dictionary<string, PatternPieceInfo> PatternPieces { get; set; }
-    
+
     [JsonPropertyName("size_print_ratio")] public Dictionary<string, decimal> SizePrintRatio { get; set; }
-    
 }
 
 // 单个裁片的信息
@@ -298,9 +327,21 @@ public class RealSize
     [JsonConverter(typeof(StringToDecimalConverter))] // <-- 应用转换器 小数字符串转Dedimal类型
     public decimal Width { get; set; }
 
+    // 重写get太过复杂 调用的地方全部都需要改一遍 直接再set的时候按照尺码重新写入值
+    /*public decimal GetWidth(Dictionary<string, decimal> SizePrintRatio , string sizeId)
+    {
+        return Width * SizePrintRatio[sizeId] / 100;
+    }*/
+
     [JsonPropertyName("height")]
     [JsonConverter(typeof(StringToDecimalConverter))] // <-- 应用转换器 小数字符串转Dedimal类型
     public decimal Height { get; set; }
+
+    // 重写get太过复杂 调用的地方全部都需要改一遍 直接再set的时候按照尺码重新写入值
+    /*public decimal GetHeight(Dictionary<string, decimal> SizePrintRatio , string sizeId)
+    {
+        return Height * SizePrintRatio[sizeId] / 100;
+    }*/
 }
 
 // 印花裁剪区域 2025.9.9 目前只对居中裁剪的产品生效
