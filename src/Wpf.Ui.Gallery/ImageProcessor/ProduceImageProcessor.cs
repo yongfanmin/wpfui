@@ -57,6 +57,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         _loginInfoService = loginInfoService;
     }
 
+    // TODO 现在同产品多印花面 会打印N次 导致磁盘多写入N次 但生产图会覆盖 所以结果没问题 因为获取一个生产项信息的数据包含多个面信息 直接一次生成了全部生产图
     // TODO 使用Affine 一次性完整矩阵变换(缩放/旋转/位移) 似乎性能更高?
     public ProduceBatchTaskResult ProcessProductionTask(UniqueBatchItem uniqueBatchItem)
     {
@@ -123,9 +124,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"<UNK>[{uniqueBatchItem.ProduceBatchNum}]<UNK>");
+                        Console.WriteLine($"全印裁片合成失败 批次号:[{uniqueBatchItem.ProduceBatchNum}] 项:[{uniqueBatchItem.BatchNum}] {ex}");
                     }
-                    
                 }
                 else if (patternPieceTask.RenderType == RenderType.局部印_矩形框)
                 {
@@ -315,7 +315,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("印花裁片合成出错", ex);
+                    Console.WriteLine($"印花裁片合成出错 {ex}");
                 }
             }
 
@@ -365,7 +365,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
             }
             catch (Exception ex)
             {
-                Console.WriteLine("<UNK>", ex);
+                Console.WriteLine($"裁片印花无法正常合成{ex}");
             }
 
 
@@ -394,7 +394,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         SaveLocalInfo saveLocalInfo = new SaveLocalInfo();
         saveLocalInfo.LocalPath = LocalAppConfig.AppSetting.GetPrintedPatternFilePathAndClassifyFolder(uniqueBatchItem.ProductName,uniqueBatchItem.DesignProductId,uniqueBatchItem.ProduceBatchNum,uniqueBatchItem.OrderNo);
         //saveLocalInfo.Name = "";
-        saveLocalInfo.SetNameByFormat(LocalAppConfig.AppSetting.ProduceImgNameFormatList,uniqueBatchItem.Size,uniqueBatchItem.Color,uniqueBatchItem.ProductName,uniqueBatchItem.BatchNum);
+        saveLocalInfo.SetNameByFormat(LocalAppConfig.AppSetting.ProduceImgNameFormatList,uniqueBatchItem.Size,uniqueBatchItem.Color,uniqueBatchItem.ProductName,uniqueBatchItem.OrderDetailId);
         saveLocalInfo.ImgFormat = ImgSupportFormat.Png;
         if (isNeedLayout)
         {
@@ -411,6 +411,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 uniqueBatchItem.ProductionTasks.Count(item => item.PatternPieceProduceLocalImgUrl is not null);
             if (produceImgCount == 1)
             {
+                // 单张生产图 直接命名文件
                 foreach (ProductionTask productionTask in uniqueBatchItem.ProductionTasks)
                 {
                     FileHelper.CopyFileAsync(productionTask.PatternPieceProduceLocalImgUrl, saveLocalInfo.LocalPath + saveLocalInfo.Name + ImgFormat2Extend.GetExtend(saveLocalInfo.ImgFormat));
@@ -418,6 +419,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
             }
             else if (produceImgCount > 1)
             {
+                // 多生产图 先建立文件夹 再 集中放置所有生产图
                 saveLocalInfo.LocalPath = saveLocalInfo.LocalPath + saveLocalInfo.Name + Path.DirectorySeparatorChar;
                 foreach (ProductionTask productionTask in uniqueBatchItem.ProductionTasks)
                 {
@@ -448,13 +450,22 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
         int targetDpi = uniqueBatchItem.TargetDpi;
         // TODO 写死印花机编码(热转印,白墨)
-        string machineid = "68,405";
+        // string machineid = "68,405";
         string token = _loginInfoService.getToken();
         // 加载裁片排版信息
         FactoryApiResponse<Object> layoutResponse = await _layoutApi.GetLayoutInfo(
-            new LayoutRequest() { DesignProductId = uniqueBatchItem.DesignProductId, },
-            token,
-            machineid);
+            new LayoutRequest()
+            {
+                DesignProductId = uniqueBatchItem.DesignProductId,
+                SizeId = uniqueBatchItem.SizeId,
+            },
+            token);
+        if (layoutResponse.Data is null)
+        {
+            Console.WriteLine($"产品无法排版生产,产品ID{uniqueBatchItem.DesignProductId},尺码{uniqueBatchItem.SizeId}");
+            return;
+        }
+
         Layout layout = JsonSerializer.Deserialize<Layout>(layoutResponse.Data.ToString());
         if (layout is null)
         {
@@ -467,11 +478,11 @@ public class ProduceImageProcessor : IProduceImageProcessor
         machineConfig.Dpi = targetDpi;
         machineConfig.PrintWidthMm = layout.LayoutArea.WidthMm; // 2米宽度料卷
 
-
+        // TODO 当前没用到的数据 直接写死值
         RollOfFabric rollOfFabric = new RollOfFabric();
         rollOfFabric.WidthMm = 550;
         rollOfFabric.CurrentMaxLengthMm = 30 * 1000; //当前剩余30米
-        
+
 
         LayoutClothInfo layoutClothInfo = new LayoutClothInfo();
         layoutClothInfo.WidthMm = layout.LayoutArea.WidthMm;
@@ -732,7 +743,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("临时调试点,创建排版出错");
+                        Console.WriteLine($"创建排版出错: {ex}");
                     }
                 }
 

@@ -11,9 +11,13 @@ public class UniqueBatchItem
     public long BatchNum { get; set; }
     public string ProduceBatchNum { get; set; }
     public string Size { get; set; }
+    
+    public int SizeId { get; set; }
     public string Color { get; set; }
     public string ProductName { get; set; }
     public string OrderNo { get; set; }
+    
+    public int OrderDetailId { get; set; }
     public int TargetDpi { get; set; }
     public List<ProductionTask> ProductionTasks { get; set; }
 }

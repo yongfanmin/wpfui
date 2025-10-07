@@ -12,8 +12,6 @@ namespace Wpf.Ui.Gallery.Views.Pages;
 [GalleryPage("Produce Batch.", SymbolRegular.GridKanban20)]
 public partial class ProduceBatchItemPage : INavigableView<ProduceBatchItemViewModel>
 {
-    public ProduceBatchItemViewModel ViewModel { get; }
-
     public ProduceBatchItemPage(ProduceBatchItemViewModel itemViewModel)
     {
         ViewModel = itemViewModel;
@@ -21,4 +19,6 @@ public partial class ProduceBatchItemPage : INavigableView<ProduceBatchItemViewM
 
         InitializeComponent();
     }
+
+    public ProduceBatchItemViewModel ViewModel { get; }
 }

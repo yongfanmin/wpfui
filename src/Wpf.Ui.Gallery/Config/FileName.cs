@@ -73,4 +73,7 @@ public class FileName
     
     public static readonly string DatabaseFilePath = AppContext.BaseDirectory + "Database" + Path.DirectorySeparatorChar;
     public static readonly string DatabaseFileName = "Local.db";
+    
+    public static readonly string LogFilePath = AppContext.BaseDirectory + "Logs" + Path.DirectorySeparatorChar;
+    public static readonly string LogFileFullPath = LogFilePath + "log-.txt";
 }

@@ -3,6 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -16,6 +17,13 @@ namespace Wpf.Ui.Gallery.Utils;
 
 public static class FileHelper
 {
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = new();
+
+    private static SemaphoreSlim GetLock(string filePath)
+    {
+        return _fileLocks.GetOrAdd(Path.GetFullPath(filePath).ToUpperInvariant(), _ => new SemaphoreSlim(1, 1));
+    }
+    
     // <summary>
     /// 配置JSON序列化器的选项，使其生成的JSON字符串带缩进，更易于阅读。
     /// </summary>
@@ -49,7 +57,9 @@ public static class FileHelper
         {
             throw new ArgumentNullException(nameof(objectToWrite));
         }
-
+        
+        var fileLock = GetLock(filePath);
+        fileLock.Wait();
         try
         {
             // 确保目标目录存在
@@ -70,6 +80,10 @@ public static class FileHelper
             // 抛出带有更多上下文信息的新异常，便于调试
             throw new Exception($"Failed to write to file '{filePath}'.", ex);
         }
+        finally
+        {
+            fileLock.Release();
+        }
     }
 
     /// <summary>
@@ -87,7 +101,9 @@ public static class FileHelper
         {
             throw new FileNotFoundException("File not found.", filePath);
         }
-
+        
+        var fileLock = GetLock(filePath);
+        fileLock.Wait();
         try
         {
             // 从文件读取JSON字符串
@@ -108,6 +124,10 @@ public static class FileHelper
         {
             throw new Exception($"Failed to read from file '{filePath}'.", ex);
         }
+        finally
+        {
+            fileLock.Release();
+        }
     }
 
     #endregion
@@ -125,6 +145,8 @@ public static class FileHelper
             throw new ArgumentNullException(nameof(objectToWrite));
         }
 
+        var fileLock = GetLock(filePath);
+        await fileLock.WaitAsync();
         try
         {
             string directoryName = Path.GetDirectoryName(filePath);
@@ -141,6 +163,10 @@ public static class FileHelper
         {
             throw new Exception($"Failed to write to file '{filePath}' asynchronously.", ex);
         }
+        finally
+        {
+            fileLock.Release();
+        }
     }
 
     /// <summary>
@@ -153,6 +179,8 @@ public static class FileHelper
             throw new FileNotFoundException("File not found.", filePath);
         }
 
+        var fileLock = GetLock(filePath);
+        await fileLock.WaitAsync();
         try
         {
             string jsonString = await File.ReadAllTextAsync(filePath);
@@ -169,6 +197,10 @@ public static class FileHelper
         catch (Exception ex)
         {
             throw new Exception($"Failed to read from file '{filePath}' asynchronously.", ex);
+        }
+        finally
+        {
+            fileLock.Release();
         }
     }
 
@@ -188,6 +220,8 @@ public static class FileHelper
             return default;
         }
         
+        var fileLock = GetLock(filePath);
+        fileLock.Wait();
         try
         {
             // 从文件读取JSON字符串
@@ -208,6 +242,10 @@ public static class FileHelper
         {
             throw new Exception($"Failed to read from file '{filePath}'.", ex);
         }
+        finally
+        {
+            fileLock.Release();
+        }
     }
     
      public static void CopyFile(string sourceFilePath, string destinationFilePath)
@@ -226,6 +264,8 @@ public static class FileHelper
                 throw new FileNotFoundException("The source file was not found.", sourceFilePath);
             }
 
+            var destinationLock = GetLock(destinationFilePath);
+            destinationLock.Wait();
             try
             {
                 // --- 2. [核心] 确保目标目录存在 ---
@@ -245,6 +285,10 @@ public static class FileHelper
                 // 封装异常，提供更多上下文信息
                 throw new Exception($"Failed to copy file from '{sourceFilePath}' to '{destinationFilePath}'.", ex);
             }
+            finally
+            {
+                destinationLock.Release();
+            }
         }
 
         /// <summary>
@@ -252,7 +296,6 @@ public static class FileHelper
         /// </summary>
         public static async Task CopyFileAsync(string sourceFilePath, string destinationFilePath)
         {
-            // --- 异步版本的实现 ---
             if (string.IsNullOrWhiteSpace(sourceFilePath))
             {
                 throw new ArgumentException("Source file path cannot be null or empty.", nameof(sourceFilePath));
@@ -266,6 +309,8 @@ public static class FileHelper
                 throw new FileNotFoundException("The source file was not found.", sourceFilePath);
             }
 
+            var destinationLock = GetLock(destinationFilePath);
+            await destinationLock.WaitAsync();
             try
             {
                 string? destinationDirectory = Path.GetDirectoryName(destinationFilePath);
@@ -274,23 +319,21 @@ public static class FileHelper
                     Directory.CreateDirectory(destinationDirectory);
                 }
 
-                // .NET 6+ 提供了 File.CopyAsync 但是不知道为什么我使用了 .NET9 却没有这份方法 暂时不处理
-                // #if NET6_0_OR_GREATER
-                // await File.CopyAsync(sourceFilePath, destinationFilePath, true);
-                // #else
-                // 对于旧版.NET，我们可以用流来模拟异步复制
-                await using (FileStream sourceStream = File.Open(sourceFilePath, FileMode.Open, FileAccess.Read))
+                await using (FileStream sourceStream = File.Open(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     await using (FileStream destinationStream = File.Create(destinationFilePath))
                     {
                         await sourceStream.CopyToAsync(destinationStream);
                     }
                 }
-                // #endif
             }
             catch (Exception ex)
             {
                 throw new Exception($"Failed to copy file from '{sourceFilePath}' to '{destinationFilePath}' asynchronously.", ex);
+            }
+            finally
+            {
+                destinationLock.Release();
             }
         }
 }

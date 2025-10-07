@@ -9,10 +9,10 @@ namespace Wpf.Ui.Gallery.Dto.FormatAdapter;
 
 public class RenderTypeBuilder
 {
-    public static RenderType getRenderType(int is_3d)
+    public static RenderType getRenderType(bool isMultiPiece)
     {
         // 渲染类型
-        if (is_3d.Equals(1))
+        if (isMultiPiece)
         {
             return RenderType.全印_叠加裁片;
         }

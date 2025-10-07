@@ -4,6 +4,7 @@
 // All Rights Reserved.
 
 using System.Net.Http;
+using System.Xml;
 using FileTypeChecker;
 using FileTypeChecker.Abstracts;
 using FileTypeChecker.Types;
@@ -96,23 +97,28 @@ public class ImageDownloader : IImageDownloader
                 
                 // 将内存流的指针重置到开头，以便进行读取操作
                 memoryStream.Position = 0;
-
-                // --- 步骤 2: 使用 FileTypeChecker 从内存流中检测格式 ---
-                IFileType fileType = FileTypeValidator.GetFileType(memoryStream);
-
-                if (fileType == null || !IsSupportedImageType(fileType))
+                // fileType.Extension
+                string fileExtension = Path.GetExtension(imageUrl);
+                if (!SvgPreloader.IsSvg(memoryStream))
                 {
-                    // 可以加入日志: "格式不支持或无法识别"
-                    return null;
+                    // --- 步骤 2: 使用 FileTypeChecker 从内存流中检测格式 ---
+                    IFileType fileType = FileTypeValidator.GetFileType(memoryStream);
+                
+                    if (fileType == null || !IsSupportedImageType(fileType))
+                    {
+                        //TODO 可以加入日志: "格式不支持或无法识别"
+                        return null;
+                    }
                 }
+                
 
                 
-                string extension = "." + fileType.Extension;
+                string extension = fileExtension;
 
                 // --- 步骤 3: 准备本地文件路径并写入 ---
                 string localFileUrl = Path.Combine(directoryPath, fileName + extension);
                 localImgInfo.LocalUrl = localFileUrl;
-                localImgInfo.Extenion = fileType.Extension;
+                localImgInfo.Extenion = fileExtension;
                 localImgInfo.FileName = fileName;
                 // 文件存在 则直接返回本地地址 不再下载
                 if (IsExistFile(localFileUrl))
@@ -187,6 +193,4 @@ public class ImageDownloader : IImageDownloader
             return false;
         }
     }
-    
-    
 }

@@ -67,9 +67,10 @@ public class DatabaseService : IDatabaseService
                     db.Insert(new ProducePlanEntity()
                     {
                         ProduceBatchNum = produceBatchVo.ProduceBatchNum,
-                        AvailableProduceBatchItemCount = produceBatchVo.AvailableProduceBatchItemCount,
+                        AvlProduceBatchItemCount = produceBatchVo.AvlProduceBatchItemCount,
                         ProduceBatchItemCount = produceBatchVo.ProduceBatchItemCount,
                         ProduceBatchStatus = produceBatchVo.ProduceBatchStatus,
+                        NeedLayoutCount = 0,
                         FactoryGetTime = DateTime.Now
                     });
                 }
@@ -90,13 +91,65 @@ public class DatabaseService : IDatabaseService
                             new ProducePlanEntity()
                             {
                                 ProduceBatchNum = produceBatchVo.ProduceBatchNum,
-                                AvailableProduceBatchItemCount = produceBatchVo.AvailableProduceBatchItemCount,
+                                AvlProduceBatchItemCount = produceBatchVo.AvlProduceBatchItemCount,
                                 ProduceBatchItemCount = produceBatchVo.ProduceBatchItemCount,
                                 ProduceBatchStatus = produceBatchVo.ProduceBatchStatus,
-                                FactoryGetTime = DateTime.Now
+                                NeedLayoutCount = 0,
+                                FactoryGetTime = DateTime.Now,
                             });
                     }
                 }
+            }
+        }
+        finally
+        {
+            _dbWriteLock.Release();
+        }
+    }
+
+    public void AddProduceBatchNeedLayoutItemCount(string produceBatchNum)
+    {
+        _dbWriteLock.Wait();
+        try
+        {
+            if (string.IsNullOrEmpty(produceBatchNum))
+            {
+                return; // 无效输入
+            }
+
+            try
+            {
+                using (var db = GetConnection())
+                {
+                    // 1. 先查询到要更新的实体对象
+                    var planToUpdate = db.Table<ProducePlanEntity>()
+                        .FirstOrDefault(p => p.ProduceBatchNum.ToUpper() == produceBatchNum.ToUpper());
+
+                    // 2. 检查对象是否存在
+                    if (planToUpdate != null)
+                    {
+                        // 4. 调用 .Update() 将整个对象的更改保存回数据库
+                        //    Update 方法会根据主键 (Id) 找到正确的行并更新所有字段
+                        planToUpdate.NeedLayoutCount += 1;
+                        int rowsAffected = db.Update(planToUpdate);
+
+                        // 5. 检查是否成功更新了一行
+                        if (rowsAffected <= 0)
+                        {
+                            Console.WriteLine($"生产批次'{produceBatchNum}' 新增排版项数量, 数据写入失败");
+                        }
+                    }
+                    else
+                    {
+                        // 记录一个日志或警告：尝试为一个不存在的批次号增加计数
+                        Console.WriteLine($"生产批次'{produceBatchNum}' 不存在,无法变更排版项数量");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // 捕获并记录任何可能发生的数据库异常
+                Console.WriteLine($"生产批次 '{produceBatchNum} 状态更新异常': {ex.Message}");
             }
         }
         finally
@@ -141,7 +194,7 @@ public class DatabaseService : IDatabaseService
                         }
                         else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.生产稿件已合成))
                         {
-                            planToUpdate.LayoutCreateCountCount += 1;
+                            planToUpdate.LayoutCreateCount += 1;
                         }
 
                         // 4. 调用 .Update() 将整个对象的更改保存回数据库
@@ -182,6 +235,70 @@ public class DatabaseService : IDatabaseService
         }
     }
 
+    public List<ProducePlanEntity> GetProduceBatchList(string createTimeValue)
+    {
+        if (string.IsNullOrWhiteSpace(createTimeValue))
+        {
+            // 如果输入为空，可以返回空列表或抛出异常，返回空列表通常更安全
+            return new List<ProducePlanEntity>();
+        }
+
+        // --- 2. 解析日期范围 ---
+        DateTime startDate;
+        DateTime endDate;
+
+        string[] dates = createTimeValue.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+        try
+        {
+            if (dates.Length == 1)
+            {
+                // --- 格式一: "yyyy-MM-dd" ---
+                // 解析单个日期
+                startDate = DateTime.ParseExact(dates[0].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+                // 结束日期为开始日期的后一天零点（不包含）
+                endDate = startDate.AddDays(1);
+            }
+            else if (dates.Length == 2)
+            {
+                // --- 格式二: "yyyy-MM-dd,yyyy-MM-dd" ---
+                // 解析开始日期
+                DateTime date1 = DateTime.ParseExact(dates[0].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+                // 解析结束日期
+                DateTime date2 = DateTime.ParseExact(dates[1].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+                // 确定哪个是真正的开始日期和结束日期，以防用户输入顺序颠倒
+                startDate = date1 < date2 ? date1 : date2;
+                DateTime tempEndDate = date1 > date2 ? date1 : date2;
+
+                // 结束范围为 tempEndDate 的后一天零点（不包含）
+                // 您描述的 “小于第三天零点的数据” 实际上是指包含第二天全天的数据，
+                // 所以结束边界应该是 date2.AddDays(1)
+                endDate = tempEndDate.AddDays(1);
+            }
+            else
+            {
+                // 如果格式不正确（例如包含多个逗号），返回空列表
+                return new List<ProducePlanEntity>();
+            }
+        }
+        catch (FormatException)
+        {
+            // 如果日期字符串无法解析，说明格式错误，返回空列表
+            // 在生产环境中，这里最好记录一条日志
+            // Log.Error($"无法解析日期字符串: {createTimeValue}");
+            return new List<ProducePlanEntity>();
+        }
+
+        // --- 3. 数据库查询 ---
+        using (var db = GetConnection()) // 假设 GetConnection() 返回一个有效的数据库连接
+        {
+            return db.Table<ProducePlanEntity>()
+                .Where(p => p.FactoryGetTime >= startDate && p.FactoryGetTime < endDate)
+                .OrderByDescending(o => o.FactoryGetTime)
+                .ToList();
+        }
+    }
 
     public List<ProducePlanEntity> GetProduceBatchList(int pageNum, int pageLen)
     {
@@ -207,6 +324,15 @@ public class DatabaseService : IDatabaseService
                 .Skip(recordsToSkip) // 3. 跳过前面所有页的数据
                 .Take(pageLen) // 4. 获取当前页所需数量的数据
                 .ToList(); // 5. 执行查询并将结果转换为 List<Order>
+        }
+    }
+
+    public ProducePlanEntity GetProducePlan(string produceBatchNum)
+    {
+        using (var db = GetConnection())
+        {
+            return db.Table<ProducePlanEntity>()
+                .FirstOrDefault(p => p.ProduceBatchNum.ToUpper() == produceBatchNum.ToUpper());
         }
     }
 
@@ -305,6 +431,7 @@ public class DatabaseService : IDatabaseService
                     planToUpdate.ProduceBatchDetail = JsonSerializer.Serialize(uniqueBatchItem);
                     planToUpdate.SkuAlias = uniqueBatchItem.ProductName;
                     planToUpdate.OrderNo = uniqueBatchItem.OrderNo;
+                    planToUpdate.OrderDetailId = uniqueBatchItem.OrderDetailId;
                     planToUpdate.UpdateTime = DateTime.Now;
                     planToUpdate.ProduceBatchItemProcess = ProduceBatchItemProcess.数据已加载;
                     // 4. 调用 Update 方法将更改保存回数据库
@@ -328,14 +455,25 @@ public class DatabaseService : IDatabaseService
 
 
     // 获取生产批次号下面的所有项批次
-    public List<ProduceItemEntity> GetProduceBatchItemList(string produceBatchNum)
+    public List<ProduceItemEntity> GetProduceBatchItemList(string produceBatchNum,long batchNum)
     {
         using (var db = GetConnection())
         {
-            return db.Table<ProduceItemEntity>()
-                .Where(field => field.ProduceBatchNum == produceBatchNum)
-                .OrderByDescending(o => o.CreateTime)
-                .ToList();
+            if (batchNum > 0)
+            {
+                return db.Table<ProduceItemEntity>()
+                    .Where(field => field.ProduceBatchNum == produceBatchNum)
+                    .Where(field => field.BatchNum == batchNum)
+                    .OrderByDescending(o => o.CreateTime)
+                    .ToList();
+            }
+            else
+            {
+                return db.Table<ProduceItemEntity>()
+                    .Where(field => field.ProduceBatchNum == produceBatchNum)
+                    .OrderByDescending(o => o.CreateTime)
+                    .ToList();
+            }
         }
     }
 

@@ -2,11 +2,9 @@
     x:Class="Wpf.Ui.Gallery.Views.Pages.ProduceBatchItemPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="clr-namespace:Wpf.Ui.Gallery.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:Wpf.Ui.Gallery.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:system="clr-namespace:System;assembly=System.Runtime"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="ProduceBatchPage"
     d:DataContext="{d:DesignInstance local:ProduceBatchItemPage,
@@ -21,16 +19,24 @@
         <Style x:Key="SelectableReadOnlyCellStyle" TargetType="{x:Type TextBox}">
             <!-- 1. 核心：设为只读 -->
             <Setter Property="IsReadOnly" Value="True" />
-    
-            <!-- 2. 外观：让它看起来完全像一个普通的TextBlock -->
+
+            <!-- 2. 外观：让它看起来完全像一个普通的TextBlock，并且颜色跟随主题 -->
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="4,2" /> <!-- 添加一点内边距，让文本不贴边 -->
+            <!-- 核心修改：使用WPF UI的主题画刷来设置文字颜色 -->
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+    
+            <!-- 3. 行为：优化交互体验 -->
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <!-- 改进1：使用主题感知的选区颜色，而不是系统默认的蓝色 -->
+            <Setter Property="SelectionBrush" Value="{DynamicResource TextControlSelectionHighlightColorBrush}" />
+            <!-- 改进2：隐藏只读文本框中无用的闪烁光标 -->
+            <Setter Property="CaretBrush" Value="Transparent" />
+    
+            <!-- 4. 布局：保持原有的良好对齐方式 -->
+            <Setter Property="Padding" Value="4,2" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
-    
-            <!-- 3. 行为：移除获得焦点时的边框 -->
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         </Style>
     </Page.Resources>
     <Grid>
@@ -40,13 +46,21 @@
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
             <ui:TextBox
-                x:Name="SearchTextBox" 
+                x:Name="SearchProduceBatchBox"
                 FontWeight="Bold"
                 Width="300" Margin="0,0,12,0"
                 PlaceholderEnabled="True"
                 PlaceholderText="输入生产批次号"
                 Text="{Binding ViewModel.SelectedProduceBatchNumber, Mode=OneWay}" />
-            <Button Command="{Binding ViewModel.SearchCommand}" CommandParameter="{Binding Text, ElementName=SearchTextBox}" Content="搜索"/>
+            <ui:TextBox
+                x:Name="SearchItemBox"
+                FontWeight="Bold"
+                Width="200" Margin="0,0,12,0"
+                PlaceholderEnabled="True"
+                PlaceholderText="输入项批次"
+                Text="{Binding ViewModel.SelectedBatchNum, Mode=TwoWay}" />
+            <Button Command="{Binding ViewModel.SearchCommand}"
+                    CommandParameter="{Binding Text, ElementName=SearchProduceBatchBox}" Content="搜索" />
         </StackPanel>
         <Border
             Grid.Row="1"
@@ -55,50 +69,57 @@
             BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="1"
             CornerRadius="8">
-        <ui:DataGrid 
-            Margin="0 12 0 0"
-                     ItemsSource="{Binding ViewModel.ProductBatchItemCollection, Mode=TwoWay}" 
-                     AutoGenerateColumns="False"
-                     CanUserAddRows="False"
-                    IsReadOnly="True"
-            >
-            <DataGrid.Columns>
-                <DataGridTemplateColumn Header="项批号">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}" 
-                                     Text="{Binding BatchNum}" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="单号">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}" 
-                                     Text="{Binding OrderNo}" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="产品名">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}" 
-                                     Text="{Binding SkuAlias}" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Header="订单状态" Binding="{Binding ProduceBatchItemProcess}"></DataGridTextColumn>
-                <DataGridTemplateColumn Header="操作">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Button Content="打开生产图"
-                                    Command="{Binding ViewModel.OpenProduceItemCommand, RelativeSource={RelativeSource AncestorType={x:Type local:ProduceBatchItemPage}}}"
-                                    CommandParameter="{Binding}"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-            </DataGrid.Columns>
-        </ui:DataGrid>
+            <ui:DataGrid
+                Margin="0 12 0 0"
+                ItemsSource="{Binding ViewModel.ProductBatchItemCollection, Mode=TwoWay}"
+                AutoGenerateColumns="False"
+                CanUserAddRows="False"
+                IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="项批号">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}"
+                                         Text="{Binding BatchNum}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="单号">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}"
+                                         Text="{Binding OrderNo}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="子单号">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}"
+                                         Text="{Binding OrderDetailId}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="产品名">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}"
+                                         Text="{Binding SkuAlias}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="订单状态" Binding="{Binding ProduceBatchItemProcess}" />
+                    <DataGridTemplateColumn Header="操作">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="打开生产图"
+                                        Command="{Binding ViewModel.OpenProduceItemCommand, RelativeSource={RelativeSource AncestorType={x:Type local:ProduceBatchItemPage}}}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </ui:DataGrid>
         </Border>
     </Grid>
 </Page>

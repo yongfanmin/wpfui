@@ -25,6 +25,8 @@ public class ProduceItemEntity
     
     public string OrderNo { get; set; }
     
+    public int OrderDetailId { get; set; }
+    
     public string? SkuAlias { get; set; }
     
     public ProduceBatchItemProcess ProduceBatchItemProcess { get; set; } = ProduceBatchItemProcess.等待数据;

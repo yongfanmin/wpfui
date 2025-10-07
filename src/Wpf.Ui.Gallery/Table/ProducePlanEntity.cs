@@ -17,7 +17,7 @@ public class ProducePlanEntity
     [Unique]
     public string ProduceBatchNum { get; set; }
     // 已授权项总数
-    public int AvailableProduceBatchItemCount { get; set; }
+    public int AvlProduceBatchItemCount { get; set; }
     // 批次项总数
     public int ProduceBatchItemCount { get; set; }
     // 生产数据下载数量
@@ -27,7 +27,10 @@ public class ProducePlanEntity
     //裁片印花完成数量
     public int PiecePrintCount { get; set; }
     //生产排版完成数量
-    public int LayoutCreateCountCount { get; set; }
+    public int LayoutCreateCount { get; set; }
+    
+    //需要排版的数量
+    public int NeedLayoutCount { get; set; }
 
     //生产批次状态
     public ProduceBatchStatus ProduceBatchStatus { get; set; }
