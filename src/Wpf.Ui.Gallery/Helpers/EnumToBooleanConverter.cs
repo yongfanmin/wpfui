@@ -11,7 +11,7 @@ internal sealed class EnumToBooleanConverter : IValueConverter
     {
         if (parameter is not string enumString)
         {
-            throw new ArgumentException("ExceptionEnumToBooleanConverterParameterMustBeAnEnumName");
+            return false;
         }
 
         if (value == null)
@@ -28,7 +28,7 @@ internal sealed class EnumToBooleanConverter : IValueConverter
 
         if (!Enum.IsDefined(enumType, value))
         {
-            throw new ArgumentException("ExceptionEnumToBooleanConverterValueMustBeAnEnum");
+            return false;
         }
 
         var enumValue = Enum.Parse(enumType, enumString);
@@ -40,10 +40,15 @@ internal sealed class EnumToBooleanConverter : IValueConverter
     {
         if (parameter is not string enumString)
         {
-            throw new ArgumentException("ExceptionEnumToBooleanConverterParameterMustBeAnEnumName");
+            return Binding.DoNothing;
         }
-        
+
         if (value is false)
+        {
+            return Binding.DoNothing;
+        }
+
+        if (string.IsNullOrEmpty(enumString))
         {
             return Binding.DoNothing;
         }

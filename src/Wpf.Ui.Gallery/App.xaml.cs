@@ -4,7 +4,11 @@
 // All Rights Reserved.
 
 using Lepo.i18n.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Refit;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 using Wpf.Ui.DependencyInjection;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Config;
@@ -32,15 +36,35 @@ public partial class App
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
     // https://docs.microsoft.com/dotnet/core/extensions/configuration
     // https://docs.microsoft.com/dotnet/core/extensions/logging
-
+    
     private static readonly string _domain = "http://factory.sds-diy.xyz";
-
+    // private static readonly string _domain = "https://factory.gongwohuo.cn";
+    
+    public static readonly LoggingLevelSwitch LevelSwitch = new(LogEventLevel.Error);
+    
     private static readonly IHost _host = Host.CreateDefaultBuilder()
+        .UseSerilog(
+            (context, configuration) =>
+            {
+                configuration
+                    .MinimumLevel.ControlledBy(LevelSwitch)
+                    .Enrich.FromLogContext()
+                    .WriteTo.File(
+                        FileName.LogFileFullPath,
+                        rollingInterval: RollingInterval.Day,
+                        rollOnFileSizeLimit: true,
+                        fileSizeLimitBytes: 100 * 1024 * 1024,
+                        retainedFileCountLimit: 10,
+                        retainedFileTimeLimit: TimeSpan.FromDays(3)
+                    );
+            }
+        )
         .ConfigureAppConfiguration(c =>
         {
             _ = c.SetBasePath(AppContext.BaseDirectory);
         })
-        .ConfigureServices((_1, services) =>
+        .ConfigureServices(
+            (_1, services) =>
             {
                 _ = services.AddNavigationViewPageProvider();
 
@@ -57,8 +81,7 @@ public partial class App
                 // Login 登录窗口
                 _ = services.AddSingleton<LoginWindow>();
                 _ = services.AddSingleton<LoginWindowViewModel>();
-                _ = services.AddSingleton<LoginInfoService>();
-
+                _ = services.AddSingleton<Services.LoginInfoService>();
                 _ = services.AddSingleton<ProduceBatchItemPage>();
                 _ = services.AddSingleton<ProduceBatchItemViewModel>();
 
@@ -71,8 +94,10 @@ public partial class App
                 _ = services.AddSingleton<AllControlsViewModel>();
                 _ = services.AddSingleton<SettingsPage>();
                 _ = services.AddSingleton<SettingsViewModel>();
-
-
+                _ = services.AddSingleton<ProcessStepScanPage>();
+                _ = services.AddSingleton<ProcessStepScanViewModel>();
+                
+                
                 // 图片下载
                 _ = services.AddSingleton<IImageDownloader, ImageDownloader>();
 
@@ -92,12 +117,12 @@ public partial class App
                 );
 
                 _ = services.AddTransient<NetworkActivityHandler>();
-
+                
                 _ = services.AddStringLocalizer(b =>
                 {
                     b.FromResource<Translations>(new("pl-PL"));
                 });
-
+                
                 _ = services
                     .AddRefitClient<ILoginApi>()
                     .ConfigureHttpClient(c =>
@@ -155,9 +180,9 @@ public partial class App
     {
         // 读取本地磁盘配置
         LocalAppConfig.Load();
-
-        Console.InputEncoding = System.Text.Encoding.UTF8;
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        LevelSwitch.MinimumLevel = LocalAppConfig.AppSetting.LogLevel;
+        Console.InputEncoding = Encoding.UTF8;
+        Console.OutputEncoding = Encoding.UTF8;
         //程序启动 进入程序 开启程序 打开软件
         //_host.Start();
 
@@ -167,7 +192,7 @@ public partial class App
 
         //var loginWindow = GetRequiredService<LoginWindow>();
         //loginWindow.Show();
-        var loginWindow = GetRequiredService<LoginWindow>();
+        LoginWindow loginWindow = GetRequiredService<LoginWindow>();
         // 弹出登录窗口
         loginWindow.Show();
 
@@ -190,9 +215,17 @@ public partial class App
     /// </summary>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        // For more info see https://docs.microsoft.com/en-us/dotnet/api/system.windows.application.dispatcherunhandledexception?view=windowsdesktop-6.0
+        try
+        {
+            var logger = GetRequiredService<ILogger<App>>();
+            logger.LogError(e.Exception, "An unhandled exception occurred.");
+        }
+        finally
+        {
+            e.Handled = true;
+        }
     }
-
+    
     private void initDatabase()
     {
         IDatabaseService databaseService = GetRequiredService<IDatabaseService>();

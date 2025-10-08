@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 
 namespace Wpf.Ui.Gallery.Converters;
 
+
 public class StringToDecimalConverter : JsonConverter<decimal>
 {
     public override decimal Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

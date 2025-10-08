@@ -28,7 +28,7 @@ public class PrintInfoConverter : JsonConverter<Dictionary<string, PrintInfo?>>
 
         // 1. 我们不能直接反序列化，因为不知道是哪种结构。
         //    所以，我们先将整个JSON对象，读入一个灵活的 JsonNode 中。
-        JsonNode? jsonNode = JsonNode.Parse(ref reader);
+        var jsonNode = JsonNode.Parse(ref reader);
         if (jsonNode is not JsonObject jsonObject)
         {
             return null; // 不是有效的JSON对象
@@ -43,14 +43,14 @@ public class PrintInfoConverter : JsonConverter<Dictionary<string, PrintInfo?>>
             // a. 尝试将整个节点，直接反序列化为一个 PrintInfo 对象
             try
             {
-                PrintInfo? printInfo = jsonObject.Deserialize<PrintInfo>(options);
+                var printInfo = jsonObject.Deserialize<PrintInfo>(options);
                 if (printInfo != null)
                 {
                     // b. 手动构建我们期望的字典结构
                     //    使用 printInfo 内部的 view_id 作为键
                     // 这个键值似乎跟view_id无关 接口乱写 然后随便返回一个view_id? 局部印这个位置view_id只有1  但是打印位置的view_id 有多个 对不上
                     // string key = printInfo.ViewId > 0 ? printInfo.ViewId.ToString() : "0";
-                    return new Dictionary<string, PrintInfo?> { { "0", printInfo } };
+                    return new Dictionary<string, PrintInfo?> { { "0" , printInfo } };
                 }
             }
             catch (JsonException)

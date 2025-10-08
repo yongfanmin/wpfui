@@ -16,7 +16,7 @@ public class ProduceStatusToStringConverter : IValueConverter
         {
             return "未知状态"; // 如果值不是数字类型，返回默认文本
         }
-
+            
         try
         {
             int intValue = convertibleValue.ToInt32(CultureInfo.InvariantCulture);
@@ -26,11 +26,11 @@ public class ProduceStatusToStringConverter : IValueConverter
             {
                 // 3. 如果是，先将其转换为枚举类型
                 ProduceBatchStatus status = (ProduceBatchStatus)intValue;
-
+                    
                 // 4. 然后，获取该枚举成员的名称字符串 (即中文名称)
                 return status.ToString();
             }
-
+                
             // 5. 如果整数值在枚举中未定义（例如，后端返回了一个新的状态码5）
             return $"未知代码 ({intValue})";
         }
@@ -41,12 +41,6 @@ public class ProduceStatusToStringConverter : IValueConverter
         }
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        // 从中文转回数字的逻辑通常不需要，保持不变
-        throw new NotImplementedException();
-    }
-
     public static ProduceBatchStatus Convert(object value)
     {
         // 1. 检查输入值是否可以被转换为 int
@@ -55,7 +49,7 @@ public class ProduceStatusToStringConverter : IValueConverter
             Console.WriteLine($"无法格式化的批次状态{value}");
             return ProduceBatchStatus.等待生产数据;
         }
-
+            
         try
         {
             int intValue = convertibleValue.ToInt32(CultureInfo.InvariantCulture);
@@ -66,7 +60,7 @@ public class ProduceStatusToStringConverter : IValueConverter
                 // 3. 如果是，先将其转换为枚举类型
                 return (ProduceBatchStatus)intValue;
             }
-
+                
             // 5. 如果整数值在枚举中未定义（例如，后端返回了一个新的状态码5）
             Console.WriteLine($"无法格式化的批次状态 未知代码{intValue}");
         }
@@ -77,5 +71,11 @@ public class ProduceStatusToStringConverter : IValueConverter
         }
 
         return ProduceBatchStatus.等待生产数据;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        // 从中文转回数字的逻辑通常不需要，保持不变
+        throw new NotImplementedException();
     }
 }

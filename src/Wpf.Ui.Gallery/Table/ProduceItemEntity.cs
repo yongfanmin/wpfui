@@ -10,34 +10,36 @@ namespace Wpf.Ui.Gallery.Table;
 
 public class ProduceItemEntity
 {
-    [PrimaryKey, AutoIncrement]
-    public int Id { get; set; }
-    
+    [PrimaryKey, AutoIncrement] public int Id { get; set; }
+
     /// <summary>
     ///  生产批次号
     /// </summary>
     public string ProduceBatchNum { get; set; }
+
     /// <summary>
     ///  项批次号
     /// </summary>
     [Unique]
     public long BatchNum { get; set; }
-    
+
+    [Unique] public string ItemId { get; set; }
+
     public string OrderNo { get; set; }
-    
+
     public int OrderDetailId { get; set; }
-    
+
     public string? SkuAlias { get; set; }
-    
+
     public ProduceBatchItemProcess ProduceBatchItemProcess { get; set; } = ProduceBatchItemProcess.等待数据;
-    
+
     public DateTime CreateTime { get; set; } = DateTime.Now;
-    
+
     public DateTime UpdateTime { get; set; } = DateTime.Now;
-    
+
     public string ProduceBatchDetail { get; set; }
-    
+
     public string ProduceImgLocalPath { get; set; }
-    
+
     public string ProduceImgName { get; set; }
 }

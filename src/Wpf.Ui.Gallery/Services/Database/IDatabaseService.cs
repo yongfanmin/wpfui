@@ -32,6 +32,9 @@ public interface IDatabaseService
 
     public List<ProduceItemEntity> GetProduceBatchItemList(string produceBatchNum,long batchNum);
     
+    // 根据工位批次 获取生产项信息
+    public ProduceItemEntity GetProduceItem(string itemId);
+    
     public List<ProduceItemEntity> GetProduceBatchItemList(List<UniqueBatchItemNum> uniqueBatchItemNumList);
     
     public void setProductBatchItemInfo(string produceBatchNum,long batchNum, UniqueBatchItem uniqueBatchItem);

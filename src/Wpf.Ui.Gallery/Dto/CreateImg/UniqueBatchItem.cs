@@ -8,6 +8,7 @@ namespace Wpf.Ui.Gallery.Dto.CreateImg;
 public class UniqueBatchItem
 {
     public long DesignProductId { get; set; }
+    public string ItemId { get; set; }
     public long BatchNum { get; set; }
     public string ProduceBatchNum { get; set; }
     public string Size { get; set; }

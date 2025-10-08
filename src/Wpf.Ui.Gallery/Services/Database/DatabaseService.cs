@@ -430,6 +430,7 @@ public class DatabaseService : IDatabaseService
                     // 3. 修改对象的属性
                     planToUpdate.ProduceBatchDetail = JsonSerializer.Serialize(uniqueBatchItem);
                     planToUpdate.SkuAlias = uniqueBatchItem.ProductName;
+                    planToUpdate.ItemId = uniqueBatchItem.ItemId;
                     planToUpdate.OrderNo = uniqueBatchItem.OrderNo;
                     planToUpdate.OrderDetailId = uniqueBatchItem.OrderDetailId;
                     planToUpdate.UpdateTime = DateTime.Now;
@@ -473,6 +474,23 @@ public class DatabaseService : IDatabaseService
                     .Where(field => field.ProduceBatchNum == produceBatchNum)
                     .OrderByDescending(o => o.CreateTime)
                     .ToList();
+            }
+        }
+    }
+
+    public ProduceItemEntity GetProduceItem(string itemId)
+    {
+        using (var db = GetConnection())
+        {
+            if (string.IsNullOrEmpty(itemId))
+            {
+                return null;
+            }
+            else
+            {
+                return db.Table<ProduceItemEntity>()
+                    .Where(field => field.ItemId == itemId)
+                    .FirstOrDefault();
             }
         }
     }

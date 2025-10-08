@@ -12,9 +12,26 @@
     d:DesignWidth="800"
     mc:Ignorable="d"
     FocusManager.FocusedElement="{Binding ElementName=BatchNoTextBox}">
-
+    <Page.Resources>
+        <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Panel.ZIndex" Value="100" />
+                    <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="ui:SymbolIcon">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Page.Resources>
     <Page.InputBindings>
-        <KeyBinding Key="Enter" Command="{Binding ViewModel.EnterConfirmCommand}" />
+        <KeyBinding Key="Enter" Command="{Binding ViewModel.EnterConfirmStartProduceCommand}" />
     </Page.InputBindings>
     <TabControl Margin="0,8,0,0">
         <TabItem>
@@ -29,17 +46,17 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <StackPanel 
-                    Grid.Row="0" 
+                <StackPanel
+                    Grid.Row="0"
                     Margin="0,12,0,12"
-                    HorizontalAlignment="Center"
+                    HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     Orientation="Horizontal">
                     <ui:TextBox
                         Name="BatchNoStartBox"
-                        FontWeight="Bold"
-                        Width="200"
+                        Width="300"
                         Margin="0,0,12,0"
+                        FontWeight="Bold"
                         PlaceholderText="输入工位批次号"
                         Text="{Binding ViewModel.BatchNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <ui:Button
@@ -61,17 +78,17 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <StackPanel 
-                    Grid.Row="0" 
+                <StackPanel
+                    Grid.Row="0"
                     Margin="0,12,0,12"
-                    HorizontalAlignment="Center"
+                    HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     Orientation="Horizontal">
                     <ui:TextBox
                         Name="BatchNoCompleteBox"
-                        FontWeight="Bold"
-                        Width="200"
+                        Width="300"
                         Margin="0,0,12,0"
+                        FontWeight="Bold"
                         PlaceholderText="输入项批次号"
                         Text="{Binding ViewModel.BatchNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <ui:Button

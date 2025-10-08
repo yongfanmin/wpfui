@@ -5,7 +5,6 @@
 
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.ViewModels.Windows;
-using Wpf.Ui.Gallery.Views.Pages;
 using Wpf.Ui.Gallery.Views.Pages.Samples;
 
 namespace Wpf.Ui.Gallery.Views.Windows;
