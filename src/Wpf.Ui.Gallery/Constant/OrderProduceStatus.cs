@@ -7,6 +7,7 @@ namespace Wpf.Ui.Gallery.Constant;
 
 public enum OrderProduceStatus
 {
+    未知状态 = 0,
     待排单 = 1,
     待生产 = 2,
     待发货 = 3,

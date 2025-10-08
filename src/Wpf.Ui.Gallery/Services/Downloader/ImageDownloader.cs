@@ -97,7 +97,7 @@ public class ImageDownloader : IImageDownloader
                 
                 // 将内存流的指针重置到开头，以便进行读取操作
                 memoryStream.Position = 0;
-                // fileType.Extension
+                // fileType.Extension 从路径取文件扩展
                 string fileExtension = Path.GetExtension(imageUrl);
                 if (!SvgPreloader.IsSvg(memoryStream))
                 {
@@ -108,6 +108,11 @@ public class ImageDownloader : IImageDownloader
                     {
                         //TODO 可以加入日志: "格式不支持或无法识别"
                         return null;
+                    }
+                    else if(string.IsNullOrEmpty(fileExtension))
+                    {
+                        // 取不到文件路径扩展 则取真是文件扩展
+                        fileExtension = "." + fileType.Extension;
                     }
                 }
                 

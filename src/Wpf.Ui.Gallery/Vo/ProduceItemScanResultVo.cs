@@ -3,15 +3,24 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using System.Text.Json.Serialization;
+using Wpf.Ui.Gallery.Constant;
+using Wpf.Ui.Gallery.Converters;
+
 namespace Wpf.Ui.Gallery.Vo;
 
 public class ProduceItemScanResultVo
 {
+    [JsonPropertyName("produceBatchNum")]
     public string ProduceBatchNum { get; set; }
     
+    [JsonPropertyName("batchNo")]
     public long BatchNo { get; set; }
     
-    // 单号
+    [JsonPropertyName("itemId")]
     public string ItemId { get; set; }
 
+    [JsonPropertyName("orderProduceStatus")]
+    [JsonConverter(typeof(OrderProduceStatusConvert))]
+    public OrderProduceStatus OrderProduceStatus { get; set; }
 }
