@@ -110,6 +110,12 @@ public class AppSetting
         ProduceImgNameFormat.ProductName,
         ProduceImgNameFormat.BatchNum
     };
+
+    public bool ShowStartProduceSuccessDialog { get; set; } = true;
+
+    public bool ShowCompleteProduceSuccessDialog { get; set; } = true;
+
+    public bool ShowDeliveryProduceSuccessDialog { get; set; } = true;
 }
 
 public class WindowSettings

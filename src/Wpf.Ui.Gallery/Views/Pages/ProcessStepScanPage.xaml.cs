@@ -18,5 +18,36 @@ public partial class ProcessStepScanPage : INavigableView<ProcessStepScanViewMod
         DataContext = this;
 
         InitializeComponent();
+        this.PreviewKeyDown += Page_PreviewKeyDown;
+        this.PreviewTextInput += Page_PreviewTextInput;
+    }
+
+    private void Page_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        // TextBox不一定是输入框
+        var focusedElement = Keyboard.FocusedElement as FrameworkElement;
+        if (focusedElement?.Name != "BatchNoStartBox" && focusedElement?.Name != "BatchNoCompleteBox")
+        {
+            ViewModel.ScanEnterValue += e.Text;
+            e.Handled = true; 
+        }
+    }
+
+    private void Page_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // If the Enter key is pressed, execute the command.
+        if (e.Key == Key.Enter)
+        {
+            // The command will handle the logic based on the ScanEnterValue.
+            ViewModel.EnterConfirmBtnCommand.Execute(null);
+            // Mark the event as handled to prevent any default button clicks or further routing.
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Back && !string.IsNullOrEmpty(ViewModel.ScanEnterValue))
+        {
+            // 按下 Backspace按键 则移除最后一位字符
+            ViewModel.ScanEnterValue = ViewModel.ScanEnterValue.Substring(0, ViewModel.ScanEnterValue.Length - 1);
+            e.Handled = true;
+        }
     }
 }
