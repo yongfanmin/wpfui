@@ -478,7 +478,7 @@ public class DatabaseService : IDatabaseService
         }
     }
 
-    public ProduceItemEntity GetProduceItem(string itemId)
+    public ProduceItemEntity GetProduceItemByItemId(string itemId)
     {
         using (var db = GetConnection())
         {
@@ -490,6 +490,23 @@ public class DatabaseService : IDatabaseService
             {
                 return db.Table<ProduceItemEntity>()
                     .Where(field => field.ItemId == itemId)
+                    .FirstOrDefault();
+            }
+        }
+    }
+    
+    public ProduceItemEntity GetProduceItemByBatchNo(long batchNo)
+    {
+        using (var db = GetConnection())
+        {
+            if (batchNo<=0)
+            {
+                return null;
+            }
+            else
+            {
+                return db.Table<ProduceItemEntity>()
+                    .Where(field => field.BatchNum == batchNo)
                     .FirstOrDefault();
             }
         }

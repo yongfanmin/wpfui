@@ -54,8 +54,8 @@
             TitleBar="{Binding ElementName=TitleBar, Mode=OneWay}"
             Transition="FadeInWithSlide">
             <ui:NavigationView.Header>
-                <StackPanel Margin="42,32,42,20">
-                    <controls:PageControlDocumentation Margin="0,10,0,0" NavigationView="{Binding ElementName=NavigationView}" />
+                <StackPanel Margin="22,10,22,20">
+                    <controls:PageControlDocumentation Margin="0,0,0,0" NavigationView="{Binding ElementName=NavigationView}" />
                 </StackPanel>
             </ui:NavigationView.Header>
             <ui:NavigationView.AutoSuggestBox>

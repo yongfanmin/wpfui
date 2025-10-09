@@ -53,7 +53,7 @@
         </Style>
     </Page.Resources>
     <Page.InputBindings>
-        <KeyBinding Key="Enter" Command="{Binding ViewModel.EnterConfirmStartProduceCommand}" />
+        <KeyBinding Key="Enter" Command="{Binding ViewModel.EnterConfirmBtnCommand}" />
     </Page.InputBindings>
     <TabControl Margin="0,8,0,0">
         <TabItem IsSelected="True">
@@ -80,7 +80,7 @@
                         Margin="0,0,12,0"
                         FontWeight="Bold"
                         PlaceholderText="输入工位批次号"
-                        Text="{Binding ViewModel.BatchNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        Text="{Binding ViewModel.StartProduceBatchNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <ui:Button
                         Margin="10,0,0,0"
                         Command="{Binding ViewModel.EnterConfirmStartProduceCommand}"
@@ -112,10 +112,10 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="生产批次: " />
-                                    <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}"  Text="{Binding ViewModel.CurrentProductionItem.ProduceBatchNum}" />
+                                    <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}"  Text="{Binding ViewModel.StartProduceItemScanResult.ProduceBatchNum}" />
                                     <ui:Button Grid.Column="2"
                                         Command="{Binding ViewModel.SetProduceCommand}"
-                                        CommandParameter="{Binding ViewModel.CurrentProductionItem.ProduceBatchNum}"
+                                        CommandParameter="{Binding ViewModel.StartProduceItemScanResult.ProduceBatchNum}"
                                         Content="整批开始生产" />
                                 </Grid>
                                 <Grid Margin="0,8,0,0">
@@ -125,7 +125,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="项批次: " />
-                                    <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}" Text="{Binding ViewModel.CurrentProductionItem.BatchNo}" />
+                                    <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}" Text="{Binding ViewModel.StartProduceItemScanResult.BatchNo}" />
                                     <!--<ui:Button Grid.Column="2"
                                         Command="{Binding ViewModel.SetProduceCommand}"
                                         CommandParameter="{Binding ViewModel.CurrentProductionItem.BatchNo}"
@@ -138,7 +138,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="工位批次: " />
-                                    <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}" Text="{Binding ViewModel.CurrentProductionItem.ItemId}" />
+                                    <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}" Text="{Binding ViewModel.StartProduceItemScanResult.ItemId}" />
                                     <!--<ui:Button Grid.Column="2"
                                         Command="{Binding ViewModel.SetProduceCommand}"
                                         CommandParameter="{Binding ViewModel.CurrentProductionItem.ItemId}"
@@ -153,13 +153,13 @@
                             BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
                             CornerRadius="4">
-                            <ui:Image CornerRadius="4" BorderBrush="#33000000" Width="auto" Source="{Binding ViewModel.PrintLayerImgView}"/>
+                            <ui:Image CornerRadius="4" BorderBrush="#33000000" Width="auto" Source="{Binding ViewModel.StartProducePrintLayerImgView}"/>
                         </Border>
                     </Grid>
                     <ListView
                         Grid.Column="1"
                         Margin="8,0,0,0"
-                        ItemsSource="{Binding ViewModel.RecentProductionItems}">
+                        ItemsSource="{Binding ViewModel.StartProduceItemList}">
                         <ListView.View>
                             <GridView>
                                 <GridViewColumn DisplayMemberBinding="{Binding ProduceBatchNum}" Header="生产批次" />
@@ -202,12 +202,102 @@
                         Margin="0,0,12,0"
                         FontWeight="Bold"
                         PlaceholderText="输入项批次号"
-                        Text="{Binding ViewModel.BatchNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        Text="{Binding ViewModel.CompleteProduceBatchNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <ui:Button
                         Margin="10,0,0,0"
                         Command="{Binding ViewModel.EnterConfirmCompleteProduceCommand}"
                         Content="生产完成" />
                 </StackPanel>
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Border
+                            Grid.Row="0"
+                            Margin="0,0,8,0"
+                            Padding="12"
+                            Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="生产批次: " />
+                                    <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}"  Text="{Binding ViewModel.CompleteProduceItemScanResult.ProduceBatchNum}" />
+                                    <ui:Button Grid.Column="2"
+                                        Command="{Binding ViewModel.SetProduceCommand}"
+                                        CommandParameter="{Binding ViewModel.CompleteProduceItemScanResult.ProduceBatchNum}"
+                                        Content="整批完成生产" />
+                                </Grid>
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="项批次: " />
+                                    <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}" Text="{Binding ViewModel.CompleteProduceItemScanResult.BatchNo}" />
+                                    <!--<ui:Button Grid.Column="2"
+                                        Command="{Binding ViewModel.SetProduceCommand}"
+                                        CommandParameter="{Binding ViewModel.CurrentProductionItem.BatchNo}"
+                                        Content="复制" />-->
+                                </Grid>
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="工位批次: " />
+                                    <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}" Text="{Binding ViewModel.CompleteProduceItemScanResult.ItemId}" />
+                                    <!--<ui:Button Grid.Column="2"
+                                        Command="{Binding ViewModel.SetProduceCommand}"
+                                        CommandParameter="{Binding ViewModel.CurrentProductionItem.ItemId}"
+                                        Content="复制" />-->
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <Border
+                            Grid.Row="1"
+                            Margin="0,8,8,0"
+                            Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4">
+                            <ui:Image CornerRadius="4" BorderBrush="#33000000" Width="auto" Source="{Binding ViewModel.CompleteProducePrintLayerImgView}"/>
+                        </Border>
+                    </Grid>
+                    <ListView
+                        Grid.Column="1"
+                        Margin="8,0,0,0"
+                        ItemsSource="{Binding ViewModel.CompleteProduceItemList}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn DisplayMemberBinding="{Binding ProduceBatchNum}" Header="生产批次" />
+                                <GridViewColumn DisplayMemberBinding="{Binding BatchNo}" Header="项批次" />
+                                <GridViewColumn DisplayMemberBinding="{Binding ItemId}" Header="工位批次" />
+                                <GridViewColumn Header="状态">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="生产完成" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
             </Grid>
         </TabItem>
     </TabControl>
