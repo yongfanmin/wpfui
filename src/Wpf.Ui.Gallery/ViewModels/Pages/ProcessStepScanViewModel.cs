@@ -79,7 +79,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
         {
             var messageBox = new Wpf.Ui.Controls.MessageBox
             {
-                Title = "整批开始生产", Content = $"暂未开发此功能: {batchNo}", CloseButtonText = "好的"
+                Title = "整批开始生产", Content = $"暂未开发此功能: {batchNo}", CloseButtonText = "好的 (Esc)"
             };
 
             _ = await messageBox.ShowDialogAsync();
@@ -88,7 +88,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
         {
             var messageBox = new Wpf.Ui.Controls.MessageBox
             {
-                Title = "整批开始生产", Content = "请先扫码或输入批次号", CloseButtonText = "好的"
+                Title = "整批开始生产", Content = "请先扫码或输入批次号", CloseButtonText = "好的 (Esc)"
             };
 
             _ = await messageBox.ShowDialogAsync();
@@ -114,9 +114,12 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 PlaySuccessAudio();
                 StartProduceItemScanResult = produceItemScanResultVo;
                 StartProduceItemList.Insert(0, produceItemScanResultVo);
-                if (StartProduceItemList.Count > 20)
+                if (!StartProduceItemList.Any(item => item.BatchNo == produceItemScanResultVo.BatchNo))
                 {
-                    StartProduceItemList.RemoveAt(20);
+                    if (StartProduceItemList.Count > 20)
+                    {
+                        StartProduceItemList.RemoveAt(20);
+                    }
                 }
 
                 if (ShowStartSuccessDialog)
@@ -137,7 +140,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                                 doNotShowAgainCheckBox
                             }
                         },
-                        PrimaryButtonText = "好的"
+                        PrimaryButtonText = "好的 (Esc)"
                     };
 
                     await _contentDialogService.ShowAsync(successDialog, CancellationToken.None);
@@ -155,7 +158,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 PlayErrorAudio();
                 var messageBox = new Wpf.Ui.Controls.MessageBox
                 {
-                    Title = "扫码核验失败[无法开始生产]", Content = setBatchNo2ProduceResponse.Msg, CloseButtonText = "好的"
+                    Title = "扫码核验失败[无法开始生产]", Content = setBatchNo2ProduceResponse.Msg, CloseButtonText = "好的 (Esc)"
                 };
                 _ = await messageBox.ShowDialogAsync();
                 if (!string.IsNullOrEmpty(produceItemScanResultVo.ProduceBatchNum))
@@ -214,9 +217,12 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 PlaySuccessAudio();
                 CompleteProduceItemScanResult = produceItemScanResultVo;
                 CompleteProduceItemList.Insert(0, produceItemScanResultVo);
-                if (CompleteProduceItemList.Count > 20)
+                if (!CompleteProduceItemList.Any(item => item.BatchNo == produceItemScanResultVo.BatchNo))
                 {
-                    CompleteProduceItemList.RemoveAt(20);
+                    if (CompleteProduceItemList.Count > 20)
+                    {
+                        CompleteProduceItemList.RemoveAt(20);
+                    }
                 }
 
                 if (ShowCompleteSuccessDialog)
@@ -237,7 +243,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                                 doNotShowAgainCheckBox
                             }
                         },
-                        PrimaryButtonText = "好的"
+                        PrimaryButtonText = "好的 (Esc)"
                     };
 
                     await _contentDialogService.ShowAsync(successDialog, CancellationToken.None);
@@ -255,7 +261,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 PlayErrorAudio();
                 var messageBox = new Wpf.Ui.Controls.MessageBox
                 {
-                    Title = "扫码核验失败[无法完成生产]", Content = setBatchNo2ProduceResponse.Msg, CloseButtonText = "好的"
+                    Title = "扫码核验失败[无法完成生产]", Content = setBatchNo2ProduceResponse.Msg, CloseButtonText = "好的 (Esc)"
                 };
                 _ = await messageBox.ShowDialogAsync();
                 if (!string.IsNullOrEmpty(produceItemScanResultVo.ProduceBatchNum))
@@ -301,7 +307,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
         // 判断当前激活哪个选项卡 根据不同激活的选项卡对回车事件进行不同的任务
         if (SelectedTabIndex == 0)
         {
-            StartProduceBatchNo = ScanEnterValue;
+            StartProduceBatchNo = string.IsNullOrEmpty(StartProduceBatchNo) ? ScanEnterValue : StartProduceBatchNo;
             OnEnterConfirmStartProduce();
         }
         else if (SelectedTabIndex == 1)
@@ -347,8 +353,8 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 {
                     Children = { startCheckbox, completeCheckbox }
                 },
-                PrimaryButtonText = "保存",
-                CloseButtonText = "关闭"
+                PrimaryButtonText = "保存 (Enter)",
+                CloseButtonText = "关闭 (Esc)"
             },
             CancellationToken.None
         );
@@ -359,7 +365,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
             ShowCompleteSuccessDialog = !completeCheckbox.IsChecked.GetValueOrDefault();
         }
     }
-
+    
     public void PlaySuccessAudio()
     {
         var mediaPlayer = new MediaPlayer();

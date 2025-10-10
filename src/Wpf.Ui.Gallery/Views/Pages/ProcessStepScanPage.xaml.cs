@@ -29,13 +29,14 @@ public partial class ProcessStepScanPage : INavigableView<ProcessStepScanViewMod
         if (focusedElement?.Name != "BatchNoStartBox" && focusedElement?.Name != "BatchNoCompleteBox")
         {
             ViewModel.ScanEnterValue += e.Text;
-            e.Handled = true; 
+            e.Handled = true;
         }
     }
 
     private void Page_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         // If the Enter key is pressed, execute the command.
+
         if (e.Key == Key.Enter)
         {
             // The command will handle the logic based on the ScanEnterValue.
