@@ -96,6 +96,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
         }
     }
 
+    // 开始生产
     [RelayCommand]
     private async void OnEnterConfirmStartProduce()
     {
@@ -174,6 +175,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
         }
     }
 
+    // 完成生产
     [RelayCommand]
     private async void OnEnterConfirmCompleteProduce()
     {

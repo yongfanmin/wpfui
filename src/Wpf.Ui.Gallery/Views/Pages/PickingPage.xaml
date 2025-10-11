@@ -16,31 +16,48 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-
         <Grid Grid.Row="0" Margin="12">
+            <StackPanel
+                Grid.Row="0"
+                Margin="0,12,0,12"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Orientation="Horizontal">
+                <ui:TextBox
+                    Name="BatchNoStartBox"
+                    Width="300"
+                    Margin="0,0,12,0"
+                    FontWeight="Bold"
+                    PlaceholderText="输入订单编码"
+                    Text="{Binding ViewModel.PickOrderCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <ui:Button
+                    Margin="10,0,0,0"
+                    Command="{Binding ViewModel.EnterConfirmPickCommand}"
+                    Content="拣货" />
+            </StackPanel>
+        
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-
             <StackPanel Orientation="Horizontal">
                 <Button Content="清空分拣篮" Command="{Binding ViewModel.ClearBasketCommand}" CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}" Margin="0,0,8,0" />
                 <Button Content="打印发货单" Command="{Binding ViewModel.PrintDeliveryBillCommand}" CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}" />
             </StackPanel>
+            <ui:Button
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,0,18,0"
+                Appearance="Transparent"
+                Command="{Binding ViewModel.OpenSettingsDialogCommand}"
+                Panel.ZIndex="2">
+                <ui:SymbolIcon FontSize="20" Symbol="Settings24" />
+            </ui:Button>
         </Grid>
-        <ui:Button
-            HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            Margin="0,0,18,0"
-            Appearance="Transparent"
-            Command="{Binding ViewModel.OpenSettingsDialogCommand}"
-            Panel.ZIndex="2">
-            <ui:SymbolIcon FontSize="20" Symbol="Settings24" />
-        </ui:Button>
         <ListView
             x:Name="PickingListView"
             Grid.Row="1"
-            ItemsSource="{Binding OrderPickBasketList}"
+            ItemsSource="{Binding ViewModel.OrderPickBasketList}"
             SelectionMode="Multiple">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">

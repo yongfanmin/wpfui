@@ -9,6 +9,8 @@ public class OrderPick
 {
     public int BasketNumber { get; set; }
     public string OrderNo { get; set; }
+
+    public string OrderCode { get; set; }
     public int PickCount { get; set; }
     public int ItemCount { get; set; }
     public bool IsPicked => PickCount == ItemCount;

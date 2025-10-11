@@ -16,13 +16,14 @@ public partial class PickingViewModel : ObservableObject
 {
     private readonly IContentDialogService _contentDialogService;
     private readonly ISnackbarService _snackbarService;
+    private readonly object _lockObject = new object();
 
-    [ObservableProperty]
-    private ObservableCollection<OrderPick> _orderPickBasketList = new();
+    [ObservableProperty] private ObservableCollection<OrderPick> _orderPickBasketList = new();
 
-    [ObservableProperty]
-    private int _basketCount = 5; // Default value
+    [ObservableProperty] private int _basketCount = 5; // Default value
 
+    [ObservableProperty] private string _pickOrderCode = string.Empty;
+    
     public PickingViewModel(IContentDialogService contentDialogService, ISnackbarService snackbarService)
     {
         _contentDialogService = contentDialogService;
@@ -43,6 +44,39 @@ public partial class PickingViewModel : ObservableObject
                 ItemCount = 10
             });
         }
+    }
+
+    private void ScanOrder(string orderCode)
+    {
+        
+    }
+
+    private void AddOrder(OrderPick orderPick)
+    {
+        if (OrderPickBasketList.Any(item => item.OrderNo.Equals(orderPick.OrderNo)))
+        {
+            lock (_lockObject)
+            {
+                // 分拣篮内已经存在 则 增加已经拣货的件数
+                OrderPick thisOrderPick = OrderPickBasketList.FirstOrDefault(item => item.OrderNo.Equals(orderPick.OrderNo));
+                if (thisOrderPick is not null)
+                {
+                    thisOrderPick.PickCount++;
+                }
+            }
+        }
+        else
+        {
+            // 不存在则新增到分拣篮内
+            OrderPickBasketList.Add(orderPick);
+            // 请求数据
+        }
+    }
+
+    [RelayCommand]
+    private async void OnEnterConfirmPick()
+    {
+
     }
 
     [RelayCommand]
@@ -79,17 +113,10 @@ public partial class PickingViewModel : ObservableObject
         var dialog = new ContentDialog(_contentDialogService.GetDialogHost());
         var numberBox = new NumberBox { Value = BasketCount };
 
-        dialog.Title = "Set Basket Count";
-        dialog.Content = new StackPanel
-        {
-            Children =
-            {
-                new TextBlock { Text = "Enter the number of picking baskets:" },
-                numberBox
-            }
-        };
-        dialog.PrimaryButtonText = "Save";
-        dialog.CloseButtonText = "Cancel";
+        dialog.Title = "设置分拣篮数量";
+        dialog.Content = new StackPanel { Children = { new TextBlock { Text = "输入当前分拣篮数量:" }, numberBox } };
+        dialog.PrimaryButtonText = "确定";
+        dialog.CloseButtonText = "取消";
 
         var result = await dialog.ShowAsync();
 

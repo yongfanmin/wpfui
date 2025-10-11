@@ -14,7 +14,7 @@ public partial class PickingPage : INavigableView<PickingViewModel>
     public PickingPage(PickingViewModel viewModel)
     {
         ViewModel = viewModel;
-        DataContext = ViewModel;
+        DataContext = this;
 
         InitializeComponent();
     }

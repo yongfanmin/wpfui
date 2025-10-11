@@ -37,8 +37,8 @@ public partial class App
     // https://docs.microsoft.com/dotnet/core/extensions/configuration
     // https://docs.microsoft.com/dotnet/core/extensions/logging
     
-    private static readonly string _domain = "http://factory.sds-diy.xyz";
-    // private static readonly string _domain = "https://factory.gongwohuo.cn";
+    // private static readonly string _domain = "http://factory.sds-diy.xyz";
+    private static readonly string _domain = "https://factory.gongwohuo.cn";
     
     public static readonly LoggingLevelSwitch LevelSwitch = new(LogEventLevel.Error);
     
