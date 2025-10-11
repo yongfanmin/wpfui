@@ -18,12 +18,12 @@ public partial class PickingViewModel : ObservableObject
     private readonly ISnackbarService _snackbarService;
     private readonly object _lockObject = new object();
 
-    [ObservableProperty] private ObservableCollection<OrderPick> _orderPickBasketList = new();
+    [ObservableProperty] private ObservableCollection<OrderPick> _orderPickBasketList = new ObservableCollection<OrderPick>();
 
     [ObservableProperty] private int _basketCount = 5; // Default value
 
     [ObservableProperty] private string _pickOrderCode = string.Empty;
-    
+
     public PickingViewModel(IContentDialogService contentDialogService, ISnackbarService snackbarService)
     {
         _contentDialogService = contentDialogService;
@@ -34,21 +34,26 @@ public partial class PickingViewModel : ObservableObject
     private void UpdateBasketList()
     {
         OrderPickBasketList.Clear();
-        for (int i = 0; i < BasketCount; i++)
+        for (int i = 1; i <= BasketCount; i++)
         {
             OrderPickBasketList.Add(new OrderPick
             {
                 BasketNumber = i + 1,
-                OrderNo = $"Order-{i + 1}", // Placeholder data
+                OrderNo = "空篮", // Placeholder data
                 PickCount = 0,
-                ItemCount = 10
+                ItemCount = 0
             });
         }
     }
 
     private void ScanOrder(string orderCode)
     {
-        
+        AddOrder(new OrderPick()
+        {
+            OrderNo = "xxxxxxxxxxx",
+            OrderCode = orderCode,
+            ItemCount = 10,
+        });
     }
 
     private void AddOrder(OrderPick orderPick)
@@ -62,11 +67,15 @@ public partial class PickingViewModel : ObservableObject
                 if (thisOrderPick is not null)
                 {
                     thisOrderPick.PickCount++;
+                    thisOrderPick.IsPicked = thisOrderPick.PickCount > 0 && thisOrderPick.PickCount >= thisOrderPick.ItemCount;
                 }
             }
         }
         else
         {
+            // 开头第一个固定分拣数量为1
+            orderPick.PickCount = 1;
+            orderPick.IsPicked = orderPick.PickCount > 0 && orderPick.PickCount >= orderPick.ItemCount;
             // 不存在则新增到分拣篮内
             OrderPickBasketList.Add(orderPick);
             // 请求数据
@@ -76,7 +85,7 @@ public partial class PickingViewModel : ObservableObject
     [RelayCommand]
     private async void OnEnterConfirmPick()
     {
-
+        ScanOrder(PickOrderCode);
     }
 
     [RelayCommand]

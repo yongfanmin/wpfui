@@ -5,13 +5,13 @@
 
 namespace Wpf.Ui.Gallery.Dto.Picking;
 
-public class OrderPick
+public partial class OrderPick : ObservableObject
 {
     public int BasketNumber { get; set; }
     public string OrderNo { get; set; }
 
     public string OrderCode { get; set; }
-    public int PickCount { get; set; }
-    public int ItemCount { get; set; }
-    public bool IsPicked => PickCount == ItemCount;
+    [ObservableProperty] public int _pickCount;
+    [ObservableProperty] public int _itemCount;
+    [ObservableProperty] private bool _isPicked;
 }
