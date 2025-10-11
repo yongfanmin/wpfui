@@ -96,7 +96,8 @@ public partial class App
                 _ = services.AddSingleton<SettingsViewModel>();
                 _ = services.AddSingleton<ProcessStepScanPage>();
                 _ = services.AddSingleton<ProcessStepScanViewModel>();
-                
+                _ = services.AddSingleton<PickingPage>();
+                _ = services.AddSingleton<PickingViewModel>();
                 
                 // 图片下载
                 _ = services.AddSingleton<IImageDownloader, ImageDownloader>();
