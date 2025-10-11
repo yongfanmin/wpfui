@@ -548,6 +548,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                         Color = produceBatchItemDetail.Attributes.ColorAlias,
                         ProductName = produceBatchItemDetail.DesignName,
                         OrderNo = produceBatchItemDetail.OrderNo,
+                        OrderCode = produceBatchItemDetail.OrderCode,
                         ItemId = produceBatchItemDetail.ItemId,
                         OrderDetailId = produceBatchItemDetail.OrderDetailId,
                         TargetDpi = targetDpi,

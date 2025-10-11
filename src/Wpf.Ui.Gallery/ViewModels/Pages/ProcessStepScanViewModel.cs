@@ -15,6 +15,7 @@ using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Table;
+using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.Vo;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
@@ -113,9 +114,9 @@ public partial class ProcessStepScanViewModel : ObservableObject
             {
                 PlaySuccessAudio();
                 StartProduceItemScanResult = produceItemScanResultVo;
-                StartProduceItemList.Insert(0, produceItemScanResultVo);
                 if (!StartProduceItemList.Any(item => item.BatchNo == produceItemScanResultVo.BatchNo))
                 {
+                    StartProduceItemList.Insert(0, produceItemScanResultVo);
                     if (StartProduceItemList.Count > 20)
                     {
                         StartProduceItemList.RemoveAt(20);
@@ -124,33 +125,11 @@ public partial class ProcessStepScanViewModel : ObservableObject
 
                 if (ShowStartSuccessDialog)
                 {
-                    var doNotShowAgainCheckBox = new System.Windows.Controls.CheckBox
+                    var messageBox = new Wpf.Ui.Controls.MessageBox
                     {
-                        Content = "不再弹窗，只播放提示音",
-                        Margin = new System.Windows.Thickness(0, 12, 0, 0)
+                        Title = "扫码枪确认", Content = $"开始生产批次号: {StartProduceBatchNo}", CloseButtonText = "好的 (Esc)"
                     };
-                    var successDialog = new Wpf.Ui.Controls.ContentDialog
-                    {
-                        Title = "扫码枪确认",
-                        Content = new StackPanel
-                        {
-                            Children =
-                            {
-                                new System.Windows.Controls.TextBlock { Text = $"开始生产批次号: {StartProduceBatchNo}" },
-                                doNotShowAgainCheckBox
-                            }
-                        },
-                        PrimaryButtonText = "好的 (Esc)"
-                    };
-
-                    await _contentDialogService.ShowAsync(successDialog, CancellationToken.None);
-
-                    if (doNotShowAgainCheckBox.IsChecked == true)
-                    {
-                        ShowStartSuccessDialog = false;
-                        LocalAppConfig.AppSetting.ShowStartProduceSuccessDialog = false;
-                        LocalAppConfig.Save(LocalAppConfig.AppSetting);
-                    }
+                    _ = await messageBox.ShowDialogAsync();
                 }
             }
             else
@@ -216,9 +195,9 @@ public partial class ProcessStepScanViewModel : ObservableObject
             {
                 PlaySuccessAudio();
                 CompleteProduceItemScanResult = produceItemScanResultVo;
-                CompleteProduceItemList.Insert(0, produceItemScanResultVo);
                 if (!CompleteProduceItemList.Any(item => item.BatchNo == produceItemScanResultVo.BatchNo))
                 {
+                    CompleteProduceItemList.Insert(0, produceItemScanResultVo);
                     if (CompleteProduceItemList.Count > 20)
                     {
                         CompleteProduceItemList.RemoveAt(20);
@@ -227,33 +206,11 @@ public partial class ProcessStepScanViewModel : ObservableObject
 
                 if (ShowCompleteSuccessDialog)
                 {
-                    var doNotShowAgainCheckBox = new System.Windows.Controls.CheckBox
+                    var messageBox = new Wpf.Ui.Controls.MessageBox
                     {
-                        Content = "不再弹窗，只播放提示音",
-                        Margin = new System.Windows.Thickness(0, 12, 0, 0)
+                        Title = "扫码枪确认", Content = $"完成项批次号: {batchNo}", CloseButtonText = "好的 (Esc)"
                     };
-                    var successDialog = new ContentDialog
-                    {
-                        Title = "扫码枪确认",
-                        Content = new StackPanel
-                        {
-                            Children =
-                            {
-                                new System.Windows.Controls.TextBlock { Text = $"完成项批次号: {batchNo}" },
-                                doNotShowAgainCheckBox
-                            }
-                        },
-                        PrimaryButtonText = "好的 (Esc)"
-                    };
-
-                    await _contentDialogService.ShowAsync(successDialog, CancellationToken.None);
-                    
-                    if (doNotShowAgainCheckBox.IsChecked == true)
-                    {
-                        ShowCompleteSuccessDialog = false;
-                        LocalAppConfig.AppSetting.ShowCompleteProduceSuccessDialog = false;
-                        LocalAppConfig.Save(LocalAppConfig.AppSetting);
-                    }
+                    _ = await messageBox.ShowDialogAsync();
                 }
             }
             else
@@ -368,15 +325,11 @@ public partial class ProcessStepScanViewModel : ObservableObject
     
     public void PlaySuccessAudio()
     {
-        var mediaPlayer = new MediaPlayer();
-        mediaPlayer.Open(new Uri(AppContext.BaseDirectory + "/Assets/Audio/success.mp3", UriKind.Absolute));
-        mediaPlayer.Play();
+        AudioPlayer.PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/success.mp3");
     }
     
     public void PlayErrorAudio()
     {
-        var mediaPlayer = new MediaPlayer();
-        mediaPlayer.Open(new Uri(AppContext.BaseDirectory + "/Assets/Audio/error.mp3", UriKind.Absolute));
-        mediaPlayer.Play();
+        AudioPlayer.PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/error.mp3");
     }
 }

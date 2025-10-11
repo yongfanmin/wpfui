@@ -36,7 +36,8 @@ public partial class MainWindow : IWindow
 
         // Visibility = Visibility.Hidden;
 
-        SystemThemeWatcher.Watch(this);
+        // 同步windows主题 bug: 无法同步值到设置页面与本地配置文件 需要再写值同步到本地配置 , 此功能没必要
+        // SystemThemeWatcher.Watch(this);
 
         ViewModel = viewModel;
         DataContext = this;

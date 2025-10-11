@@ -302,7 +302,7 @@
     <ui:Button
         HorizontalAlignment="Right"
         VerticalAlignment="Top"
-        Margin="0,18,18,0"
+        Margin="0,0,18,0"
         Appearance="Transparent"
         Command="{Binding ViewModel.OpenSettingsDialogCommand}"
         Panel.ZIndex="2">

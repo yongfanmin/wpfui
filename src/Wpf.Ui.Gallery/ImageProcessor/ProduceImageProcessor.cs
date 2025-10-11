@@ -472,8 +472,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
             Console.WriteLine($"项批次{uniqueBatchItem.BatchNum}排版信息为空");
             return;
         }
-
-        layout.QrCode.Content = $"BNO:{uniqueBatchItem.BatchNum}";
+        layout.QrCode.Content = uniqueBatchItem.OrderCode;
         MachineConfig machineConfig = new MachineConfig();
         machineConfig.Dpi = targetDpi;
         machineConfig.PrintWidthMm = layout.LayoutArea.WidthMm; // 2米宽度料卷
@@ -752,12 +751,20 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 Image qrCode = GenerateQrCode2Image(produceImgInfo.QrCode.Content,
                     ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.Width, produceImgInfo.MachineConfig.Dpi),
                     ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.Height, produceImgInfo.MachineConfig.Dpi));
+                Image whiteQrBackground = _imageCreator.CreateImageFromPhysicalSize(
+                    decimal.ToDouble(produceImgInfo.QrCode.Width),
+                    decimal.ToDouble(produceImgInfo.QrCode.Height),
+                    produceImgInfo.MachineConfig.Dpi,
+                    ImgSupportFormat.Png,
+                    backgroundColor: new double[] { 255, 255, 255, 255 });
+                qrCode = whiteQrBackground.Composite(qrCode, Enums.BlendMode.Over);
                 currentResult = currentResult.Composite(
                     qrCode,
                     Enums.BlendMode.Over, // Over 是标准的Alpha叠加，Atop可能不是您想要的
                     x: ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.OffsetX, produceImgInfo.MachineConfig.Dpi),
                     y: ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.OffsetY, produceImgInfo.MachineConfig.Dpi)
                 );
+                
                 // --- 步骤 3: 保存最终结果 ---
                 // 此时，currentResult 就是包含了所有叠加裁片的最终图像
                 _imageCreator.SaveImageForProduction(
@@ -793,8 +800,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 Format = BarcodeFormat.QR_CODE,
                 Options = new QrCodeEncodingOptions
                 {
-                    Height = width,
-                    Width = height,
+                    Width = width,
+                    Height = height,
                     Margin = margin,
                     ErrorCorrection = ZXing.QrCode.Internal.ErrorCorrectionLevel.M, // 中等容错
                 },

@@ -25,6 +25,8 @@ public class ProduceBatchItemDetail
 
     [JsonPropertyName("order_no")] public string OrderNo { get; set; }
     
+    [JsonPropertyName("order_code")] public string OrderCode { get; set; }
+    
     [JsonPropertyName("order_detail_id")] public int OrderDetailId { get; set; }
 
     [JsonPropertyName("item_id")] public string ItemId { get; set; }
@@ -139,7 +141,7 @@ public class ProduceBatchItemDetail
             //orderPrintBatch.OrderNo = jsonNode.path("order_no").ToString();
             //orderPrintBatch.BatchNum = jsonNode["batch_no"].ToString();
             produceBatchItemDetail.OrderNo = (string?)jsonNode["order_no"] ?? string.Empty;
-
+            produceBatchItemDetail.OrderCode = (string?)jsonNode["order_code"] ?? string.Empty;
             // --- 健壮地获取 batch_no (可能是数字或字符串，目标是long) ---
             JsonNode? batchNoNode = jsonNode["batch_no"];
             if (batchNoNode != null)

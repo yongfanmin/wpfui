@@ -17,7 +17,7 @@ public class UniqueBatchItem
     public string Color { get; set; }
     public string ProductName { get; set; }
     public string OrderNo { get; set; }
-    
+    public string OrderCode { get; set; }
     public int OrderDetailId { get; set; }
     public int TargetDpi { get; set; }
     public List<ProductionTask> ProductionTasks { get; set; }
