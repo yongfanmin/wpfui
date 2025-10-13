@@ -320,6 +320,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
             }
 
             string localOutputPath = FileName.getOrderPatternPrintImgPath(
+                patternPieceTask.ProduceBatchNum,
+                patternPieceTask.OrderNo,
                 patternPieceTask.BatchNum,
                 patternPieceTask.FactoryId,
                 0);
@@ -327,6 +329,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
             Directory.CreateDirectory(localOutputPath);
 
             string localOutputThumbPath = FileName.getOrderPatternPrintImgThumbPath(
+                patternPieceTask.ProduceBatchNum,
+                patternPieceTask.OrderNo,
                 patternPieceTask.BatchNum,
                 patternPieceTask.FactoryId,
                 0);

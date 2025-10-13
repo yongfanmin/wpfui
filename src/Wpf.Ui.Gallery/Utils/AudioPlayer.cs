@@ -25,6 +25,11 @@ public static class AudioPlayer
          PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/clear_basket.mp3");
      }
      
+     public static void PlayCompleteAudio()
+     {
+         PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/complete.mp3");
+     }
+     
     /// <summary>
     /// [最终版本] 以“即发即忘”(Fire-and-Forget)的方式异步播放一个音频文件。
     /// </summary>

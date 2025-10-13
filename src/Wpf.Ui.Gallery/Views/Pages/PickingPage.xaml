@@ -40,6 +40,11 @@
                         CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}"
                         Content="清空分拣篮" />
                     <Button
+                        Margin="0,0,8,0"
+                        Command="{Binding ViewModel.AdjustSortQuantityCommand}"
+                        CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}"
+                        Content="调整分拣数" />
+                    <Button
                         Command="{Binding ViewModel.PrintDeliveryBillCommand}"
                         CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}"
                         Content="打印发货单" />

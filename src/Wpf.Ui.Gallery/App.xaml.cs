@@ -159,6 +159,13 @@ public partial class App
                         //接口域名 接口地址 生产批次详情接口
                         c.BaseAddress = new Uri(_domain);
                     }).AddHttpMessageHandler<NetworkActivityHandler>();
+                _ = services
+                    .AddRefitClient<IOrderApi>()
+                    .ConfigureHttpClient(c =>
+                    {
+                        //接口域名 接口地址 订单接口
+                        c.BaseAddress = new Uri(_domain);
+                    }).AddHttpMessageHandler<NetworkActivityHandler>();
             }
         )
         .Build();

@@ -8,7 +8,7 @@ namespace Wpf.Ui.Gallery.Dto.Picking;
 public partial class OrderPick : ObservableObject
 {
     public int BasketNumber { get; set; }
-    public string OrderNo { get; set; }
+    [ObservableProperty] public string _orderNo;
 
     public string OrderCode { get; set; }
     [ObservableProperty] public int _pickCount;
