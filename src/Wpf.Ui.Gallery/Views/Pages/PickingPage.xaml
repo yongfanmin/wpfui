@@ -25,12 +25,13 @@
             <StackPanel Grid.Column="0" Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">
                     <ui:TextBox
+                        Name="PickOrderCode"
                         Width="300"
                         Margin="0,0,12,0"
                         FontWeight="Bold"
                         PlaceholderText="输入订单编码"
                         Text="{Binding ViewModel.PickOrderCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <ui:Button Command="{Binding ViewModel.EnterConfirmPickCommand}" Content="拣货" />
+                    <ui:Button Command="{Binding ViewModel.ConfirmPickCommand}" Content="拣货" />
                 </StackPanel>
                 <StackPanel Margin="0,12,0,0" Orientation="Horizontal">
                     <Button
@@ -60,30 +61,37 @@
             Grid.Row="1"
             ItemsSource="{Binding ViewModel.OrderPickBasketList}"
             SelectionMode="Multiple">
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsPicked}" Value="True">
-                            <Setter Property="Background" Value="SeaGreen" />
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </ListView.ItemContainerStyle>
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Header="分拣篮编号">
+                    <GridViewColumn Header="分拣篮编号" Width="120">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
                                     <ui:SymbolIcon Symbol="Cart24" />
-                                    <TextBlock Text="{Binding BasketNumber}" Margin="8,0,0,0" />
+                                    <TextBlock Margin="8,0,0,0" Text="{Binding BasketNumber}" />
+                                    <TextBlock
+                                        Margin="8,0,0,0"
+                                        FontWeight="Bold"
+                                        Foreground="Green"
+                                        Text="分拣完成">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsPicked}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </StackPanel>
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
-                    <GridViewColumn Header="订单编号" DisplayMemberBinding="{Binding OrderNo}" />
-                    <GridViewColumn Header="已分拣" DisplayMemberBinding="{Binding PickCount}" />
-                    <GridViewColumn Header="总数" DisplayMemberBinding="{Binding ItemCount}" />
+                    <GridViewColumn Header="订单编号"  Width="200" DisplayMemberBinding="{Binding OrderNo}" />
+                    <GridViewColumn Header="已分拣"  Width="120" DisplayMemberBinding="{Binding PickCount}" />
+                    <GridViewColumn Header="总数"  Width="120" DisplayMemberBinding="{Binding ItemCount}" />
                 </GridView>
             </ListView.View>
         </ListView>

@@ -113,7 +113,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
             //ProduceItemScanResultVo produceItemScanResultVo = setBatchNo2ProduceResponse.Data;
             if (setBatchNo2ProduceResponse.IsSuccess)
             {
-                PlaySuccessAudio();
+                AudioPlayer.PlaySuccessAudio();
                 StartProduceItemScanResult = produceItemScanResultVo;
                 if (!StartProduceItemList.Any(item => item.BatchNo == produceItemScanResultVo.BatchNo))
                 {
@@ -135,7 +135,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
             }
             else
             {
-                PlayErrorAudio();
+                AudioPlayer.PlayErrorAudio();
                 var messageBox = new Wpf.Ui.Controls.MessageBox
                 {
                     Title = "扫码核验失败[无法开始生产]", Content = setBatchNo2ProduceResponse.Msg, CloseButtonText = "好的 (Esc)"
@@ -195,7 +195,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 JsonSerializer.Deserialize<ProduceItemScanResultVo>(setBatchNo2ProduceResponse.Data.ToString());
             if (setBatchNo2ProduceResponse.IsSuccess)
             {
-                PlaySuccessAudio();
+                AudioPlayer.PlaySuccessAudio();
                 CompleteProduceItemScanResult = produceItemScanResultVo;
                 if (!CompleteProduceItemList.Any(item => item.BatchNo == produceItemScanResultVo.BatchNo))
                 {
@@ -217,7 +217,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
             }
             else
             {
-                PlayErrorAudio();
+                AudioPlayer.PlayErrorAudio();
                 var messageBox = new Wpf.Ui.Controls.MessageBox
                 {
                     Title = "扫码核验失败[无法完成生产]", Content = setBatchNo2ProduceResponse.Msg, CloseButtonText = "好的 (Esc)"
@@ -323,15 +323,5 @@ public partial class ProcessStepScanViewModel : ObservableObject
             ShowStartSuccessDialog = !startCheckbox.IsChecked.GetValueOrDefault();
             ShowCompleteSuccessDialog = !completeCheckbox.IsChecked.GetValueOrDefault();
         }
-    }
-    
-    public void PlaySuccessAudio()
-    {
-        AudioPlayer.PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/success.mp3");
-    }
-    
-    public void PlayErrorAudio()
-    {
-        AudioPlayer.PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/error.mp3");
     }
 }

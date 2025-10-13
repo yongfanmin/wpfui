@@ -9,6 +9,22 @@ public static class AudioPlayer
 {
      private static readonly List<MediaPlayer> PlayingMedia = new List<MediaPlayer>();
 
+
+     public static void PlaySuccessAudio()
+     {
+         PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/success.mp3");
+     }
+     
+     public static void PlayErrorAudio()
+     {
+         PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/error.mp3");
+     }
+     
+     public static void PlayClearBasketAudio()
+     {
+         PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/clear_basket.mp3");
+     }
+     
     /// <summary>
     /// [最终版本] 以“即发即忘”(Fire-and-Forget)的方式异步播放一个音频文件。
     /// </summary>

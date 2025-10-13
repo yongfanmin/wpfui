@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Dto.Picking;
 using Wpf.Ui.Gallery.Models;
+using Wpf.Ui.Gallery.Utils;
 using TextBlock = Wpf.Ui.Controls.TextBlock;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
@@ -23,6 +24,8 @@ public partial class PickingViewModel : ObservableObject
     [ObservableProperty] private int _basketCount = 5; // Default value
 
     [ObservableProperty] private string _pickOrderCode = string.Empty;
+    
+    [ObservableProperty] private string _scanEnterValue = string.Empty;
 
     public PickingViewModel(IContentDialogService contentDialogService, ISnackbarService snackbarService)
     {
@@ -31,19 +34,43 @@ public partial class PickingViewModel : ObservableObject
         UpdateBasketList();
     }
 
-    private void UpdateBasketList()
+    private bool UpdateBasketList()
     {
-        OrderPickBasketList.Clear();
-        for (int i = 1; i <= BasketCount; i++)
+        // 不能清空数据 如果分拣篮内有东西 数据会丢失
+        // OrderPickBasketList.Clear();
+        for (int num = 1; num <= BasketCount; num++)
         {
-            OrderPickBasketList.Add(new OrderPick
+            OrderPick orderPick = OrderPickBasketList.FirstOrDefault(basket => basket.BasketNumber == num);
+            if (orderPick is null)
             {
-                BasketNumber = i + 1,
-                OrderNo = "空篮", // Placeholder data
-                PickCount = 0,
-                ItemCount = 0
-            });
+                // 不存在 则新增分拣篮
+                OrderPickBasketList.Add(OrderPick.Init(num));
+            }
+            else
+            {
+                // 存在 维持不变
+            }
         }
+
+        var needRemoveList = OrderPickBasketList.Where(basket => basket.BasketNumber > BasketCount).ToList();
+        foreach (var item in needRemoveList)
+        {
+            if (item.isEmpty())
+            {
+                OrderPickBasketList.Remove(item);
+            }
+            else
+            {
+                AudioPlayer.PlayErrorAudio();
+                var messageBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "警告", Content = $"{item.BasketNumber}号篮不为空 请先清空再移除", CloseButtonText = "好的 (Esc)"
+                };
+                _ = messageBox.ShowDialogAsync();
+                return false;
+            }
+        }
+        return true;
     }
 
     private void ScanOrder(string orderCode)
@@ -56,64 +83,150 @@ public partial class PickingViewModel : ObservableObject
         });
     }
 
-    private void AddOrder(OrderPick orderPick)
+    private async void AddOrder(OrderPick orderPick)
     {
-        if (OrderPickBasketList.Any(item => item.OrderNo.Equals(orderPick.OrderNo)))
+        if (string.IsNullOrEmpty(orderPick.OrderCode))
         {
-            lock (_lockObject)
+            AudioPlayer.PlayErrorAudio();
+            var messageBox = new Wpf.Ui.Controls.MessageBox
             {
-                // 分拣篮内已经存在 则 增加已经拣货的件数
-                OrderPick thisOrderPick = OrderPickBasketList.FirstOrDefault(item => item.OrderNo.Equals(orderPick.OrderNo));
-                if (thisOrderPick is not null)
-                {
-                    thisOrderPick.PickCount++;
-                    thisOrderPick.IsPicked = thisOrderPick.PickCount > 0 && thisOrderPick.PickCount >= thisOrderPick.ItemCount;
-                }
-            }
+                Title = "警告", Content = "分拣的订单编码为空", CloseButtonText = "好的 (Esc)"
+            };
+
+            _ = await messageBox.ShowDialogAsync();
         }
         else
         {
-            // 开头第一个固定分拣数量为1
-            orderPick.PickCount = 1;
-            orderPick.IsPicked = orderPick.PickCount > 0 && orderPick.PickCount >= orderPick.ItemCount;
-            // 不存在则新增到分拣篮内
-            OrderPickBasketList.Add(orderPick);
-            // 请求数据
+            if (OrderPickBasketList.Any(item => orderPick.OrderCode.Equals(item.OrderCode)))
+            {
+                OrderPick thisOrderPick = OrderPickBasketList.FirstOrDefault(item => orderPick.OrderCode.Equals(item.OrderCode));
+                if (thisOrderPick is not null && thisOrderPick.PickCount >= thisOrderPick.ItemCount)
+                {
+                    AudioPlayer.PlayErrorAudio();
+                    var messageBox = new Wpf.Ui.Controls.MessageBox
+                    {
+                        Title = "警告", Content = "超出订单总项数", CloseButtonText = "好的 (Esc)"
+                    };
+                    _ = await messageBox.ShowDialogAsync();
+                }
+                else
+                {
+                    lock (_lockObject)
+                    {
+                        // 分拣篮内已经存在 则 增加已经拣货的件数
+                        if (thisOrderPick is not null)
+                        {
+                            AudioPlayer.PlaySuccessAudio();
+                            thisOrderPick.PickCount++;
+                            thisOrderPick.IsPicked = thisOrderPick.PickCount > 0 && thisOrderPick.PickCount >= thisOrderPick.ItemCount;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                OrderPick thisOrderPick = OrderPickBasketList.FirstOrDefault(item => string.IsNullOrEmpty(item.OrderCode));
+                if (thisOrderPick is not null)
+                {
+                    // 开头第一个固定分拣数量为1
+                    // TODO 从接口加载订单数据: 使用订单编码获取订单编号 订单总项数
+                    thisOrderPick.PickCount = 1;
+                    thisOrderPick.OrderCode = orderPick.OrderCode;
+                    thisOrderPick.OrderNo = orderPick.OrderNo;
+                    thisOrderPick.ItemCount = orderPick.ItemCount;
+                    orderPick.IsPicked = orderPick.PickCount > 0 && orderPick.PickCount >= orderPick.ItemCount;
+                    AudioPlayer.PlaySuccessAudio();
+                }
+                else
+                {
+                    AudioPlayer.PlayErrorAudio();
+                    // 请求数据
+                    // TODO 没有任何空篮 不能分拣新订单
+                    var messageBox = new Wpf.Ui.Controls.MessageBox
+                    {
+                        Title = "警告", Content = "没有空的分拣篮", CloseButtonText = "好的 (Esc)"
+                    };
+
+                    _ = await messageBox.ShowDialogAsync();
+                }
+            }
         }
     }
 
     [RelayCommand]
-    private async void OnEnterConfirmPick()
+    private async void OnConfirmPick()
     {
         ScanOrder(PickOrderCode);
     }
 
     [RelayCommand]
-    private void ClearBasket(IList<object> selectedItems)
+    private async void ClearBasket(IList<object> selectedItems)
     {
-        if (selectedItems == null) return;
-        var selectedOrders = selectedItems.Cast<OrderPick>().ToList();
-        _snackbarService.Show(
-            "Clear Baskets",
-            $"Clearing baskets for orders: {string.Join(", ", selectedOrders.Select(o => o.OrderNo))}",
-            ControlAppearance.Success,
-            new SymbolIcon(SymbolRegular.Checkmark24),
-            TimeSpan.FromSeconds(3)
-        );
+        if (selectedItems.Count == 0)
+        {
+            AudioPlayer.PlayErrorAudio();
+            var messageBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "警告", Content = "请先选中需要清空的篮号", CloseButtonText = "好的 (Esc)"
+            };
+            _ = await messageBox.ShowDialogAsync();
+        }
+        else
+        {
+            var dialog = new ContentDialog(_contentDialogService.GetDialogHost());
+
+            dialog.Title = "提示";
+            dialog.Content = "清空分拣篮后无法恢复";
+            dialog.PrimaryButtonText = "确认清空";
+            dialog.CloseButtonText = "取消";
+
+            var result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                var selectedBasket = selectedItems.Cast<OrderPick>().ToList();
+                foreach (OrderPick orderPick in OrderPickBasketList)
+                {
+                    if (selectedBasket.Exists(selectItem => selectItem.BasketNumber == orderPick.BasketNumber))
+                    {
+                        orderPick.Clear();
+                    }
+                }
+                AudioPlayer.PlayClearBasketAudio();
+                _snackbarService.Show(
+                    "分拣篮清空",
+                    $"已清空的篮子编号: {string.Join(" ", selectedBasket.Select(o => $"{o.BasketNumber}号篮"))}",
+                    ControlAppearance.Success,
+                    new SymbolIcon(SymbolRegular.Checkmark24),
+                    TimeSpan.FromSeconds(3)
+                );
+            }
+        }
     }
 
     [RelayCommand]
-    private void PrintDeliveryBill(IList<object> selectedItems)
+    private async void PrintDeliveryBill(IList<object> selectedItems)
     {
-        if (selectedItems == null) return;
-        var selectedOrders = selectedItems.Cast<OrderPick>().ToList();
-        _snackbarService.Show(
-            "Print Delivery Bills",
-            $"Printing delivery bills for orders: {string.Join(", ", selectedOrders.Select(o => o.OrderNo))}",
-            ControlAppearance.Success,
-            new SymbolIcon(SymbolRegular.Print24),
-            TimeSpan.FromSeconds(3)
-        );
+        if (selectedItems.Count == 0)
+        {
+            AudioPlayer.PlayErrorAudio();
+            var messageBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "警告", Content = "请先选中需要打印面单的篮号", CloseButtonText = "好的 (Esc)"
+            };
+            _ = await messageBox.ShowDialogAsync();
+        }
+        else
+        {
+            var selectedOrders = selectedItems.Cast<OrderPick>().ToList();
+            _snackbarService.Show(
+                "Print Delivery Bills",
+                $"Printing delivery bills for orders: {string.Join(", ", selectedOrders.Select(o => o.OrderNo))}",
+                ControlAppearance.Success,
+                new SymbolIcon(SymbolRegular.Print24),
+                TimeSpan.FromSeconds(3)
+            );
+        }
     }
 
     [RelayCommand]
@@ -131,8 +244,38 @@ public partial class PickingViewModel : ObservableObject
 
         if (result == ContentDialogResult.Primary)
         {
-            BasketCount = (int)numberBox.Value;
-            UpdateBasketList();
+            int currentBasketCount = BasketCount;
+            int newBasketCount = (int)numberBox.Value;
+            if (newBasketCount > currentBasketCount)
+            {
+                // 新增分拣篮 .... 如果需要进行判断
+                BasketCount = newBasketCount;
+            }
+            else if (newBasketCount < currentBasketCount)
+            {
+                // 新增分拣篮 .... 如果需要进行判断
+                BasketCount = newBasketCount;
+            }
+            else
+            {
+                // 分拣篮数量不变 不需要更新
+                return;
+            }
+
+            if (!UpdateBasketList())
+            {
+                // 更新失败 恢复原来的分拣篮数量
+                BasketCount = currentBasketCount;
+            }
         }
+    }
+    
+    // 回车事件
+    [RelayCommand]
+    private async void OnEnterConfirmBtn()
+    {
+        PickOrderCode = string.IsNullOrEmpty(PickOrderCode) ? ScanEnterValue : PickOrderCode;
+        OnConfirmPick();
+        ScanEnterValue = string.Empty;
     }
 }
