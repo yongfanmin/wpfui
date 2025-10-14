@@ -13,4 +13,7 @@ public enum ProduceBatchStatus
     等待生产数据 = 1,
     处理中 = 2,
     生产准备就绪 = 3,
+    
+    分拣中 = 4,
+    已发货 = 5,
 }

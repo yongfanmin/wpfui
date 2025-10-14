@@ -1,0 +1,40 @@
+﻿<ui:FluentWindow  x:Class="Wpf.Ui.Gallery.Views.Windows.PrintDialog"
+                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                  xmlns:local="clr-namespace:Wpf.Ui.Gallery.Views.Windows"
+                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                  mc:Ignorable="d"
+                  Title="打印面单" Height="250" Width="400"
+                  d:DataContext="{d:DesignInstance local:PrintDialog, IsDesignTimeCreatable=True}"
+                  ExtendsContentIntoTitleBar="False"
+                  WindowCornerPreference="Round">
+
+    <Grid>
+        <StackPanel Margin="20">
+            <TextBlock Text="选择打印机:" FontWeight="Bold" Margin="0,0,0,10"/>
+            <ComboBox x:Name="PrinterComboBox"
+                      ItemsSource="{Binding ViewModel.Printers}"
+                      SelectedItem="{Binding ViewModel.SelectedPrinter}"
+                      Margin="0,0,0,20"/>
+
+            <TextBlock x:Name="StatusTextBlock"
+                       Text="{Binding ViewModel.StatusMessage}"
+                       Margin="0,0,0,20"
+                       TextWrapping="Wrap"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <ui:Button Content="立即打印"
+                           x:Name="PrintButton"
+                           IsEnabled="{Binding ViewModel.IsReadyToPrint}"
+                           Command="{Binding ViewModel.PrintCommand}"
+                           Appearance="Primary"
+                           Margin="0,0,10,0"/>
+                <ui:Button Content="取消"
+                           Command="{Binding ViewModel.CancelCommand}"
+                />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

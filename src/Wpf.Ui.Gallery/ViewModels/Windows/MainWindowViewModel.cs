@@ -47,6 +47,9 @@ public partial class MainWindowViewModel : ViewModel
     [ObservableProperty] private bool _isNetworkActive = false;
     
     private bool _isInitialized = false;
+    
+    private string _machineId = string.Empty;
+    
     private readonly INavigationService _navigationService;
     private readonly IContentDialogService _contentDialogService;
 

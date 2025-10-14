@@ -191,17 +191,6 @@
                 </Grid>
             </ui:CardExpander.Header>
             <StackPanel>
-                <Grid Margin="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="To clone this repository" />
-                    <TextBlock
-                        Grid.Column="1"
-                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
-                        Text="git clone https://github.com/lepoco/wpfui.git" />
-                </Grid>
                 <ui:Anchor
                     Margin="0"
                     Padding="16"
@@ -217,24 +206,6 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="File a bug or request a new sample" />
-                        <ui:SymbolIcon Grid.Column="1" Symbol="Link24" />
-                    </Grid>
-                </ui:Anchor>
-                <ui:Anchor
-                    Margin="0"
-                    Padding="16"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Stretch"
-                    Background="Transparent"
-                    BorderThickness="0,1,0,1"
-                    CornerRadius="0"
-                    NavigateUri="https://wpfui.lepo.co/">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Check out the docs" />
                         <ui:SymbolIcon Grid.Column="1" Symbol="Link24" />
                     </Grid>
                 </ui:Anchor>
@@ -287,6 +258,25 @@
             <ui:Button
                 Content="打开目录"
                 Command="{Binding ViewModel.OpenLogCommand, Mode=OneWay}" />
+        </ui:CardControl>
+        <ui:CardControl Margin="0,0,0,12" Icon="{ui:SymbolIcon Key24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="软件序列号" />
+                    <ui:TextBox
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{Binding ViewModel.MachineId, Mode=OneWay}" 
+                        IsReadOnly="True"/>
+                </Grid>
+            </ui:CardControl.Header>
         </ui:CardControl>
     </StackPanel>
 </Page>

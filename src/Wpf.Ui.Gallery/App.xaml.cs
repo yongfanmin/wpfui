@@ -84,7 +84,10 @@ public partial class App
                 _ = services.AddSingleton<Services.LoginInfoService>();
                 _ = services.AddSingleton<ProduceBatchItemPage>();
                 _ = services.AddSingleton<ProduceBatchItemViewModel>();
-
+                // 打印面弹窗
+                _ = services.AddTransient<PrintDialog>();
+                _ = services.AddTransient<PrintDialogViewModel>();
+                
                 _ = services.AddSingleton<SettingsPage>();
                 _ = services.AddSingleton<SettingsViewModel>();
                 // Top-level pages

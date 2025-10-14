@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Windows.Controls;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Apis;
+using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.Picking;
 using Wpf.Ui.Gallery.Models;
@@ -15,6 +16,7 @@ using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.Vo;
 using TextBlock = Wpf.Ui.Controls.TextBlock;
+using TextBox = System.Windows.Controls.TextBox;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
 
@@ -26,6 +28,8 @@ public partial class PickingViewModel : ObservableObject
     
     private readonly IContentDialogService _contentDialogService;
     private readonly ISnackbarService _snackbarService;
+    private readonly WindowsProviderService _windowsProviderService;
+
     private readonly object _lockObject = new object();
 
     [ObservableProperty] private ObservableCollection<OrderPick> _orderPickBasketList = new ObservableCollection<OrderPick>();
@@ -40,13 +44,15 @@ public partial class PickingViewModel : ObservableObject
         IContentDialogService contentDialogService, 
         ISnackbarService snackbarService,
         IOrderApi orderApi,
-        LoginInfoService loginInfoService
+        LoginInfoService loginInfoService,
+        WindowsProviderService windowsProviderService
         )
     {
         _contentDialogService = contentDialogService;
         _snackbarService = snackbarService;
         _orderApi = orderApi;
         _loginInfoService = loginInfoService;
+        _windowsProviderService = windowsProviderService;
         UpdateBasketList();
     }
 
@@ -99,6 +105,7 @@ public partial class PickingViewModel : ObservableObject
         });
     }
 
+    // 拣货
     private async void AddOrder(OrderPick orderPick)
     {
         if (string.IsNullOrEmpty(orderPick.OrderCode))
@@ -212,6 +219,7 @@ public partial class PickingViewModel : ObservableObject
         }
     }
 
+    // 调整分拣数
     [RelayCommand]
     private async void AdjustSortQuantity(IList<object> selectedItems)
     {
@@ -280,6 +288,7 @@ public partial class PickingViewModel : ObservableObject
         ScanOrder(PickOrderCode);
     }
 
+    // 清空分拣篮
     [RelayCommand]
     private async void ClearBasket(IList<object> selectedItems)
     {
@@ -319,12 +328,13 @@ public partial class PickingViewModel : ObservableObject
                     $"已清空的篮子编号: {string.Join(" ", selectedBasket.Select(o => $"{o.BasketNumber}号篮"))}",
                     ControlAppearance.Success,
                     new SymbolIcon(SymbolRegular.Checkmark24),
-                    TimeSpan.FromSeconds(3)
+                    TimeSpan.FromSeconds(5)
                 );
             }
         }
     }
 
+    // 打印发货单
     [RelayCommand]
     private async void PrintDeliveryBill(IList<object> selectedItems)
     {
@@ -337,16 +347,87 @@ public partial class PickingViewModel : ObservableObject
             };
             _ = await messageBox.ShowDialogAsync();
         }
-        else
+        else if(selectedItems.Count == 1)
         {
             var selectedOrders = selectedItems.Cast<OrderPick>().ToList();
-            _snackbarService.Show(
-                "打印发货单",
-                $"Printing delivery bills for orders: {string.Join(", ", selectedOrders.Select(o => o.OrderNo))}",
-                ControlAppearance.Success,
-                new SymbolIcon(SymbolRegular.Print24),
-                TimeSpan.FromSeconds(3)
-            );
+            var selectedOrderPick = selectedItems.Cast<OrderPick>().Single();
+            var printDialog = _windowsProviderService.GetWindow<Views.Windows.PrintDialog>();
+            printDialog.ViewModel.FetchAndDownloadWaybill(selectedOrderPick);
+            printDialog.Show();
+        }
+        else
+        {
+            var messageBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "警告", Content = "一次只能打印一个订单的面单", CloseButtonText = "好的 (Esc)"
+            };
+            _ = await messageBox.ShowDialogAsync();
+        }
+    }
+
+    // 设置开始发货 设置发货
+    [RelayCommand]
+    private async void SetStartDelivery(IList<object> selectedItems)
+    {
+        var selectedBasket = selectedItems.Cast<OrderPick>().Where(item => !item.isEmpty()).ToList();
+        if (selectedBasket.Count == 0)
+        {
+            var messageBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "警告", Content = "请选中需要设置发货的订单", CloseButtonText = "好的 (Esc)"
+            };
+            _ = await messageBox.ShowDialogAsync();
+        }
+        else
+        {
+            var dialog = new ContentDialog(_contentDialogService.GetDialogHost());
+            var numberBox = new NumberBox { Value = BasketCount };
+
+            dialog.Title = "发货提示";
+            dialog.Content = new StackPanel { Children = { new TextBox() { Text = string.Join(" ", selectedBasket.Select(item => $"发货单号: {item.OrderNo}")) , IsReadOnly = true } } };
+            dialog.PrimaryButtonText = "确定发货";
+            dialog.CloseButtonText = "取消";
+
+            var result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                string token = _loginInfoService.getToken();
+                foreach (OrderPick orderSelect in selectedBasket)
+                {
+                    FactoryApiResponse<Object> response = await _orderApi.setOrderCompleteByOrderCode(
+                        new OrderCodeRequest()
+                        {
+                            OrderCode = orderSelect.OrderCode
+                        },
+                        token
+                        );
+                    if (response.IsSuccess)
+                    {
+                        SetStartDeliveryStatus(orderSelect.OrderNo);
+                    }
+                    else
+                    {
+                        var messageBox = new Wpf.Ui.Controls.MessageBox
+                        {
+                            Title = "警告", Content = $"发货失败[{response.Msg}]，单号{orderSelect.OrderNo}", CloseButtonText = "好的 (Esc)"
+                        };
+                        _ = await messageBox.ShowDialogAsync();
+                    }
+                }
+            }
+        }
+    }
+
+    // 设置发货状态
+    private void SetStartDeliveryStatus(string orderNo)
+    {
+        foreach (OrderPick orderPick in OrderPickBasketList)
+        {
+            if (orderPick.OrderNo == orderNo)
+            {
+                orderPick.Status = orderPick.IsPicked ? OrderPickStatus.全部发货 : OrderPickStatus.部分发货;
+            }
         }
     }
 

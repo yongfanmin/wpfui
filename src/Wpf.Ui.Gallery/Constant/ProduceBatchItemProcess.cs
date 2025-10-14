@@ -12,4 +12,7 @@ public enum ProduceBatchItemProcess
     图片已加载 = 2,
     裁片已合成 = 4,
     生产稿件已合成 = 8,
+    
+    生产中 = 16,
+    生产完成 = 32,
 }

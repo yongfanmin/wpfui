@@ -28,4 +28,14 @@ public class WindowsProviderService
         windowInstance.Owner = Application.Current.MainWindow;
         windowInstance.Show();
     }
+    
+    public T GetWindow<T>() where T : class
+    {
+        if (!typeof(Window).IsAssignableFrom(typeof(T)))
+        {
+            throw new InvalidOperationException($"The window class should be derived from {typeof(Window)}.");
+        }
+
+        return _serviceProvider.GetService<T>() as T ?? throw new InvalidOperationException("Window is not registered as service.");
+    }
 }

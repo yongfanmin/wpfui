@@ -11,6 +11,7 @@ using Wpf.Ui.Extensions;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.LocalConfig;
+using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.ViewModels.Windows;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
@@ -43,6 +44,9 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
 
     [ObservableProperty]
     private LogEventLevel _selectedLogLevel;
+    
+    [ObservableProperty]
+    private string _machineId;
 
     public async Task OnNavigatedToAsync()
     {
@@ -56,6 +60,7 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
         ProduceImgLayoutFolderClassify = LocalAppConfig.AppSetting.ProduceImgLayoutFolderClassify;
         UpdateFileNameFormatString();
         SelectedLogLevel = LocalAppConfig.AppSetting.LogLevel;
+        MachineId = MachineUniqueId.GetId();
     }
 
     /// <summary>
@@ -146,6 +151,7 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
 
     private static string GetAssemblyVersion()
     {
+        // 在项目父级目录 Directory.Build.props 文件内定义了版本号
         return Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty;
     }
 
@@ -179,7 +185,7 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
         {
             LocalAppConfig.AppSetting.ProduceImgLayoutFolderClassify = folderClassify;
             LocalAppConfig.Save(LocalAppConfig.AppSetting);
-            Console.WriteLine($"Folder classification changed to: {ProduceImgLayoutFolderClassify}");
+            Console.WriteLine($"文件夹分类方式切换成: {ProduceImgLayoutFolderClassify}");
         }
     }
     

@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Extensions;
 using Wpf.Ui.Gallery.Apis;
+using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.CreateImg;
 using Wpf.Ui.Gallery.LocalConfig;
@@ -54,12 +55,11 @@ public partial class ProcessStepScanViewModel : ObservableObject
 
     [ObservableProperty] private string _scanEnterValue = string.Empty;
 
-    [ObservableProperty]
-    private bool _showStartSuccessDialog = LocalAppConfig.AppSetting.ShowStartProduceSuccessDialog;
+    [ObservableProperty] private bool _showStartSuccessDialog = LocalAppConfig.AppSetting.ShowStartProduceSuccessDialog;
 
     [ObservableProperty]
     private bool _showCompleteSuccessDialog = LocalAppConfig.AppSetting.ShowCompleteProduceSuccessDialog;
-    
+
     public ProcessStepScanViewModel(
         IContentDialogService contentDialogService,
         LoginInfoService loginInfoService,
@@ -103,11 +103,14 @@ public partial class ProcessStepScanViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(StartProduceBatchNo))
         {
             string token = _loginInfoService.getToken();
-            BatchNo2Produce batchNo2Produce = new BatchNo2Produce();
             // 后端接口层出现歧义 实际是扫面单上的 item_id (工位批次) 进行核验, 但是参数名称叫 batchNo (项批次)
-            batchNo2Produce.BatchNo = StartProduceBatchNo;
             FactoryApiResponse<Object> setBatchNo2ProduceResponse =
-                await _produceBatchApi.setBatchNo2Produce(batchNo2Produce, token);
+                await _produceBatchApi.setBatchNo2Produce(
+                new BatchNo2Produce()
+                {
+                    BatchNo = StartProduceBatchNo
+                },
+                token);
             ProduceItemScanResultVo produceItemScanResultVo =
                 JsonSerializer.Deserialize<ProduceItemScanResultVo>(setBatchNo2ProduceResponse.Data.ToString());
             //ProduceItemScanResultVo produceItemScanResultVo = setBatchNo2ProduceResponse.Data;
@@ -132,6 +135,9 @@ public partial class ProcessStepScanViewModel : ObservableObject
                     };
                     _ = await messageBox.ShowDialogAsync();
                 }
+
+                // 同步到主界面 同步到本地数据库
+                _databaseService.updateProduceBatchProcess(StartProduceBatchNo, ProduceBatchItemProcess.生产中);
             }
             else
             {
@@ -147,7 +153,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 }
             }
 
-            ProduceItemEntity produceItemEntity = _databaseService.GetProduceItemByItemId(batchNo2Produce.BatchNo);
+            ProduceItemEntity produceItemEntity = _databaseService.GetProduceItemByItemId(StartProduceBatchNo);
             List<string> printLayerImgList = new List<string>();
             if (produceItemEntity is not null)
             {
@@ -271,13 +277,14 @@ public partial class ProcessStepScanViewModel : ObservableObject
         }
         else if (SelectedTabIndex == 1)
         {
-            CompleteProduceBatchNo = string.IsNullOrEmpty(CompleteProduceBatchNo) ? ScanEnterValue : CompleteProduceBatchNo;
+            CompleteProduceBatchNo =
+                string.IsNullOrEmpty(CompleteProduceBatchNo) ? ScanEnterValue : CompleteProduceBatchNo;
             OnEnterConfirmCompleteProduce();
         }
 
         ScanEnterValue = string.Empty;
     }
-    
+
     partial void OnShowStartSuccessDialogChanged(bool value)
     {
         LocalAppConfig.AppSetting.ShowStartProduceSuccessDialog = value;
@@ -289,29 +296,24 @@ public partial class ProcessStepScanViewModel : ObservableObject
         LocalAppConfig.AppSetting.ShowCompleteProduceSuccessDialog = value;
         LocalAppConfig.Save(LocalAppConfig.AppSetting);
     }
-    
+
     [RelayCommand]
     private async void OpenSettingsDialog()
     {
         var startCheckbox = new System.Windows.Controls.CheckBox
         {
-            Content = "开始生产,扫码后不再弹窗提示",
-            IsChecked = !ShowStartSuccessDialog
+            Content = "开始生产,扫码后不再弹窗提示", IsChecked = !ShowStartSuccessDialog
         };
         var completeCheckbox = new System.Windows.Controls.CheckBox
         {
-            Content = "生产完成,扫码后不再弹窗提示",
-            IsChecked = !ShowCompleteSuccessDialog
+            Content = "生产完成,扫码后不再弹窗提示", IsChecked = !ShowCompleteSuccessDialog
         };
 
         var result = await _contentDialogService.ShowSimpleDialogAsync(
             new SimpleContentDialogCreateOptions()
             {
                 Title = "扫码弹窗设置",
-                Content = new StackPanel
-                {
-                    Children = { startCheckbox, completeCheckbox }
-                },
+                Content = new StackPanel { Children = { startCheckbox, completeCheckbox } },
                 PrimaryButtonText = "保存 (Enter)",
                 CloseButtonText = "关闭 (Esc)"
             },

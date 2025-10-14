@@ -196,6 +196,14 @@ public class DatabaseService : IDatabaseService
                         {
                             planToUpdate.LayoutCreateCount += 1;
                         }
+                        else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.生产中))
+                        {
+                            
+                        }
+                        else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.生产完成))
+                        {
+                            
+                        }
 
                         // 4. 调用 .Update() 将整个对象的更改保存回数据库
                         //    Update 方法会根据主键 (Id) 找到正确的行并更新所有字段

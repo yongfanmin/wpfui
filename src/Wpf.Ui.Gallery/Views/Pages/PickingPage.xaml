@@ -45,9 +45,15 @@
                         CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}"
                         Content="调整分拣数" />
                     <Button
+                        Margin="0,0,8,0"
                         Command="{Binding ViewModel.PrintDeliveryBillCommand}"
                         CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}"
                         Content="打印发货单" />
+                    <Button
+                        Margin="0,0,8,0"
+                        Command="{Binding ViewModel.SetStartDeliveryCommand}"
+                        CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}"
+                        Content="确认发货" />
                 </StackPanel>
             </StackPanel>
 
@@ -94,9 +100,16 @@
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
-                    <GridViewColumn Header="订单编号"  Width="200" DisplayMemberBinding="{Binding OrderNo}" />
+                    <GridViewColumn Header="订单编号" Width="200">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding OrderNo}" IsReadOnly="True" BorderThickness="0" Background="Transparent" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                     <GridViewColumn Header="已分拣"  Width="120" DisplayMemberBinding="{Binding PickCount}" />
                     <GridViewColumn Header="总数"  Width="120" DisplayMemberBinding="{Binding ItemCount}" />
+                    <GridViewColumn Header="当前状态"  Width="120" DisplayMemberBinding="{Binding Status}" />
                 </GridView>
             </ListView.View>
         </ListView>

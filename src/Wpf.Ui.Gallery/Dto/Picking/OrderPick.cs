@@ -3,6 +3,8 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using Wpf.Ui.Gallery.Constant;
+
 namespace Wpf.Ui.Gallery.Dto.Picking;
 
 public partial class OrderPick : ObservableObject
@@ -14,6 +16,10 @@ public partial class OrderPick : ObservableObject
     [ObservableProperty] public int _pickCount;
     [ObservableProperty] public int _itemCount;
     [ObservableProperty] private bool _isPicked;
+    
+    [ObservableProperty] private OrderPickStatus _status;
+    
+    public WaybillInfo WaybillInfo { get; set; }
 
     public static OrderPick Init(int basketNumber)
     {

@@ -18,10 +18,25 @@ public class OrderCodeRequest
 
 public interface IOrderApi
 {
+    // 获取订单编码
     [Post("/api/v2/factoryInterface/getOrderDetailByOrderCode")]
     Task<FactoryApiResponse<Object>> getOrderDetailByOrderCode(
         [Body] OrderCodeRequest request,
-        // TODO 接口端使用非标准鉴权方式
+        [Header("Token")] string token
+    );
+    
+    // 获取物流面单信息
+    [Post("/api/factoryInterface/getOrderExpressInfoByOrderCode")]
+    Task<FactoryApiResponse<Object>> getOrderExpressInfoByOrderCode(
+        [Body] OrderCodeRequest request,
+        [Header("Token")] string token
+    );
+    
+    
+    // 设置发货
+    [Post("/api/factoryInterface/setOrderCompleteByOrderCode")]
+    Task<FactoryApiResponse<Object>> setOrderCompleteByOrderCode(
+        [Body] OrderCodeRequest request,
         [Header("Token")] string token
     );
 }
