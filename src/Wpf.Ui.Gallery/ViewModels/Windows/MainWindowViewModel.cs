@@ -151,6 +151,7 @@ public partial class MainWindowViewModel : ViewModel
         MenuItems.Add(new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
         MenuItems.Add(new NavigationViewItem("工序扫码", SymbolRegular.ScanDash24, typeof(ProcessStepScanPage)));
         MenuItems.Add(new NavigationViewItem("分拣", SymbolRegular.Diversity24, typeof(PickingPage)));
+        // 移除框架菜单栏
         /*MenuItems.Add(new NavigationViewItem()
         {
             Content = "生产",
@@ -163,6 +164,7 @@ public partial class MainWindowViewModel : ViewModel
         });*/
         //MenuItems.Add(new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)));
         //MenuItems.Add(new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
+        /*
         MenuItems.Add(new NavigationViewItem()
         {
             Content = "Design guidance",
@@ -303,8 +305,9 @@ public partial class MainWindowViewModel : ViewModel
             },
         });
         MenuItems.Add(new NavigationViewItem("Windows", SymbolRegular.WindowApps24, typeof(WindowsPage)));
+        */
 
-        FooterMenuItems.Add(new NavigationViewItem("Settings", SymbolRegular.Settings24, typeof(SettingsPage)));
+        FooterMenuItems.Add(new NavigationViewItem("设置", SymbolRegular.Settings24, typeof(SettingsPage)));
     }
 
     [RelayCommand]

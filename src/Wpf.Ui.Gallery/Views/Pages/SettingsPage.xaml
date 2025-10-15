@@ -269,7 +269,7 @@
                     <ui:TextBlock
                         Grid.Row="0"
                         FontTypography="Body"
-                        Text="软件序列号" />
+                        Text="软件序列号[正式数据源:产品测试版]" />
                     <ui:TextBox
                         Grid.Row="1"
                         Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"

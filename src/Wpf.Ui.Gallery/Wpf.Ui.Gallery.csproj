@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="bblanchon.PDFium.Win32" />
     <PackageReference Include="File.TypeChecker" />
     <PackageReference Include="Lepo.i18n.DependencyInjection" />
     <PackageReference Include="Lepo.i18n.Wpf" />
@@ -28,6 +29,7 @@
     <PackageReference Include="Microsoft.Web.WebView2" />
     <PackageReference Include="NetVips" />
     <PackageReference Include="NetVips.Native.win-x64" />
+    <PackageReference Include="PdfiumPrinter" />
     <PackageReference Include="Refit" />
     <PackageReference Include="Refit.HttpClientFactory" />
     <PackageReference Include="ReflectionEventing" />

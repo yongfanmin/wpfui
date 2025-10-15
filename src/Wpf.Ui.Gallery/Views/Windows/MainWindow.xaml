@@ -46,7 +46,7 @@
             IsPaneToggleVisible="True"
             IsPaneOpen="False"
             MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
-            OpenPaneLength="310"
+            OpenPaneLength="140"
             PaneClosed="NavigationView_OnPaneClosed"
             PaneDisplayMode="Left"
             PaneOpened="NavigationView_OnPaneOpened"
@@ -58,15 +58,6 @@
                     <controls:PageControlDocumentation Margin="0,0,0,0" NavigationView="{Binding ElementName=NavigationView}" />
                 </StackPanel>
             </ui:NavigationView.Header>
-            <ui:NavigationView.AutoSuggestBox>
-                <ui:AutoSuggestBox x:Name="AutoSuggestBox" PlaceholderText="{i18n:StringLocalizer 'Search'}">
-                    <ui:AutoSuggestBox.Icon>
-                        <ui:IconSourceElement>
-                            <ui:SymbolIconSource Symbol="Search24" />
-                        </ui:IconSourceElement>
-                    </ui:AutoSuggestBox.Icon>
-                </ui:AutoSuggestBox>
-            </ui:NavigationView.AutoSuggestBox>
             <ui:NavigationView.ContentOverlay>
                 <Grid>
                     <ui:SnackbarPresenter x:Name="SnackbarPresenter" />

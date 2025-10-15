@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using PdfiumPrinter;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Config;
@@ -115,6 +116,19 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                     };
                     pd.Print();
                     StatusMessage = "打印任务已发送.";
+                    _snackbarService.Show(
+                        "打印发货单",
+                        $"正在打印单号: {string.Join(", ", _waybillInfo.OrderNo)}的面单",
+                        ControlAppearance.Success,
+                        new SymbolIcon(SymbolRegular.Print24),
+                        TimeSpan.FromSeconds(5)
+                    );
+                }
+                else if (extension == ".pdf")
+                {
+                    var printer = new PdfPrinter(SelectedPrinter);
+                    printer.Print(_waybillInfo.LocalUrl);
+                    StatusMessage = "PDF 打印任务已发送.";
                 }
                 else
                 {
@@ -206,16 +220,9 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                     }
                     _waybillInfo = orderPick.WaybillInfo;
                     // _filePathToPrint = await _fileDownloader.DownloadFileAsync(url, downloadPath, orderNo);
-                    _snackbarService.Show(
-                        "打印发货单",
-                        $"正在打印单号: {string.Join(", ", orderWaybillVo.OrderNo)}的面单",
-                        ControlAppearance.Success,
-                        new SymbolIcon(SymbolRegular.Print24),
-                        TimeSpan.FromSeconds(5)
-                    );
                     if (File.Exists(fullFilePath))
                     {
-                        StatusMessage = waybillUrl;
+                        StatusMessage = "已获取到发货面单";
                         IsReadyToPrint = true;
                     }
                     else
