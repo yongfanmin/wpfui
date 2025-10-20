@@ -148,7 +148,7 @@ public partial class MainWindowViewModel : ViewModel
         FooterMenuItems.Clear();
         
         MenuItems.Add(new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)));
-        MenuItems.Add(new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
+        MenuItems.Add(new NavigationViewItem("生产项表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
         MenuItems.Add(new NavigationViewItem("工序扫码", SymbolRegular.ScanDash24, typeof(ProcessStepScanPage)));
         MenuItems.Add(new NavigationViewItem("分拣", SymbolRegular.Diversity24, typeof(PickingPage)));
         // 移除框架菜单栏
@@ -159,11 +159,11 @@ public partial class MainWindowViewModel : ViewModel
             MenuItemsSource = new object[]
             {
                 new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)),
-                new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)),
+                new NavigationViewItem("生产项表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)),
             },
         });*/
         //MenuItems.Add(new NavigationViewItem("生产计划表", SymbolRegular.BoxMultiple24, typeof(DashboardPage)));
-        //MenuItems.Add(new NavigationViewItem("项批次表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
+        //MenuItems.Add(new NavigationViewItem("生产项表", SymbolRegular.TableFreezeRow20, typeof(ProduceBatchItemPage)));
         /*
         MenuItems.Add(new NavigationViewItem()
         {

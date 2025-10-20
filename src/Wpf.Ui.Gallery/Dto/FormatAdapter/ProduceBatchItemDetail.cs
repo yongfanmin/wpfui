@@ -17,17 +17,22 @@ namespace Wpf.Ui.Gallery.Dto.FormatAdapter;
 // 订单打印批次的核心信息
 public class ProduceBatchItemDetail
 {
-    [JsonPropertyName("factory_id")] public int FactoryId { get; set; }
+    [JsonPropertyName("factory_id")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int FactoryId { get; set; }
 
     // 公版id
     [JsonPropertyName("design_product_id")]
+    [JsonConverter(typeof(StringOrNumberToLongConverter))]
     public long DesignProductId { get; set; }
 
     [JsonPropertyName("order_no")] public string OrderNo { get; set; }
     
     [JsonPropertyName("order_code")] public string OrderCode { get; set; }
     
-    [JsonPropertyName("order_detail_id")] public int OrderDetailId { get; set; }
+    [JsonPropertyName("order_detail_id")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int OrderDetailId { get; set; }
 
     [JsonPropertyName("item_id")] public string ItemId { get; set; }
 
@@ -137,6 +142,7 @@ public class ProduceBatchItemDetail
         }
         catch (Exception e)
         {
+            Console.WriteLine("格式化ProduceBatchItemDetail出错", e);
             ProduceBatchItemDetail produceBatchItemDetail = new ProduceBatchItemDetail();
             //orderPrintBatch.OrderNo = jsonNode.path("order_no").ToString();
             //orderPrintBatch.BatchNum = jsonNode["batch_no"].ToString();
@@ -185,7 +191,9 @@ public class OrderAttributes
 
     [JsonPropertyName("model_alias")] public string SizeAlias { get; set; }
 
-    [JsonPropertyName("model_id")] public int SizeId { get; set; }
+    [JsonPropertyName("model_id")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int SizeId { get; set; }
 }
 
 // product_config 中每个视图的配置项 (代表一个印花图层)
@@ -193,13 +201,17 @@ public class ProductConfigItem
 {
     [JsonPropertyName("image")] public DesignImageInfo Image { get; set; }
 
-    [JsonPropertyName("view_id")] public int ViewId { get; set; }
+    [JsonPropertyName("view_id")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int ViewId { get; set; }
 }
 
 // 印花图的详细变换和源信息
 public class DesignImageInfo
 {
-    [JsonPropertyName("gallery_id")] public long GalleryId { get; set; } // 印花图对应图库id
+    [JsonPropertyName("gallery_id")]
+    [JsonConverter(typeof(StringOrNumberToLongConverter))]
+    public long GalleryId { get; set; } // 印花图对应图库id
 
     [JsonPropertyName("designImg")] public string DesignImageUrl { get; set; } // 印花图URL
 
@@ -258,9 +270,13 @@ public class DesignImageInfo
 // 裁片和打印的工程参数
 public class PrintInfo
 {
-    [JsonPropertyName("dpi")] public int TargetDpi { get; set; }
+    [JsonPropertyName("dpi")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int TargetDpi { get; set; }
 
-    [JsonPropertyName("view_id")] public int ViewId { get; set; }
+    [JsonPropertyName("view_id")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int ViewId { get; set; }
 
     [JsonPropertyName("actual_width")]
     [JsonConverter(typeof(StringToDecimalConverter))] // <-- 应用转换器 小数字符串转Dedimal类型

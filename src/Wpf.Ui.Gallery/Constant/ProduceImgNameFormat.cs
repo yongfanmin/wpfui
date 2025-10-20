@@ -13,6 +13,6 @@ public enum ProduceImgNameFormat
     Color,
     //产品名称
     ProductName,
-    //项批次号
+    //项批号
     BatchNum,
 }

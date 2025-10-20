@@ -41,7 +41,7 @@ public class FileName
                Path.DirectorySeparatorChar;
     }
 
-    // 订单的公版裁片图对应的印花图 本地保存的路径 (工位批次才是唯一的, 一个商户单有多个子订单, 商户单单号不是唯一值, 子订单对应的工位批次号才是唯一的)
+    // 订单的公版裁片图对应的印花图 本地保存的路径 (子项才是唯一的, 一个商户单有多个子订单, 商户单单号不是唯一值, 子订单对应的子项号才是唯一的)
     public static string getOrderPatternPrintImgPath(string produceBatchNum, string orderNo, long batchNo, int factoryId, long galleryId)
     {
         // Cache/[工厂]/Order/Pattern-piece/图库id/ [印花图]

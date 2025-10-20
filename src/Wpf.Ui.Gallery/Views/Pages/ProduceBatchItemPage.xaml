@@ -50,14 +50,14 @@
                 FontWeight="Bold"
                 Width="300" Margin="0,0,12,0"
                 PlaceholderEnabled="True"
-                PlaceholderText="输入生产批次号"
+                PlaceholderText="输入生产计划编号"
                 Text="{Binding ViewModel.SelectedProduceBatchNumber, Mode=OneWay}" />
             <ui:TextBox
                 x:Name="SearchItemBox"
                 FontWeight="Bold"
                 Width="200" Margin="0,0,12,0"
                 PlaceholderEnabled="True"
-                PlaceholderText="输入项批次"
+                PlaceholderText="输入项批号"
                 Text="{Binding ViewModel.SelectedBatchNum, Mode=TwoWay}" />
             <Button Command="{Binding ViewModel.SearchCommand}"
                     CommandParameter="{Binding Text, ElementName=SearchProduceBatchBox}" Content="搜索" />

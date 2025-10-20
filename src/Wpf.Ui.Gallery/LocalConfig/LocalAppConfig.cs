@@ -104,7 +104,7 @@ public class AppSetting
     // 生产图文件名称格式
     public List<ProduceImgNameFormat> ProduceImgNameFormatList { get; set; } = new()
     {
-        // 尺码 颜色 产品名 项批次
+        // 尺码 颜色 产品名 项批号
         ProduceImgNameFormat.Size,
         ProduceImgNameFormat.Color,
         ProduceImgNameFormat.ProductName,

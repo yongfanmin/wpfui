@@ -21,8 +21,8 @@ public class ImageDownloader : IImageDownloader
     {
         _httpClient = httpClient;
     }
-    
-    
+
+
     public LocalImgInfo? DownloadImage(
         string imageUrl,
         string directoryPath,
@@ -44,91 +44,96 @@ public class ImageDownloader : IImageDownloader
         }
 
         try
+        {
+            LocalImgInfo localImgInfo = new LocalImgInfo();
+
+            // fileType.Extension 从路径取文件扩展  如果 url 后面带参数 则无法获取到图片扩展
+            string fileExtension = Path.GetExtension(imageUrl);
+
+            // --- 步骤 3: 准备本地文件路径并写入 ---
+            string localFileUrl = Path.Combine(directoryPath, fileName + fileExtension);
+
+            // 文件存在 则直接返回本地地址 不再下载
+            if (IsExistFile(localFileUrl))
             {
-                LocalImgInfo localImgInfo = new LocalImgInfo();
-                // --- 步骤 1: 将整个网络流下载到内存流中 ---
-                await using var memoryStream = new MemoryStream();
-                
-                await using (var networkStream = await _httpClient.GetStreamAsync(NetworkHelper.ParseUrl(imageUrl), cancellationToken))
-                {
-                    // 将网络流的所有内容异步复制到内存流
-                    await networkStream.CopyToAsync(memoryStream, cancellationToken);
-                }
-
-                // 如果流为空（下载了0字节的文件），则返回失败
-                if (memoryStream.Length == 0)
-                {
-                    return null;
-                }
-                
-                // 将内存流的指针重置到开头，以便进行读取操作
-                memoryStream.Position = 0;
-                // fileType.Extension 从路径取文件扩展
-                string fileExtension = Path.GetExtension(imageUrl);
-                if (!SvgPreloader.IsSvg(memoryStream))
-                {
-                    // --- 步骤 2: 使用 FileTypeChecker 从内存流中检测格式 ---
-                    IFileType fileType = FileTypeValidator.GetFileType(memoryStream);
-                
-                    if (fileType == null || !IsSupportedImageType(fileType))
-                    {
-                        //TODO 可以加入日志: "格式不支持或无法识别"
-                        return null;
-                    }
-                    else if(string.IsNullOrEmpty(fileExtension))
-                    {
-                        // 取不到文件路径扩展 则取真是文件扩展
-                        fileExtension = "." + fileType.Extension;
-                    }
-                }
-                
-
-                
-                string extension = fileExtension;
-
-                // --- 步骤 3: 准备本地文件路径并写入 ---
-                string localFileUrl = Path.Combine(directoryPath, fileName + extension);
                 localImgInfo.LocalUrl = localFileUrl;
                 localImgInfo.Extenion = fileExtension;
                 localImgInfo.FileName = fileName;
-                // 文件存在 则直接返回本地地址 不再下载
-                if (IsExistFile(localFileUrl))
-                {
-                    return localImgInfo;
-                }
-
-                // 确保目标目录存在
-                Directory.CreateDirectory(directoryPath);
-
-                // --- [您需要的完整代码在这里] ---
-                // 再次将内存流的指针重置到开头，因为FileTypeValidator也读取过它
-                memoryStream.Position = 0;
-
-                // 使用一个 using 语句来创建文件流，确保它在使用后被正确关闭
-                // FileStream 构造函数参数:
-                // - path: 完整的文件路径
-                // - mode: FileMode.Create 表示如果文件已存在则覆盖，不存在则创建
-                // - access: FileAccess.Write 表示我们只需要写入权限
-                // - share: FileShare.None 表示在写入期间不允许其他进程访问该文件，保证独占性
-                // - bufferSize: 缓冲区大小，8192 (8KB) 是一个很好的通用值
-                // - useAsync: true 启用异步I/O，提升性能
-                await using (var fileStream = new FileStream(localFileUrl, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 8192, useAsync: true))
-                {
-                    // 将内存流的所有内容异步复制到文件流
-                    await memoryStream.CopyToAsync(fileStream, cancellationToken);
-                }
-                // --- [代码结束] ---
-
                 return localImgInfo;
             }
-            catch (Exception ex)
+            // --- 步骤 1: 将整个网络流下载到内存流中 ---
+            await using var memoryStream = new MemoryStream();
+
+            await using (var networkStream =
+                         await _httpClient.GetStreamAsync(NetworkHelper.ParseUrl(imageUrl), cancellationToken))
             {
-                // 统一处理所有可能的异常
-                Console.WriteLine($"下载图片 {imageUrl} 时发生错误: {ex.Message}");
+                // 将网络流的所有内容异步复制到内存流
+                await networkStream.CopyToAsync(memoryStream, cancellationToken);
+            }
+
+            // 如果流为空（下载了0字节的文件），则返回失败
+            if (memoryStream.Length == 0)
+            {
                 return null;
             }
+
+            // 将内存流的指针重置到开头，以便进行读取操作
+            memoryStream.Position = 0;
+            if (!SvgPreloader.IsSvg(memoryStream))
+            {
+                // --- 步骤 2: 使用 FileTypeChecker 从内存流中检测格式 ---
+                IFileType fileType = FileTypeValidator.GetFileType(memoryStream);
+
+                if (fileType == null || !IsSupportedImageType(fileType))
+                {
+                    //TODO 可以加入日志: "格式不支持或无法识别"
+                    return null;
+                }
+                else if (string.IsNullOrEmpty(fileExtension))
+                {
+                    // 取不到文件路径扩展 则取真是文件扩展
+                    fileExtension = "." + fileType.Extension;
+                    localFileUrl = Path.Combine(directoryPath, fileName + fileExtension);
+                }
+            }
+            
+            localImgInfo.LocalUrl = localFileUrl;
+            localImgInfo.Extenion = fileExtension;
+            localImgInfo.FileName = fileName;
+
+            // 确保目标目录存在
+            Directory.CreateDirectory(directoryPath);
+
+            // --- [您需要的完整代码在这里] ---
+            // 再次将内存流的指针重置到开头，因为FileTypeValidator也读取过它
+            memoryStream.Position = 0;
+
+            // 使用一个 using 语句来创建文件流，确保它在使用后被正确关闭
+            // FileStream 构造函数参数:
+            // - path: 完整的文件路径
+            // - mode: FileMode.Create 表示如果文件已存在则覆盖，不存在则创建
+            // - access: FileAccess.Write 表示我们只需要写入权限
+            // - share: FileShare.None 表示在写入期间不允许其他进程访问该文件，保证独占性
+            // - bufferSize: 缓冲区大小，8192 (8KB) 是一个很好的通用值
+            // - useAsync: true 启用异步I/O，提升性能
+            await using (var fileStream = new FileStream(localFileUrl, FileMode.Create, FileAccess.Write,
+                             FileShare.None, bufferSize: 8192, useAsync: true))
+            {
+                // 将内存流的所有内容异步复制到文件流
+                await memoryStream.CopyToAsync(fileStream, cancellationToken);
+            }
+            // --- [代码结束] ---
+
+            return localImgInfo;
+        }
+        catch (Exception ex)
+        {
+            // 统一处理所有可能的异常
+            Console.WriteLine($"下载图片 {imageUrl} 时发生错误: {ex.Message}");
+            return null;
+        }
     }
-    
+
     private bool IsSupportedImageType(IFileType fileType)
     {
         // FileTypeChecker 提供了具体的类型供我们判断

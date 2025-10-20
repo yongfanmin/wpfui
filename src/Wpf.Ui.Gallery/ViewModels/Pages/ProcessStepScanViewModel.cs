@@ -103,7 +103,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(StartProduceBatchNo))
         {
             string token = _loginInfoService.getToken();
-            // 后端接口层出现歧义 实际是扫面单上的 item_id (工位批次) 进行核验, 但是参数名称叫 batchNo (项批次)
+            // 后端接口层出现歧义 实际是扫面单上的 item_id (子项) 进行核验, 但是参数名称叫 batchNo (项批号)
             FactoryApiResponse<Object> setBatchNo2ProduceResponse =
                 await _produceBatchApi.setBatchNo2Produce(
                 new BatchNo2Produce()
@@ -131,7 +131,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 {
                     var messageBox = new Wpf.Ui.Controls.MessageBox
                     {
-                        Title = "扫码枪确认", Content = $"开始生产批次号: {StartProduceBatchNo}", CloseButtonText = "好的 (Esc)"
+                        Title = "扫码枪确认", Content = $"开始生产计划编号: {StartProduceBatchNo}", CloseButtonText = "好的 (Esc)"
                     };
                     _ = await messageBox.ShowDialogAsync();
                 }
@@ -216,7 +216,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 {
                     var messageBox = new Wpf.Ui.Controls.MessageBox
                     {
-                        Title = "扫码枪确认", Content = $"完成项批次号: {batchNo}", CloseButtonText = "好的 (Esc)"
+                        Title = "扫码枪确认", Content = $"完成项批号: {batchNo}", CloseButtonText = "好的 (Esc)"
                     };
                     _ = await messageBox.ShowDialogAsync();
                 }

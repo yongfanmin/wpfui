@@ -293,7 +293,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             }
             catch (Exception ex)
             {
-                Console.WriteLine("生产批次信息解析与显示出错:" + ex.Message);
+                Console.WriteLine("生产计划信息解析与显示出错:" + ex.Message);
             }
         }
 
@@ -493,7 +493,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         // 这个批次有多少订单?
         produceBatchInfoRequest.Num = produceBatchItem.ProduceBatchNumberTotal;
         produceBatchInfoRequest.ProduceBatchNumber = produceBatchItem.ProduceBatchNumber;
-        // 获取项批次信息 (订单信息)
+        // 获取项批号信息 (订单信息)
         FactoryApiResponse<List<ProductBatchItemInfo>> produceBatchOrderList =
             await _produceBatchInfoApi.getProduceBatchInfo(produceBatchInfoRequest, token);
         if (produceBatchOrderList.Data.Count != produceBatchItem.ProduceBatchNumberTotal ||
@@ -506,7 +506,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         _databaseService.AddProduceBatchItemList(
             produceBatchItem.ProduceBatchNumber,
             produceBatchOrderList.Data);
-        Console.WriteLine("项批次" + produceBatchItem.ProduceBatchNumber + "详情抓取成功");
+        Console.WriteLine("项批号" + produceBatchItem.ProduceBatchNumber + "详情抓取成功");
         foreach (ProductBatchItemInfo produceBatchItemInfo in produceBatchOrderList.Data)
         {
             ProduceBatchDetailRequest produceBatchDetailRequest = new ProduceBatchDetailRequest();
@@ -522,8 +522,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             List<ProduceBatchItemDetail> orderPrintBatchList =
                 ProduceBatchItemDetail.ConstructByArrayJson(produceBatchOrderDetailObj.Data);
             var taskBuilder = new ProductionTaskBuilder();
-            // 项批次详情对应工位批次列表 (一般只有一个工位批次  一个订单)
-            Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "所有工位批次数据已加载");
+            // 项批号详情对应子项列表 (一般只有一个子项  一个订单)
+            Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "所有子项数据已加载");
             UpdateProduceBatchStatus(produceBatchItem.ProduceBatchNumber, ProduceBatchStatus.处理中);
             foreach (ProduceBatchItemDetail produceBatchItemDetail in orderPrintBatchList)
             {
@@ -559,7 +559,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                     {
                         ProduceBatchNum = uniqueBatchItem.ProduceBatchNum, BatchNum = uniqueBatchItem.BatchNum,
                     });
-                    Console.WriteLine($"生产批次{uniqueBatchItem.ProduceBatchNum}的项批次{uniqueBatchItem.BatchNum}数据已写入数据库");
+                    Console.WriteLine($"生产计划{uniqueBatchItem.ProduceBatchNum}的项批号{uniqueBatchItem.BatchNum}数据已写入数据库");
                 }
                 catch (Exception e)
                 {
@@ -621,7 +621,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     public void updateProduceBatchItemStatus(string produceBatchNumber, long batchNum, ProduceBatchItemProcess status)
     {
         _databaseService.updateProduceItemStatus(produceBatchNumber, batchNum, status);
-        // 把进度更新到生产批次表 (需要实时更新)
+        // 把进度更新到生产计划表 (需要实时更新)
         _databaseService.updateProduceBatchProcess(produceBatchNumber, status);
         foreach (ProduceBatchVo produceBatchVo in ProductBatchCollection)
         {

@@ -216,7 +216,35 @@
             Margin="0,24,0,8"
             FontTypography="BodyStrong"
             Text="技术人员设置" />
-        <ui:CardControl Margin="0,24,0,12" Icon="{ui:SymbolIcon Shield24}">
+        <ui:CardControl Margin="0,24,0,12" Icon="{ui:SymbolIcon Broom24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="数据清理" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="自动清理7天前数据" />
+                </Grid>
+            </ui:CardControl.Header>
+            <StackPanel Orientation="Horizontal">
+                <ComboBox
+                    MinWidth="120"
+                    ItemsSource="{Binding ViewModel.CleanupDaysOptions}"
+                    SelectedItem="{Binding ViewModel.SelectedCleanupDays, Mode=TwoWay}" />
+                <ui:Button
+                    Margin="12,0,0,0"
+                    Content="快速清理"
+                    Command="{Binding ViewModel.QuickCleanupCommand, Mode=OneWay}" />
+            </StackPanel>
+        </ui:CardControl>
+        <ui:CardControl Margin="0,12,0,12" Icon="{ui:SymbolIcon Shield24}">
             <ui:CardControl.Header>
                 <Grid>
                     <Grid.RowDefinitions>
@@ -238,7 +266,7 @@
                 ItemsSource="{Binding ViewModel.LogLevels}"
                 SelectedItem="{Binding ViewModel.SelectedLogLevel, Mode=TwoWay}" />
         </ui:CardControl>
-        <ui:CardControl Margin="0,24,0,12" Icon="{ui:SymbolIcon Bug24}">
+        <ui:CardControl Margin="0,12,0,12" Icon="{ui:SymbolIcon Bug24}">
             <ui:CardControl.Header>
                 <Grid>
                     <Grid.RowDefinitions>

@@ -76,7 +76,7 @@ public class DatabaseService : IDatabaseService
                 }
                 catch (Exception ex)
                 {
-                    // 插入生产批次失败 1.检查一下是否已经存在 2.已经存在检查是否被重置生产可以覆盖已存在条目
+                    // 插入生产计划失败 1.检查一下是否已经存在 2.已经存在检查是否被重置生产可以覆盖已存在条目
                     ProducePlanEntity producePlanEntity = getProduceBatch(produceBatchVo.ProduceBatchNum);
                     if (producePlanEntity is null)
                     {
@@ -84,8 +84,8 @@ public class DatabaseService : IDatabaseService
                     }
                     else
                     {
-                        // 已经存在生产批次 判断一下此批次已经被重置生产 [人为重置生产前 都需要先认为判断是否能够重置 所以只要被重置 都可以直接覆盖数据] TODO 待验证
-                        // TODO 删除生产批次 也需要删除对应项批次数据
+                        // 已经存在生产计划 判断一下此批次已经被重置生产 [人为重置生产前 都需要先认为判断是否能够重置 所以只要被重置 都可以直接覆盖数据] TODO 待验证
+                        // TODO 删除生产计划 也需要删除对应项批号数据
                         db.Delete(producePlanEntity);
                         db.Insert(
                             new ProducePlanEntity()
@@ -136,20 +136,20 @@ public class DatabaseService : IDatabaseService
                         // 5. 检查是否成功更新了一行
                         if (rowsAffected <= 0)
                         {
-                            Console.WriteLine($"生产批次'{produceBatchNum}' 新增排版项数量, 数据写入失败");
+                            Console.WriteLine($"生产计划'{produceBatchNum}' 新增排版项数量, 数据写入失败");
                         }
                     }
                     else
                     {
                         // 记录一个日志或警告：尝试为一个不存在的批次号增加计数
-                        Console.WriteLine($"生产批次'{produceBatchNum}' 不存在,无法变更排版项数量");
+                        Console.WriteLine($"生产计划'{produceBatchNum}' 不存在,无法变更排版项数量");
                     }
                 }
             }
             catch (Exception ex)
             {
                 // 捕获并记录任何可能发生的数据库异常
-                Console.WriteLine($"生产批次 '{produceBatchNum} 状态更新异常': {ex.Message}");
+                Console.WriteLine($"生产计划 '{produceBatchNum} 状态更新异常': {ex.Message}");
             }
         }
         finally
@@ -158,7 +158,7 @@ public class DatabaseService : IDatabaseService
         }
     }
 
-    // 更新生产批次 各类项批次进度 (数据加载/图片下载/生产图合成)
+    // 更新生产计划 各类项批号进度 (数据加载/图片下载/生产图合成)
     public void updateProduceBatchProcess(string produceBatchNum, ProduceBatchItemProcess produceBatchItemProcess)
     {
         _dbWriteLock.Wait();
@@ -212,20 +212,20 @@ public class DatabaseService : IDatabaseService
                         // 5. 检查是否成功更新了一行
                         if (rowsAffected <= 0)
                         {
-                            Console.WriteLine($"生产批次'{produceBatchNum}' 变更进度失败, 数据写入失败");
+                            Console.WriteLine($"生产计划'{produceBatchNum}' 变更进度失败, 数据写入失败");
                         }
                     }
                     else
                     {
                         // 记录一个日志或警告：尝试为一个不存在的批次号增加计数
-                        Console.WriteLine($"生产批次'{produceBatchNum}' 不存在,无法变更批次状态");
+                        Console.WriteLine($"生产计划'{produceBatchNum}' 不存在,无法变更批次状态");
                     }
                 }
             }
             catch (Exception ex)
             {
                 // 捕获并记录任何可能发生的数据库异常
-                Console.WriteLine($"生产批次 '{produceBatchNum} 状态更新异常': {ex.Message}");
+                Console.WriteLine($"生产计划 '{produceBatchNum} 状态更新异常': {ex.Message}");
             }
         }
         finally
@@ -368,7 +368,7 @@ public class DatabaseService : IDatabaseService
                     // 5. 检查是否成功更新了一行
                     if (rowsAffected <= 0)
                     {
-                        Console.WriteLine($"生产批次'{produceBatchNum}' 变更状态失败, 数据写入失败");
+                        Console.WriteLine($"生产计划'{produceBatchNum}' 变更状态失败, 数据写入失败");
                     }
                 }
             }
@@ -401,7 +401,7 @@ public class DatabaseService : IDatabaseService
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("插入项批次 唯一索引冲突, 已存在项批次条目:" + ex.Message);
+                    Console.WriteLine("插入项批号 唯一索引冲突, 已存在项批号条目:" + ex.Message);
                 }
             }
         }
@@ -463,7 +463,7 @@ public class DatabaseService : IDatabaseService
     }
 
 
-    // 获取生产批次号下面的所有项批次
+    // 获取生产计划编号下面的所有项批号
     public List<ProduceItemEntity> GetProduceBatchItemList(string produceBatchNum,long batchNum)
     {
         using (var db = GetConnection())
@@ -619,6 +619,36 @@ public class DatabaseService : IDatabaseService
                     {
                         // TODO 更新失败
                     }
+                }
+            }
+        }
+        finally
+        {
+            _dbWriteLock.Release();
+        }
+    }
+    
+    public void DeleteOldProductionData(int days)
+    {
+        _dbWriteLock.Wait();
+        try
+        {
+            using (var db = GetConnection())
+            {
+                var cutoffDate = DateTime.Now.AddDays(-days);
+
+                // Delete old ProducePlanEntity records
+                var oldPlans = db.Table<ProducePlanEntity>().Where(p => p.FactoryGetTime < cutoffDate);
+                foreach (var plan in oldPlans)
+                {
+                    db.Delete(plan);
+                }
+
+                // Delete old ProduceItemEntity records
+                var oldItems = db.Table<ProduceItemEntity>().Where(i => i.CreateTime < cutoffDate);
+                foreach (var item in oldItems)
+                {
+                    db.Delete(item);
                 }
             }
         }

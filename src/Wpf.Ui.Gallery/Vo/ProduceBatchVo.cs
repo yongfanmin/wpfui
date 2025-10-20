@@ -23,7 +23,7 @@ public partial class ProduceBatchVo : ObservableObject
     [NotifyPropertyChangedFor(nameof(LayoutCreateProgress))]
     private int _needLayoutCount;
     
-    // 项批次总数
+    // 生产项总数
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DataDownloadProgress))]
     [NotifyPropertyChangedFor(nameof(ImgDownloadProgress))]

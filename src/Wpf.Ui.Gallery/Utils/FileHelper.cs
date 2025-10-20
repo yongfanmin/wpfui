@@ -336,4 +336,105 @@ public static class FileHelper
                 destinationLock.Release();
             }
         }
+        
+    /// <summary>
+    /// Deletes files in a specified directory that are older than a given number of days.
+    /// </summary>
+    /// <param name="directoryPath">The path to the directory.</param>
+    /// <param name="days">The age of files (in days) to be deleted.</param>
+    public static void DeleteFilesOlderThan(string directoryPath, int days)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var cutoffDate = DateTime.Now.AddDays(-days);
+
+            // Step 1: Get original timestamps of all subdirectories before any modification.
+            var subdirectories = Directory.GetDirectories(directoryPath, "*", SearchOption.AllDirectories);
+            var originalDirectoryTimes = subdirectories.ToDictionary(
+                dir => dir,
+                dir => new DirectoryInfo(dir).LastWriteTime
+            );
+
+            // Step 2: Recursively get all files and delete the old ones.
+            var files = Directory.GetFiles(directoryPath, "*", SearchOption.AllDirectories);
+            foreach (var file in files)
+            {
+                var fileInfo = new FileInfo(file);
+                if (fileInfo.LastWriteTime < cutoffDate)
+                {
+                    var fileLock = GetLock(file);
+                    fileLock.Wait();
+                    try
+                    {
+                        fileInfo.Delete();
+                    }
+                    finally
+                    {
+                        fileLock.Release();
+                    }
+                }
+            }
+
+            // Step 3: Delete directories that are now empty AND were originally old.
+            foreach (var dir in subdirectories.OrderByDescending(d => d.Length))
+            {
+                if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                {
+                    if (originalDirectoryTimes.TryGetValue(dir, out var originalTime) && originalTime < cutoffDate)
+                    {
+                        try
+                        {
+                            Directory.Delete(dir);
+                        }
+                        catch (IOException) { /* Ignore errors like directory in use */ }
+                        catch (UnauthorizedAccessException) { /* Ignore permission errors */ }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Optional: Add logging here to record the exception.
+            throw new Exception($"Failed to delete files in directory '{directoryPath}'.", ex);
+        }
+    }
+
+    /// <summary>
+    /// Cleans up old pattern print images from the cache directories.
+    /// </summary>
+    /// <param name="days">The age of files (in days) to be deleted.</param>
+    public static void CleanupOldPatternPrintImages(int days)
+    {
+        string cachePath = Path.Combine(AppContext.BaseDirectory, "Cache");
+        if (!Directory.Exists(cachePath))
+        {
+            return;
+        }
+
+        var cutoffDate = DateTime.Now.AddDays(-days);
+        var factoryDirs = Directory.GetDirectories(cachePath, "Factory-*");
+
+        foreach (var factoryDir in factoryDirs)
+        {
+            var orderBatchDirs = Directory.GetDirectories(factoryDir, "Order-batch-*");
+            foreach (var orderBatchDir in orderBatchDirs)
+            {
+                var dirInfo = new DirectoryInfo(orderBatchDir);
+                if (dirInfo.LastWriteTime < cutoffDate)
+                {
+                    try
+                    {
+                        Directory.Delete(orderBatchDir, true); // Recursive delete
+                    }
+                    catch (IOException) { /* Optional: Log error */ }
+                    catch (UnauthorizedAccessException) { /* Optional: Log error */ }
+                }
+            }
+        }
+    }
 }

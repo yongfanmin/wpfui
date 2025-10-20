@@ -11,7 +11,7 @@ public partial class ProduceBatchItemVo : ObservableObject
 {
     // [ObservableProperty] private bool _isSelected; // <-- 新增：选中状态
 
-    // 生产批次号
+    // 生产计划编号
     public string ProduceBatchNum { get; set; }
     
     public long BatchNum { get; set; }

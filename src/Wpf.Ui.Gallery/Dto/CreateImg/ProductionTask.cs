@@ -32,10 +32,10 @@ public class ProductionTask
     
     public int OrderDetailId { get; set; }
     
-    // 生产批次号
+    // 生产计划编号
     public string ProduceBatchNum { get; set; }
     
-    // 工位批次号
+    // 子项号
     public long BatchNum { get; set; }
     
     //裁片序号

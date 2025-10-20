@@ -16,10 +16,13 @@ namespace Wpf.Ui.Gallery.Dto.FormatAdapter;
 // 订单打印批次的核心信息
 public class OrderPrintBatch
 {
-    [JsonPropertyName("factory_id")] public int FactoryId { get; set; }
+    [JsonPropertyName("factory_id")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int FactoryId { get; set; }
 
     // 公版id
     [JsonPropertyName("design_product_id")]
+    [JsonConverter(typeof(StringOrNumberToLongConverter))]
     public long DesignProductId { get; set; }
 
     [JsonPropertyName("is_3d")]
@@ -67,6 +70,7 @@ public class OrderPrintBatch
         }
         catch (Exception e)
         {
+            Console.WriteLine("格式化OrderPrintBatch出错" + e);
             OrderPrintBatch orderPrintBatch = new OrderPrintBatch();
             //orderPrintBatch.OrderNo = jsonNode.path("order_no").ToString();
             //orderPrintBatch.BatchNum = jsonNode["batch_no"].ToString();

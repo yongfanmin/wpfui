@@ -13,12 +13,12 @@ public class ProduceItemEntity
     [PrimaryKey, AutoIncrement] public int Id { get; set; }
 
     /// <summary>
-    ///  生产批次号
+    ///  生产计划编号
     /// </summary>
     public string ProduceBatchNum { get; set; }
 
     /// <summary>
-    ///  项批次号
+    ///  项批号号
     /// </summary>
     [Unique]
     public long BatchNum { get; set; }

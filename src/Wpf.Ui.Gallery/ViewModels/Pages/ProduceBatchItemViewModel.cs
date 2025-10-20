@@ -49,7 +49,7 @@ public sealed partial class ProduceBatchItemViewModel : ObservableObject, IRecip
             ProductBatchItemCollection = new ObservableCollection<ProduceBatchItemVo>(_originalProductBatchCollection);
             var messageBox = new Wpf.Ui.Controls.MessageBox
             {
-                Title = "请输入需要搜索的生产批次号"
+                Title = "请输入需要搜索的生产计划编号"
             };
             messageBox.ShowDialogAsync();
             return;

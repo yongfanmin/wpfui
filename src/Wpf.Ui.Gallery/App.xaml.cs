@@ -22,6 +22,7 @@ using Wpf.Ui.Gallery.Services.Contracts;
 using Wpf.Ui.Gallery.Services.Creator;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Services.Downloader;
+using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.ViewModels.Pages;
 using Wpf.Ui.Gallery.ViewModels.Windows;
 using Wpf.Ui.Gallery.Views.Pages;
@@ -36,9 +37,14 @@ public partial class App
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
     // https://docs.microsoft.com/dotnet/core/extensions/configuration
     // https://docs.microsoft.com/dotnet/core/extensions/logging
-    
-    private static readonly string _domain = "http://factory.sds-diy.xyz";
+
+    // 工厂管理后台地址
+    public static readonly string FactoryManageUrl = "https://factory.gongwohuo.cn";
+
+    private static readonly string _apiDomain = FactoryManageUrl;
     // private static readonly string _domain = "https://factory.gongwohuo.cn";
+    
+    
     
     public static readonly LoggingLevelSwitch LevelSwitch = new(LogEventLevel.Error);
     
@@ -132,42 +138,42 @@ public partial class App
                     .ConfigureHttpClient(c =>
                     {
                         //接口域名 接口地址 登录接口
-                        c.BaseAddress = new Uri(_domain);
+                        c.BaseAddress = new Uri(_apiDomain);
                     });
                 _ = services
                     .AddRefitClient<ILayoutApi>()
                     .ConfigureHttpClient(c =>
                     {
                         //接口域名 接口地址 排版接口
-                        c.BaseAddress = new Uri(_domain);
+                        c.BaseAddress = new Uri(_apiDomain);
                     });
                 _ = services
                     .AddRefitClient<IProduceBatchApi>()
                     .ConfigureHttpClient(c =>
                     {
-                        //接口域名 接口地址 生产批次接口
-                        c.BaseAddress = new Uri(_domain);
+                        //接口域名 接口地址 生产计划接口
+                        c.BaseAddress = new Uri(_apiDomain);
                     }).AddHttpMessageHandler<NetworkActivityHandler>();
                 _ = services
                     .AddRefitClient<IProduceBatchInfoApi>()
                     .ConfigureHttpClient(c =>
                     {
-                        //接口域名 接口地址 生产批次信息接口
-                        c.BaseAddress = new Uri(_domain);
+                        //接口域名 接口地址 生产计划信息接口
+                        c.BaseAddress = new Uri(_apiDomain);
                     }).AddHttpMessageHandler<NetworkActivityHandler>();
                 _ = services
                     .AddRefitClient<IProduceBatchDetailApi>()
                     .ConfigureHttpClient(c =>
                     {
-                        //接口域名 接口地址 生产批次详情接口
-                        c.BaseAddress = new Uri(_domain);
+                        //接口域名 接口地址 生产计划详情接口
+                        c.BaseAddress = new Uri(_apiDomain);
                     }).AddHttpMessageHandler<NetworkActivityHandler>();
                 _ = services
                     .AddRefitClient<IOrderApi>()
                     .ConfigureHttpClient(c =>
                     {
                         //接口域名 接口地址 订单接口
-                        c.BaseAddress = new Uri(_domain);
+                        c.BaseAddress = new Uri(_apiDomain);
                     }).AddHttpMessageHandler<NetworkActivityHandler>();
             }
         )
@@ -198,7 +204,7 @@ public partial class App
         //_host.Start();
 
         initDatabase();
-
+        AutoCleanup();
         _host.StartAsync();
 
         //var loginWindow = GetRequiredService<LoginWindow>();
@@ -209,6 +215,23 @@ public partial class App
 
         //初始化线程池
         ThreadPoolConfig.Initialize();
+    }
+    
+    // 自动数据清理
+    private void AutoCleanup()
+    {
+        try
+        {
+            var databaseService = GetRequiredService<IDatabaseService>();
+            databaseService.DeleteOldProductionData(7);
+
+            FileHelper.DeleteFilesOlderThan(LocalAppConfig.AppSetting.PrintedPatternFilePath, 7);
+            FileHelper.CleanupOldPatternPrintImages(7);
+        }
+        catch (Exception ex)
+        {
+            GetRequiredService<ILogger<App>>().LogError(ex, "An error occurred during automatic cleanup.");
+        }
     }
 
     /// <summary>

@@ -10,6 +10,7 @@
     xmlns:controls="clr-namespace:Wpf.Ui.Gallery.Controls"
     xmlns:converters="clr-namespace:Wpf.Ui.Gallery.Converters"
     xmlns:vo="clr-namespace:Wpf.Ui.Gallery.Vo"
+    xmlns:localApp="clr-namespace:Wpf.Ui.Gallery"
     Title="Dashboard Page"
     Margin="0,0,0,0"
     d:DataContext="{d:DesignInstance local:DashboardPage,
@@ -233,7 +234,7 @@
                         Grid.Column="4"
                         CommandParameter="copy"
                         Icon="{ui:SymbolIcon PersonLink28}"
-                        NavigateUri="http://factory.sds-diy.xyz"
+                        NavigateUri="{x:Static localApp:App.FactoryManageUrl}"
                         ToolTip="管理后台" />
                     <Separator
                         Grid.Column="3"
@@ -287,7 +288,7 @@
                 CanUserAddRows="False"
                 IsReadOnly="True">
                 <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="生产批次">
+                    <DataGridTemplateColumn Header="生产计划">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}" 

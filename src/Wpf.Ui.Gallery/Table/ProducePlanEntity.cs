@@ -13,7 +13,7 @@ public class ProducePlanEntity
     [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
     
-    //生产批次号
+    //生产计划编号
     [Unique]
     public string ProduceBatchNum { get; set; }
     // 已授权项总数
@@ -32,7 +32,7 @@ public class ProducePlanEntity
     //需要排版的数量
     public int NeedLayoutCount { get; set; }
 
-    //生产批次状态
+    //生产计划状态
     public ProduceBatchStatus ProduceBatchStatus { get; set; }
     public DateTime FactoryGetTime { get; set; }
 }

@@ -16,7 +16,7 @@ using Wpf.Ui.Gallery.ViewModels.Windows;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
 
-public sealed partial class SettingsViewModel(INavigationService navigationService)
+public sealed partial class SettingsViewModel(INavigationService navigationService, IContentDialogService contentDialogService)
     : ObservableObject, INavigationAware
 {
     private readonly MainWindowViewModel _mainWindowViewModel;
@@ -48,6 +48,14 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
     [ObservableProperty]
     private string _machineId;
 
+    // 数字内的值崩更改 目前使用字符串切割出天数 比如 "2天前" 从这个字符串内 切割出 2 这个值
+    [ObservableProperty]
+    private IReadOnlyList<string> _cleanupDaysOptions = new[] { "2天前", "3天前", "5天前", "10天前" };
+
+    [ObservableProperty]
+    private string _selectedCleanupDays = "2天前";
+
+    
     public async Task OnNavigatedToAsync()
     {
         if (!_isInitialized)
@@ -132,7 +140,7 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
                 ProduceImgNameFormat.Size => "尺寸",
                 ProduceImgNameFormat.Color => "颜色",
                 ProduceImgNameFormat.ProductName => "产品名",
-                ProduceImgNameFormat.BatchNum => "项批次",
+                ProduceImgNameFormat.BatchNum => "项批号",
                 _ => string.Empty
             };
         });
@@ -219,6 +227,52 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
             // 捕获可能发生的异常，例如权限问题
             Console.WriteLine($"打开文件夹时发生错误: {ex}");
             // File.WriteAllText("error.log", ex.ToString());
+        }
+    }
+    
+    [RelayCommand]
+    private async Task OnQuickCleanup()
+    {
+        var result = await contentDialogService.ShowSimpleDialogAsync(
+            new SimpleContentDialogCreateOptions
+            {
+                Title = "确认清理",
+                Content = "如非电脑磁盘空间严重不足，请勿手动清理数据！清理数据会影响程序运行速度！ 且已清理数据无法恢复！",
+                PrimaryButtonText = "确认",
+                CloseButtonText = "取消"
+            }
+        );
+
+        if (result != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        if (int.TryParse(SelectedCleanupDays.Replace("天前", ""), out var days))
+        {
+            try
+            {
+                FileHelper.DeleteFilesOlderThan(LocalAppConfig.AppSetting.PrintedPatternFilePath, days);
+                FileHelper.CleanupOldPatternPrintImages(days);
+
+                var successDialog = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "清理完成",
+                    Content = "数据清理成功",
+                    CloseButtonText = "OK"
+                };
+                await successDialog.ShowDialogAsync();
+            }
+            catch (Exception ex)
+            {
+                var errorDialog = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "清理失败",
+                    Content = $"清理过程中发生错误: {ex.Message}",
+                    CloseButtonText = "OK"
+                };
+                await errorDialog.ShowDialogAsync();
+            }
         }
     }
 }
