@@ -9,6 +9,7 @@ using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.Machine;
+using Wpf.Ui.Gallery.Dto.Picking;
 using Wpf.Ui.Gallery.Utils;
 
 namespace Wpf.Ui.Gallery.LocalConfig;
@@ -33,6 +34,7 @@ public class AppSetting
     
     public int GetParallelThreads()
     {
+        // 最大线程数 CPU核心数 - UI线程数 (避免占满所有CPU线程 导致操作界面卡顿 但是需要精确控制运行的线程 否则任务无法沾满工作线程 TODO 把IO类型 和 计算类型的 划分成两个线程池???)
         return Math.Max(ComputerCpuThreads - ComputerUiThreads , 1);
     }
 
@@ -116,6 +118,8 @@ public class AppSetting
     public bool ShowCompleteProduceSuccessDialog { get; set; } = true;
 
     public bool ShowDeliveryProduceSuccessDialog { get; set; } = true;
+    
+    public List<BasketSort> BasketSortList { get; set; } = new();
 }
 
 public class WindowSettings

@@ -23,8 +23,8 @@ public class ThreadPoolConfig
         // 这样可以减少在前几个任务到达时，因需要创建新线程而带来的微小延迟。
         // workerThreads: 工作线程
         // completionPortThreads: I/O线程
-        ThreadPool.SetMinThreads(processorCount, processorCount);
-        ThreadPool.SetMaxThreads(processorCount, processorCount);
+        ThreadPool.SetMinThreads(1, processorCount);
+        ThreadPool.SetMaxThreads(LocalAppConfig.AppSetting.GetParallelThreads(), LocalAppConfig.AppSetting.GetParallelThreads());
         Console.WriteLine($"内置线程池已初始化，最小工作线程数: {processorCount}");
     }
 

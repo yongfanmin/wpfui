@@ -3,6 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Xml;
 using FileTypeChecker;
@@ -16,6 +17,7 @@ namespace Wpf.Ui.Gallery.Services.Downloader;
 public class ImageDownloader : IImageDownloader
 {
     private readonly HttpClient _httpClient;
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> UrlLocks = new();
 
     public ImageDownloader(HttpClient httpClient)
     {
@@ -42,13 +44,15 @@ public class ImageDownloader : IImageDownloader
         {
             return null;
         }
+        var urlLock = UrlLocks.GetOrAdd(imageUrl, _ => new SemaphoreSlim(1, 1));
+        await urlLock.WaitAsync(cancellationToken);
 
         try
         {
             LocalImgInfo localImgInfo = new LocalImgInfo();
 
             // fileType.Extension 从路径取文件扩展  如果 url 后面带参数 则无法获取到图片扩展
-            string fileExtension = Path.GetExtension(imageUrl);
+            string fileExtension = NetworkHelper.GetFileExtensionFromUrl(imageUrl);
 
             // --- 步骤 3: 准备本地文件路径并写入 ---
             string localFileUrl = Path.Combine(directoryPath, fileName + fileExtension);
@@ -128,9 +132,15 @@ public class ImageDownloader : IImageDownloader
         }
         catch (Exception ex)
         {
+            //下载图片 https://oss.gongwohuo.cn/productPhoto/20250923/68d232b7a45f0.jpg?x-oss-process=image/resize,w_300,m_lfit/quality,q_80 时发生错误: 请求的操作无法在使用用户映射区域打开的文件上执行。 : 'D:\POD\exeSoftware\wpf-exe-master\src\Wpf.Ui.Gallery\bin\Debug\net9.0-windows10.0.19041.0\Cache\Factory-1053\Pattern-print\4326100.jpg'.
             // 统一处理所有可能的异常
             Console.WriteLine($"下载图片 {imageUrl} 时发生错误: {ex.Message}");
+            //TODO 外层需要抛错 不能继续执行合成图片
             return null;
+        }
+        finally
+        {
+            urlLock.Release();
         }
     }
 

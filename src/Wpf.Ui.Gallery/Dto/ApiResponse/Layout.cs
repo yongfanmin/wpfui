@@ -62,6 +62,8 @@ public class QrCode
 public class PatternPiecePosition
 {
     [JsonPropertyName("view_id")] public int ViewId { get; set; }
+    
+    [JsonPropertyName("patternPieceTitle")] public string PatternPieceTitle { get; set; }
 
     [JsonPropertyName("url")] public string Url { get; set; }
 

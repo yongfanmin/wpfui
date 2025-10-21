@@ -442,7 +442,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                                 productionTask.PatternPieceImageUrl,
                                 FileName.getPatternPieceImgPath(productionTask.FactoryId,
                                     productionTask.DesignProductId),
-                                productionTask.ViewId.ToString());
+                                // 一个view包含多个面的情况 例如单幅全印 部分单幅全印
+                                $"{productionTask.ViewId}-{productionTask.PatternPieceTitle}");
                         // TODO 图片为空 需要报错
                         productionTask.PatternPieceImageLocalImg = patternPieceImg2localImg;
                         // 下载裁片对应印花图
@@ -453,6 +454,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                             {
                                 // 目前进入这个逻辑的是 文字印花  没有图库图片id ; 不能使用图库id命名文件
                                 fileName = Path.GetFileNameWithoutExtension(taskPrintLayer.DesignImageUrl);
+                                // 名称替换 替换掉原来不合理的名称 没其他用途
                                 fileName = fileName.Replace("-ftp-product","-print-product");
                             }
                             LocalImgInfo? patternPrintImg2localImg =
@@ -551,6 +553,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                         OrderCode = produceBatchItemDetail.OrderCode,
                         ItemId = produceBatchItemDetail.ItemId,
                         OrderDetailId = produceBatchItemDetail.OrderDetailId,
+                        IsMultiPiece = produceBatchItemDetail.IsMultiPiece,
                         TargetDpi = targetDpi,
                         ProductionTasks = productionTasks
                     };

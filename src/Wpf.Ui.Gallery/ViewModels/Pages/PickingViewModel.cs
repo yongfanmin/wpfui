@@ -11,6 +11,7 @@ using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.Picking;
+using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Models;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Utils;
@@ -22,37 +23,39 @@ namespace Wpf.Ui.Gallery.ViewModels.Pages;
 
 public partial class PickingViewModel : ObservableObject
 {
-    
     private readonly IOrderApi _orderApi;
     private readonly LoginInfoService _loginInfoService;
-    
+
     private readonly IContentDialogService _contentDialogService;
     private readonly ISnackbarService _snackbarService;
     private readonly WindowsProviderService _windowsProviderService;
 
     private readonly object _lockObject = new object();
 
-    [ObservableProperty] private ObservableCollection<OrderPick> _orderPickBasketList = new ObservableCollection<OrderPick>();
+    [ObservableProperty]
+    private ObservableCollection<OrderPick> _orderPickBasketList = new ObservableCollection<OrderPick>();
 
     [ObservableProperty] private int _basketCount = 5; // Default value
 
     [ObservableProperty] private string _pickOrderCode = string.Empty;
-    
+
     [ObservableProperty] private string _scanEnterValue = string.Empty;
 
     public PickingViewModel(
-        IContentDialogService contentDialogService, 
+        IContentDialogService contentDialogService,
         ISnackbarService snackbarService,
         IOrderApi orderApi,
         LoginInfoService loginInfoService,
         WindowsProviderService windowsProviderService
-        )
+    )
     {
         _contentDialogService = contentDialogService;
         _snackbarService = snackbarService;
         _orderApi = orderApi;
         _loginInfoService = loginInfoService;
         _windowsProviderService = windowsProviderService;
+
+        LoadBasketSortHistory();
         UpdateBasketList();
     }
 
@@ -60,21 +63,26 @@ public partial class PickingViewModel : ObservableObject
     {
         // 不能清空数据 如果分拣篮内有东西 数据会丢失
         // OrderPickBasketList.Clear();
-        for (int num = 1; num <= BasketCount; num++)
+        if (OrderPickBasketList.Count > BasketCount)
         {
-            OrderPick orderPick = OrderPickBasketList.FirstOrDefault(basket => basket.BasketNumber == num);
-            if (orderPick is null)
+            BasketCount = OrderPickBasketList.Count;
+        }
+
+        for (int num = OrderPickBasketList.Count; num <= BasketCount; num++)
+        {
+            for (int basketNum = 1; basketNum <= BasketCount; basketNum++)
             {
-                // 不存在 则新增分拣篮
-                OrderPickBasketList.Add(OrderPick.Init(num));
-            }
-            else
-            {
-                // 存在 维持不变
+                OrderPick orderPick = OrderPickBasketList.FirstOrDefault(basket => basket.BasketNumber == basketNum);
+                if (orderPick is null)
+                {
+                    // 不存在 则新增分拣篮
+                    OrderPickBasketList.Add(OrderPick.Init(basketNum));
+                    break;
+                }
             }
         }
 
-        var needRemoveList = OrderPickBasketList.Where(basket => basket.BasketNumber > BasketCount).ToList();
+        var needRemoveList = OrderPickBasketList.Where((basket, index) => index >= BasketCount).ToList();
         foreach (var item in needRemoveList)
         {
             if (item.isEmpty())
@@ -92,17 +100,14 @@ public partial class PickingViewModel : ObservableObject
                 return false;
             }
         }
+
+        SaveBasketSort();
         return true;
     }
 
     private void ScanOrder(string orderCode)
     {
-        AddOrder(new OrderPick()
-        {
-            OrderNo = "",
-            OrderCode = orderCode,
-            ItemCount = 0,
-        });
+        AddOrder(new OrderPick() { OrderNo = "", OrderCode = orderCode, ItemCount = 0, });
     }
 
     // 拣货
@@ -122,7 +127,8 @@ public partial class PickingViewModel : ObservableObject
         {
             if (OrderPickBasketList.Any(item => orderPick.OrderCode.Equals(item.OrderCode)))
             {
-                OrderPick thisOrderPick = OrderPickBasketList.FirstOrDefault(item => orderPick.OrderCode.Equals(item.OrderCode));
+                OrderPick thisOrderPick =
+                    OrderPickBasketList.FirstOrDefault(item => orderPick.OrderCode.Equals(item.OrderCode));
                 if (thisOrderPick is not null && thisOrderPick.PickCount >= thisOrderPick.ItemCount)
                 {
                     AudioPlayer.PlayErrorAudio();
@@ -140,7 +146,8 @@ public partial class PickingViewModel : ObservableObject
                         if (thisOrderPick is not null)
                         {
                             thisOrderPick.PickCount++;
-                            thisOrderPick.IsPicked = thisOrderPick.PickCount > 0 && thisOrderPick.PickCount >= thisOrderPick.ItemCount;
+                            thisOrderPick.IsPicked = thisOrderPick.PickCount > 0 &&
+                                                     thisOrderPick.PickCount >= thisOrderPick.ItemCount;
                             if (thisOrderPick.IsPicked)
                             {
                                 AudioPlayer.PlayCompleteAudio();
@@ -155,16 +162,14 @@ public partial class PickingViewModel : ObservableObject
             }
             else
             {
-                OrderPick thisOrderPick = OrderPickBasketList.FirstOrDefault(item => string.IsNullOrEmpty(item.OrderCode));
+                OrderPick thisOrderPick =
+                    OrderPickBasketList.FirstOrDefault(item => string.IsNullOrEmpty(item.OrderCode));
                 if (thisOrderPick is not null)
                 {
                     //获取订单数据
                     string token = _loginInfoService.getToken();
                     FactoryApiResponse<Object> orderDetailReturn = await _orderApi.getOrderDetailByOrderCode(
-                        new OrderCodeRequest()
-                        {
-                            OrderCode = orderPick.OrderCode
-                        },
+                        new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
                         token
                     );
                     if (orderDetailReturn.Data is null)
@@ -185,13 +190,15 @@ public partial class PickingViewModel : ObservableObject
                         thisOrderPick.OrderCode = orderPick.OrderCode;
                         thisOrderPick.OrderNo = orderPick.OrderNo;
                         thisOrderPick.ItemCount = orderPick.ItemCount;
-                        OrderDetailVo orderDetailVo = JsonSerializer.Deserialize<OrderDetailVo>(orderDetailReturn.Data.ToString());
+                        OrderDetailVo orderDetailVo =
+                            JsonSerializer.Deserialize<OrderDetailVo>(orderDetailReturn.Data.ToString());
                         if (orderDetailVo is not null)
                         {
                             thisOrderPick.OrderNo = orderDetailVo.OrderNo;
                             thisOrderPick.ItemCount = orderDetailVo.ItemCount;
                             // 如果总条目等于一条 扫码则立即完成拣货
-                            thisOrderPick.IsPicked = thisOrderPick.PickCount > 0 && thisOrderPick.PickCount >= thisOrderPick.ItemCount;
+                            thisOrderPick.IsPicked = thisOrderPick.PickCount > 0 &&
+                                                     thisOrderPick.PickCount >= thisOrderPick.ItemCount;
                             if (thisOrderPick.IsPicked)
                             {
                                 AudioPlayer.PlayCompleteAudio();
@@ -252,11 +259,7 @@ public partial class PickingViewModel : ObservableObject
         dialog.Title = "调整分拣数";
         dialog.Content = new StackPanel
         {
-            Children =
-            {
-                new TextBlock { Text = $"输入订单 {selectedOrder.OrderNo} 的已分拣数量:" },
-                numberBox
-            }
+            Children = { new TextBlock { Text = $"输入订单 {selectedOrder.OrderNo} 的已分拣数量:" }, numberBox }
         };
         dialog.PrimaryButtonText = "确定";
         dialog.CloseButtonText = "取消";
@@ -268,12 +271,15 @@ public partial class PickingViewModel : ObservableObject
             int newPickCount = (int)numberBox.Value;
             if (newPickCount < 0)
             {
-                _snackbarService.Show("错误", "分拣数量不能小于0", ControlAppearance.Danger, new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(3));
+                _snackbarService.Show("错误", "分拣数量不能小于0", ControlAppearance.Danger,
+                    new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(3));
                 return;
             }
+
             if (newPickCount > selectedOrder.ItemCount)
             {
-                _snackbarService.Show("错误", "分拣数量不能大于总数", ControlAppearance.Danger, new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(3));
+                _snackbarService.Show("错误", "分拣数量不能大于总数", ControlAppearance.Danger,
+                    new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(3));
                 return;
             }
 
@@ -281,7 +287,7 @@ public partial class PickingViewModel : ObservableObject
             selectedOrder.IsPicked = newPickCount > 0 && newPickCount >= selectedOrder.ItemCount;
         }
     }
-    
+
     [RelayCommand]
     private async void OnConfirmPick()
     {
@@ -322,6 +328,7 @@ public partial class PickingViewModel : ObservableObject
                         orderPick.Clear();
                     }
                 }
+
                 AudioPlayer.PlayClearBasketAudio();
                 _snackbarService.Show(
                     "分拣篮清空",
@@ -347,7 +354,7 @@ public partial class PickingViewModel : ObservableObject
             };
             _ = await messageBox.ShowDialogAsync();
         }
-        else if(selectedItems.Count == 1)
+        else if (selectedItems.Count == 1)
         {
             var selectedOrders = selectedItems.Cast<OrderPick>().ToList();
             var selectedOrderPick = selectedItems.Cast<OrderPick>().Single();
@@ -384,7 +391,17 @@ public partial class PickingViewModel : ObservableObject
             var numberBox = new NumberBox { Value = BasketCount };
 
             dialog.Title = "发货提示";
-            dialog.Content = new StackPanel { Children = { new TextBox() { Text = string.Join(" ", selectedBasket.Select(item => $"发货单号: {item.OrderNo}")) , IsReadOnly = true } } };
+            dialog.Content = new StackPanel
+            {
+                Children =
+                {
+                    new TextBox()
+                    {
+                        Text = string.Join(" ", selectedBasket.Select(item => $"发货单号: {item.OrderNo}")),
+                        IsReadOnly = true
+                    }
+                }
+            };
             dialog.PrimaryButtonText = "确定发货";
             dialog.CloseButtonText = "取消";
 
@@ -396,12 +413,9 @@ public partial class PickingViewModel : ObservableObject
                 foreach (OrderPick orderSelect in selectedBasket)
                 {
                     FactoryApiResponse<Object> response = await _orderApi.setOrderCompleteByOrderCode(
-                        new OrderCodeRequest()
-                        {
-                            OrderCode = orderSelect.OrderCode
-                        },
+                        new OrderCodeRequest() { OrderCode = orderSelect.OrderCode },
                         token
-                        );
+                    );
                     if (response.IsSuccess)
                     {
                         SetStartDeliveryStatus(orderSelect.OrderNo);
@@ -410,7 +424,9 @@ public partial class PickingViewModel : ObservableObject
                     {
                         var messageBox = new Wpf.Ui.Controls.MessageBox
                         {
-                            Title = "警告", Content = $"发货失败[{response.Msg}]，单号{orderSelect.OrderNo}", CloseButtonText = "好的 (Esc)"
+                            Title = "警告",
+                            Content = $"发货失败[{response.Msg}]，单号{orderSelect.OrderNo}",
+                            CloseButtonText = "好的 (Esc)"
                         };
                         _ = await messageBox.ShowDialogAsync();
                     }
@@ -471,7 +487,7 @@ public partial class PickingViewModel : ObservableObject
             }
         }
     }
-    
+
     // 回车事件
     [RelayCommand]
     private async void OnEnterConfirmBtn()
@@ -479,5 +495,127 @@ public partial class PickingViewModel : ObservableObject
         PickOrderCode = string.IsNullOrEmpty(PickOrderCode) ? ScanEnterValue : PickOrderCode;
         OnConfirmPick();
         ScanEnterValue = string.Empty;
+    }
+
+    private void SaveBasketSort()
+    {
+        LocalAppConfig.AppSetting.BasketSortList.Clear();
+        for (int i = 0; i < OrderPickBasketList.Count; i++)
+        {
+            LocalAppConfig.AppSetting.BasketSortList.Add(new BasketSort
+            {
+                BasketNumber = OrderPickBasketList[i].BasketNumber, Sort = i
+            });
+        }
+
+        LocalAppConfig.Save(LocalAppConfig.AppSetting);
+    }
+
+    private void LoadBasketSortHistory()
+    {
+        if (LocalAppConfig.AppSetting.BasketSortList.Any())
+        {
+            var sortedBaskets = LocalAppConfig.AppSetting.BasketSortList
+                .OrderBy(b => b.Sort)
+                .Select(b => OrderPick.Init(b.BasketNumber))
+                .ToList();
+
+            OrderPickBasketList = new ObservableCollection<OrderPick>(sortedBaskets);
+        }
+    }
+
+    [RelayCommand]
+    private async void ReplaceBasket(object parameter)
+    {
+        if (parameter is OrderPick orderPick)
+        {
+            var dialog = new ContentDialog(_contentDialogService.GetDialogHost());
+            var textBox = new Wpf.Ui.Controls.TextBox { PlaceholderText = "输入新的篮号" };
+
+            dialog.Title = $"替换 {orderPick.BasketNumber} 号篮";
+            dialog.Content = textBox;
+            dialog.PrimaryButtonText = "确认替换";
+            dialog.CloseButtonText = "取消";
+
+            var result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                if (int.TryParse(textBox.Text, out int newBasketNumber))
+                {
+                    if (OrderPickBasketList.Any(b => b.BasketNumber == newBasketNumber && b != orderPick))
+                    {
+                        _snackbarService.Show("错误", $"篮号 {newBasketNumber} 已存在", ControlAppearance.Danger,
+                            new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(5));
+                        return;
+                    }
+
+                    foreach (OrderPick thisOrderPick in OrderPickBasketList)
+                    {
+                        int oldBasketNumber = orderPick.BasketNumber;
+                        if (thisOrderPick.BasketNumber == oldBasketNumber)
+                        {
+                            thisOrderPick.BasketNumber = newBasketNumber;
+                            _snackbarService.Show("成功", $"{oldBasketNumber} 号篮 已替换成 {newBasketNumber} 号篮",
+                                ControlAppearance.Success, new SymbolIcon(SymbolRegular.Check24),
+                                TimeSpan.FromSeconds(5));
+                        }
+                    }
+
+                    SaveBasketSort();
+                }
+                else
+                {
+                    _snackbarService.Show("错误", "请输入有效的篮号", ControlAppearance.Danger,
+                        new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(5));
+                }
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void ClearSingleBasket(object parameter)
+    {
+        if (parameter is OrderPick orderPick)
+        {
+            ClearBasket(new List<object> { orderPick });
+        }
+    }
+
+    [RelayCommand]
+    private void PrintSingleDeliveryBill(object parameter)
+    {
+        if (parameter is OrderPick orderPick)
+        {
+            PrintDeliveryBill(new List<object> { orderPick });
+        }
+    }
+
+    [RelayCommand]
+    private void MoveUp(object parameter)
+    {
+        if (parameter is OrderPick orderPick)
+        {
+            var oldIndex = OrderPickBasketList.IndexOf(orderPick);
+            if (oldIndex > 0)
+            {
+                OrderPickBasketList.Move(oldIndex, oldIndex - 1);
+                SaveBasketSort();
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void MoveDown(object parameter)
+    {
+        if (parameter is OrderPick orderPick)
+        {
+            var oldIndex = OrderPickBasketList.IndexOf(orderPick);
+            if (oldIndex < OrderPickBasketList.Count - 1)
+            {
+                OrderPickBasketList.Move(oldIndex, oldIndex + 1);
+                SaveBasketSort();
+            }
+        }
     }
 }

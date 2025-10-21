@@ -25,8 +25,8 @@ public class ProductionTaskBuilder
         // 遍历所有视图 (后片、前片、袖子等)
         foreach (var viewIdKey in batchItem.ProducePrintInfo.Keys)
         {
-            // 此打印面存在印花 才生成任务
-            if (batchItem.ProductConfig.ContainsKey(viewIdKey))
+            // 全印 或 局部印此打印面存在印花 才生成任务
+            if (batchItem.IsMultiPiece || batchItem.ProductConfig.ContainsKey(viewIdKey))
             {
                 PrintInfo printInfo = batchItem.ProducePrintInfo[viewIdKey];
                 if (printCropType == PrintCropType.裁片指定印花区域裁切)

@@ -66,8 +66,14 @@ public class ProduceImageProcessor : IProduceImageProcessor
     {
         if (uniqueBatchItem.ProductionTasks.All(item => item.PrintLayers.Count == 0))
         {
-            Console.WriteLine($"批次号[{uniqueBatchItem.ProduceBatchNum}]项批号[{uniqueBatchItem.BatchNum}]没有任何印花图层 已跳过生产");
-            return null;
+            if (!uniqueBatchItem.IsMultiPiece)
+            {
+                Console.WriteLine($"批次号[{uniqueBatchItem.ProduceBatchNum}]项批号[{uniqueBatchItem.BatchNum}]没有任何印花图层 已跳过生产");
+                return null;
+            }
+            // 这个写法有bug， 局部印的时候(印花单独制造的工艺) 没印花才不打印; 全印的时候, 没有印花 也需要打印出空白裁片
+            /*Console.WriteLine($"批次号[{uniqueBatchItem.ProduceBatchNum}]项批号[{uniqueBatchItem.BatchNum}]没有任何印花图层 已跳过生产");
+            return null;*/
         }
 
         bool isNeedLayout = false;
@@ -239,7 +245,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                         if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.横向错位平铺))
                         {
                             // 如果是横向平铺 则 偶数行的时候 平铺开头只有半张图 位移参数需要补偿半张图(一个cell 印花图+间距)的宽度
-                            offsetX = offsetX +
+                            offsetX +=
                                 (Math.Floor(
                                     (Math.Abs(tileBackgroundImgTranslateY) + Math.Abs(translateYPixel)) / cellHeight
                                     ) % 2 == 0
@@ -251,7 +257,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                         if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.纵向错位平铺))
                         {
                             // 如果是纵向平铺 则 偶数行的时候 平铺开头只有半张图 位移参数需要补偿半张图(一个cell 印花图+间距)的高度
-                            offsetY = offsetY +
+                            offsetY +=
                                 (Math.Floor(
                                     (Math.Abs(tileBackgroundImgTranslateX) + Math.Abs(translateXPixel)) / cellWidth) % 2 == 0
                                     ? 0
@@ -488,8 +494,6 @@ public class ProduceImageProcessor : IProduceImageProcessor
         }
 
         int targetDpi = uniqueBatchItem.TargetDpi;
-        // TODO 写死印花机编码(热转印,白墨)
-        // string machineid = "68,405";
         string token = _loginInfoService.getToken();
         // 加载裁片排版信息
         FactoryApiResponse<Object> layoutResponse = await _layoutApi.GetLayoutInfo(
@@ -533,8 +537,9 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 patternPiece.ViewId = patternPiecePosition.ViewId;
                 patternPiece.TranslateX = patternPiecePosition.OffsetX;
                 patternPiece.TranslateY = patternPiecePosition.OffsetY;
-                ProductionTask productionTask =
-                    productionTasks.FirstOrDefault(item => item.ViewId.Equals(patternPiecePosition.ViewId));
+                ProductionTask productionTask = productionTasks.Count(item => item.ViewId.Equals(patternPiecePosition.ViewId)) > 1 ?
+                        productionTasks.FirstOrDefault(item => item.ViewId.Equals(patternPiecePosition.ViewId) && item.PatternPieceTitle.Equals(patternPiecePosition.PatternPieceTitle))
+                     : productionTasks.FirstOrDefault(item => item.ViewId.Equals(patternPiecePosition.ViewId));
                 if (productionTask is null)
                 {
                     //TODO 排版缺少裁片信息

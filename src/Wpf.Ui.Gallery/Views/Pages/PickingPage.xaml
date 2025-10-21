@@ -6,11 +6,14 @@
     xmlns:local="clr-namespace:Wpf.Ui.Gallery.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:utils="clr-namespace:Wpf.Ui.Gallery.Utils"
     Title="Picking Page"
     d:DataContext="{d:DesignInstance local:PickingPage, IsDesignTimeCreatable=False}"
     ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
-
+    <Page.Resources>
+        <utils:BindingProxy x:Key="Proxy" Data="{Binding ViewModel}" />
+    </Page.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -72,6 +75,21 @@
             Grid.Row="1"
             ItemsSource="{Binding ViewModel.OrderPickBasketList}"
             SelectionMode="Multiple">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="ContextMenu">
+                        <Setter.Value>
+                            <ContextMenu>
+                                <MenuItem Header="换其他空蓝" Command="{Binding Data.ReplaceBasketCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="清空分拣篮" Command="{Binding Data.ClearSingleBasketCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="打印发货单" Command="{Binding Data.PrintSingleDeliveryBillCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="上移位置" Command="{Binding Data.MoveUpCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="下移位置" Command="{Binding Data.MoveDownCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                            </ContextMenu>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListView.ItemContainerStyle>
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="分拣篮编号" Width="120">
