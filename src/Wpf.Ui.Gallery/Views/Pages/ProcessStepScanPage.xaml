@@ -112,7 +112,7 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="生产计划: " />
                                     <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}"  Text="{Binding ViewModel.StartProduceItemScanResult.ProduceBatchNum}" />
                                     <ui:Button Grid.Column="2"
-                                        Command="{Binding ViewModel.SetProduceCommand}"
+                                        Command="{Binding ViewModel.SetProduceBatchStartCommand}"
                                         CommandParameter="{Binding ViewModel.StartProduceItemScanResult.ProduceBatchNum}"
                                         Content="整批开始生产" />
                                 </Grid>
@@ -160,10 +160,10 @@
                         ItemsSource="{Binding ViewModel.StartProduceItemList}">
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn DisplayMemberBinding="{Binding ProduceBatchNum}" Header="生产计划" />
-                                <GridViewColumn DisplayMemberBinding="{Binding BatchNo}" Header="项批号" />
-                                <GridViewColumn DisplayMemberBinding="{Binding ItemId}" Header="子项" />
-                                <GridViewColumn Header="状态">
+                                <GridViewColumn Width="120" DisplayMemberBinding="{Binding ProduceBatchNum}" Header="生产计划" />
+                                <GridViewColumn Width="120" DisplayMemberBinding="{Binding BatchNo}" Header="项批号" />
+                                <GridViewColumn Width="120" DisplayMemberBinding="{Binding ItemId}" Header="子项" />
+                                <GridViewColumn Width="120" Header="状态">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="生产中" />
@@ -234,7 +234,7 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="生产计划: " />
                                     <TextBox Grid.Column="1" VerticalAlignment="Center" TextAlignment="Left" Style="{StaticResource SelectableReadOnlyCellStyle}"  Text="{Binding ViewModel.CompleteProduceItemScanResult.ProduceBatchNum}" />
                                     <ui:Button Grid.Column="2"
-                                        Command="{Binding ViewModel.SetProduceCommand}"
+                                        Command="{Binding ViewModel.SetProduceBatchCompleteCommand}"
                                         CommandParameter="{Binding ViewModel.CompleteProduceItemScanResult.ProduceBatchNum}"
                                         Content="整批完成生产" />
                                 </Grid>
@@ -282,10 +282,10 @@
                         ItemsSource="{Binding ViewModel.CompleteProduceItemList}">
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn DisplayMemberBinding="{Binding ProduceBatchNum}" Header="生产计划" />
-                                <GridViewColumn DisplayMemberBinding="{Binding BatchNo}" Header="项批号" />
-                                <GridViewColumn DisplayMemberBinding="{Binding ItemId}" Header="子项" />
-                                <GridViewColumn Header="状态">
+                                <GridViewColumn Width="120"  DisplayMemberBinding="{Binding ProduceBatchNum}" Header="生产计划" />
+                                <GridViewColumn Width="120"  DisplayMemberBinding="{Binding BatchNo}" Header="项批号" />
+                                <GridViewColumn Width="120"  DisplayMemberBinding="{Binding ItemId}" Header="子项" />
+                                <GridViewColumn Width="120"  Header="状态">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="生产完成" />

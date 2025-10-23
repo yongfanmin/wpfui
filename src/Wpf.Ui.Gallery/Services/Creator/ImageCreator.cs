@@ -68,7 +68,7 @@ public class ImageCreator : IImageCreator
             using Image image = Image.Black(widthInPixels, heightInPixels, bands: 4) + backgroundColor;
 
             // 将图像的色彩空间解释为 SRGB
-            Image newImage = image.Copy(interpretation: Enums.Interpretation.Srgb);
+            using Image newImage = image.Copy(interpretation: Enums.Interpretation.Srgb);
             
             // b. 使用 Embed 将这个单像素颜色“平铺”到一个指定尺寸的巨大画布上。
             //    extend: Enums.Extend.Copy 确保了颜色被复制填充。
@@ -77,12 +77,9 @@ public class ImageCreator : IImageCreator
 
             // --- 5. 设置DPI元数据 ---
             double pixelsPerInch = dpi / ImageHelper.MillimetersPerInch;
-            using(newImage) 
-            {
-                // Copy 会创建一个新的 Image 实例，这是最终要返回的对象
-                var finalImage = newImage.Copy(xres: pixelsPerInch, yres: pixelsPerInch);
-                return finalImage;
-            }
+            // Copy 会创建一个新的 Image 实例，这是最终要返回的对象
+            var finalImage = newImage.Copy(xres: pixelsPerInch, yres: pixelsPerInch);
+            return finalImage;
         }
 
     /// <summary>

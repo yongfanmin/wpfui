@@ -12,7 +12,6 @@ namespace Wpf.Ui.Gallery.Apis;
 
 public class ProduceBatchRequest
 {
-    // TODO 当前参数由软件传参 后续直接改成无需传参 工厂后台配置好账号对应得参数配置(抓取哪些公版进行生产?)
     // num=1&designProductIds=5666,4800
     // Header machineid = 68,405
     [JsonPropertyName("num")]
@@ -32,11 +31,24 @@ public class BatchNo2Produce
     public string BatchNo { get; set; }
 }
 
+public class ProduceBatchNum2Produce
+{
+    [JsonPropertyName("produceBatchNum")]
+    public string ProduceBatchNum { get; set; }
+}
+
 public class BatchNo2ProduceComplete
 {
     [JsonPropertyName("batchNo")]
     public string BatchNo { get; set; }
 }
+
+public class ProduceBatchNo2ProduceComplete
+{
+    [JsonPropertyName("produceBatchNum")]
+    public string ProduceBatchNum { get; set; }
+}
+
 
 public interface IProduceBatchApi
 {
@@ -55,10 +67,25 @@ public interface IProduceBatchApi
         [Header("Token")] string token
     );
     
+    [Post("/api/v2/factoryInterface/setOrderProduceProduceBatchNumCreating")]
+    Task<FactoryApiResponse<Object>> setProduceBatchNum2Produce(
+        [Body] ProduceBatchNum2Produce request,
+        // TODO 接口端使用非标准鉴权方式
+        [Header("Token")] string token
+    );
+    
     
     [Post("/api/factoryInterface/setOrderProduceCompleteByBatchNo")]
     Task<FactoryApiResponse<Object>> setBatchNo2ProduceComplete(
         [Body] BatchNo2ProduceComplete request,
+        // TODO 接口端使用非标准鉴权方式
+        [Header("Token")] string token
+    );
+    
+    
+    [Post("/api/v2/factoryInterface/setOrderProduceCompleteByProduceBatchNum")]
+    Task<FactoryApiResponse<Object>> setProduceBatchNum2Complete(
+        [Body] ProduceBatchNo2ProduceComplete request,
         // TODO 接口端使用非标准鉴权方式
         [Header("Token")] string token
     );

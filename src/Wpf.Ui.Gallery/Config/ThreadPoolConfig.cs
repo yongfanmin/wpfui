@@ -24,7 +24,7 @@ public class ThreadPoolConfig
         // workerThreads: 工作线程
         // completionPortThreads: I/O线程
         ThreadPool.SetMinThreads(1, processorCount);
-        ThreadPool.SetMaxThreads(LocalAppConfig.AppSetting.GetParallelThreads(), LocalAppConfig.AppSetting.GetParallelThreads());
+        ThreadPool.SetMaxThreads(processorCount, processorCount);
         Console.WriteLine($"内置线程池已初始化，最小工作线程数: {processorCount}");
     }
 

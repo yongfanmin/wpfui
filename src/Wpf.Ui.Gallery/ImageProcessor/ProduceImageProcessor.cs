@@ -81,351 +81,373 @@ public class ProduceImageProcessor : IProduceImageProcessor
         // TODO 错误的数据层级 一个生产项 是 全印/局部印/局部裁剪 这类数据  应该绑定到产品上 而不是裁片上
         foreach (ProductionTask patternPieceTask in uniqueBatchItem.ProductionTasks)
         {
-            // 遵循SRT顺序：如果无法确认，那么按照先缩放 (Resize) -> 再旋转 (Rotate) -> 最后位移 (Embed) 的顺序
-            // 公版裁片为基底作业流水线
             Image tempCanvas = null;
-            if (patternPieceTask.PrintCropType == PrintCropType.裁片指定印花区域裁切)
+            try
             {
-                // 直接打印出印花 比如 烫画 印花图先打印在薄膜上 ；所以不需要临时画布
-                if (patternPieceTask.PrintLayers.Count == 0)
+                // 遵循SRT顺序：如果无法确认，那么按照先缩放 (Resize) -> 再旋转 (Rotate) -> 最后位移 (Embed) 的顺序
+                // 公版裁片为基底作业流水线
+                if (patternPieceTask.PrintCropType == PrintCropType.裁片指定印花区域裁切)
                 {
-                    // 局部印花类型 又没有印花图层 直接跳过
-                    return null;
+                    // 直接打印出印花 比如 烫画 印花图先打印在薄膜上 ；所以不需要临时画布
+                    if (patternPieceTask.PrintLayers.Count == 0)
+                    {
+                        // 局部印花类型 又没有印花图层 直接跳过
+                        return null;
+                    }
+                    else
+                    {
+                        blendMode = Enums.BlendMode.Over;
+                        //按照打印区域当作画布大小
+                        tempCanvas = _imageCreator.CreateImageFromPhysicalSize(
+                            decimal.ToDouble(patternPieceTask.PrintCropArea.WidthMm),
+                            decimal.ToDouble(patternPieceTask.PrintCropArea.HeightMm),
+                            patternPieceTask.TargetDpi,
+                            ImgSupportFormat.Png,
+                            backgroundColor: new double[] { 255, 255, 255, 0 }); // 透明 RGBA
+                        // 算出多印花叠加需要的画布大小 [节约画布写法]
+                        /*foreach (ProductionTask productionTask in patternPieceTask.PrintLayers)
+                        {
+    
+                        }*/
+                    }
+                }
+                else if ((patternPieceTask.PrintCropType == PrintCropType.裁片底图全印裁切) ||
+                         (patternPieceTask.PrintCropType == PrintCropType.裁片满幅裁切))
+                {
+                    if (patternPieceTask.RenderType == RenderType.全印_叠加裁片)
+                    {
+                        isNeedLayout = true;
+                        // 任何将被用于 Composite 操作下层的图像，都必须以 Random 模式加载，因为它需要被随机访问 ??? 待确认
+                        // Enums.Access.Sequential 顺序读取不能用 因为要保存缩略图 如果用了顺序读取 保存完大图 指针会在图片末尾, 无法从头读取像素去制造缩略图
+                        try
+                        {
+                            using Image patternPieceImg = Image.NewFromFile(
+                                patternPieceTask.PatternPieceImageLocalImg.LocalUrl,
+                                access: Enums.Access.Sequential);
+                            tempCanvas = patternPieceImg.Resize(
+                                ImageHelper.pixelSizeToPhysicalSizeNeedScale(
+                                    patternPieceImg.Width,
+                                    patternPieceTask.PatternPieceTargetWidthMm,
+                                    patternPieceTask.TargetDpi),
+                                vscale: ImageHelper.pixelSizeToPhysicalSizeNeedScale(
+                                    patternPieceImg.Height,
+                                    patternPieceTask.PatternPieceTargetWidthMm,
+                                    patternPieceTask.TargetDpi));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(
+                                $"全印裁片合成失败 批次号:[{uniqueBatchItem.ProduceBatchNum}] 项:[{uniqueBatchItem.BatchNum}] {ex}");
+                        }
+                    }
+                    else if (patternPieceTask.RenderType == RenderType.局部印_矩形框)
+                    {
+                        tempCanvas = _imageCreator.CreateImageFromPhysicalSize(
+                            decimal.ToDouble(patternPieceTask.PatternPieceTargetWidthMm),
+                            decimal.ToDouble(patternPieceTask.PatternPieceTargetHeightMm),
+                            patternPieceTask.TargetDpi,
+                            ImgSupportFormat.Png,
+                            backgroundColor: new double[] { 255, 255, 255, 0 }); // 透明 RGBA
+                    }
+                    else
+                    {
+                        throw new Exception("无法处理的渲染类型【" + patternPieceTask.RenderType.ToString() + "】");
+                    }
                 }
                 else
                 {
-                    blendMode = Enums.BlendMode.Over;
-                    //按照打印区域当作画布大小
-                    tempCanvas = _imageCreator.CreateImageFromPhysicalSize(
-                        decimal.ToDouble(patternPieceTask.PrintCropArea.WidthMm),
-                        decimal.ToDouble(patternPieceTask.PrintCropArea.HeightMm),
-                        patternPieceTask.TargetDpi,
-                        ImgSupportFormat.Png,
-                        backgroundColor: new double[] { 255, 255, 255, 0 }); // 透明 RGBA
-                    // 算出多印花叠加需要的画布大小 [节约画布写法]
-                    /*foreach (ProductionTask productionTask in patternPieceTask.PrintLayers)
-                    {
-
-                    }*/
+                    throw new Exception($"未知印花裁切方式{patternPieceTask.PrintCropType}");
                 }
-            }
-            else if ((patternPieceTask.PrintCropType == PrintCropType.裁片底图全印裁切) ||
-                     (patternPieceTask.PrintCropType == PrintCropType.裁片满幅裁切))
-            {
-                if (patternPieceTask.RenderType == RenderType.全印_叠加裁片)
+
+                foreach (PrintLayerInfo patternPrintLayerTask in patternPieceTask.PrintLayers)
                 {
-                    isNeedLayout = true;
-                    // 任何将被用于 Composite 操作下层的图像，都必须以 Random 模式加载，因为它需要被随机访问 ??? 待确认
-                    // Enums.Access.Sequential 顺序读取不能用 因为要保存缩略图 如果用了顺序读取 保存完大图 指针会在图片末尾, 无法从头读取像素去制造缩略图
                     try
                     {
-                        using Image patternPieceImg = Image.NewFromFile(
-                            patternPieceTask.PatternPieceImageLocalImg.LocalUrl,
-                            access: Enums.Access.Sequential);
-                        tempCanvas = patternPieceImg.Resize(
+                        using Image patternPrintImg = Image.NewFromFile(
+                            patternPrintLayerTask.DesignImageLocalImg.LocalUrl,
+                            access: Enums.Access.Random
+                        );
+
+                        // 1. 预处理：确保图像有Alpha通道和sRGB身份
+                        using Image cleanPatternPrintImg = patternPrintImg.HasAlpha()
+                            ? patternPrintImg.Colourspace(Enums.Interpretation.Srgb)
+                            : patternPrintImg.AddAlpha().Copy().Colourspace(Enums.Interpretation.Srgb);
+                        using Image flipImage = patternPrintLayerTask.XFlip
+                            // 翻转 - 水平翻转
+                            ? cleanPatternPrintImg.Flip(Enums.Direction.Horizontal)
+                            // 翻转  - 垂直翻转
+                            : (patternPrintLayerTask.YFlip
+                                ? cleanPatternPrintImg.Flip(Enums.Direction.Vertical)
+                                : cleanPatternPrintImg.Copy());
+
+                        // 2. 缩放 (Scale)
+                        using Image scalePatternPrintImg = flipImage.Resize(
                             ImageHelper.pixelSizeToPhysicalSizeNeedScale(
-                                patternPieceImg.Width,
-                                patternPieceTask.PatternPieceTargetWidthMm,
+                                patternPrintImg.Width,
+                                patternPrintLayerTask.DesignImageSizeMm.Width,
                                 patternPieceTask.TargetDpi),
                             vscale: ImageHelper.pixelSizeToPhysicalSizeNeedScale(
-                                patternPieceImg.Height,
-                                patternPieceTask.PatternPieceTargetWidthMm,
+                                patternPrintImg.Height,
+                                patternPrintLayerTask.DesignImageSizeMm.Height,
                                 patternPieceTask.TargetDpi));
+
+
+                        double translateXPixel = ImageHelper.ConvertMmToPixels(
+                            patternPrintLayerTask.TranslateX,
+                            patternPieceTask.TargetDpi
+                        );
+
+                        double translateYPixel = ImageHelper.ConvertMmToPixels(
+                            patternPrintLayerTask.TranslateY,
+                            patternPieceTask.TargetDpi
+                        );
+
+
+                        double tileTranslateXPixel = 0;
+                        double tileTranslateYPixel = 0;
+                        // 旋转轴心 = 印花图的中心 (宽高的一半)
+                        double pivotX = scalePatternPrintImg.Width / 2.0;
+                        double pivotY = scalePatternPrintImg.Height / 2.0;
+
+                        // --- [新增的平铺逻辑在这里] ---
+                        Image tileImage;
+                        int finalX = Convert.ToInt32(translateXPixel);
+                        int finalY = Convert.ToInt32(translateYPixel);
+                        if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.无平铺))
+                        {
+                            // 如果不平铺，直接使用缩放后的图像
+                            tileImage = scalePatternPrintImg.Copy();
+                            pivotX = Math.Abs(translateXPixel) + (scalePatternPrintImg.Width / 2.0);
+                            pivotY = Math.Abs(translateYPixel) + (scalePatternPrintImg.Height / 2.0);
+                        }
+                        else
+                        {
+                            // 如果启用了平铺，则调用平铺辅助方法 (如果平铺 画布会变化 XY轴偏移量需要重算)
+                            (tileImage, double cellWidth, double cellHeight) =
+                                CreateTiledBackgroundImage(
+                                    scalePatternPrintImg,
+                                    patternPrintLayerTask,
+                                    patternPieceTask);
+                            // 由于平铺背景底图扩大, 所以需要重新计算新的平铺印花图-大背景图居中的偏移量 ((小图尺寸 - 大图尺寸)/2) 除以2是因为大图和小图都是居中, 那么小图与大图宽度的差值 的一半才是实际偏移量
+                            double tileBackgroundImgTranslateX = (ImageHelper.ConvertMmToPixels(
+                                patternPieceTask.PatternPieceTargetWidthMm,
+                                patternPieceTask.TargetDpi
+                            ) - tileImage.Width) / 2.0;
+
+                            double tileBackgroundImgTranslateY = (ImageHelper.ConvertMmToPixels(
+                                patternPieceTask.PatternPieceTargetHeightMm,
+                                patternPieceTask.TargetDpi
+                            ) - tileImage.Width) / 2.0;
+                            // netvips 平铺无法以印花图为中心进行平铺, 智能从左上角开始平铺, 所以平铺后 印花图不会在原来用户定位的位置上, 需要重新定位, 定位方式就是 [X轴偏移量(这个偏移量为原本印花图的偏移量绝对值+平铺印花图偏移量绝对值)/印花框宽度 取余 然后向X轴减少取余部分] [Y轴偏移量/印花框高度 取余 向Y轴减少取余部分]
+
+                            /*double offsetX = (Math.Abs(tileBackgroundImgTranslateX) + Math.Abs(translateXPixel)) %
+                                             cellWidth + cellWidth / 2;*/
+                            double offsetX = (Math.Abs(tileBackgroundImgTranslateX) + Math.Abs(translateXPixel)) %
+                                             cellWidth;
+                            if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.横向错位平铺))
+                            {
+                                // 如果是横向平铺 则 偶数行的时候 平铺开头只有半张图 位移参数需要补偿半张图(一个cell 印花图+间距)的宽度
+                                offsetX +=
+                                    (Math.Floor(
+                                        (Math.Abs(tileBackgroundImgTranslateY) + Math.Abs(translateYPixel)) / cellHeight
+                                    ) % 2 == 0
+                                        ? 0
+                                        : cellWidth / 2);
+                            }
+
+                            double offsetY = (Math.Abs(tileBackgroundImgTranslateY) + Math.Abs(translateYPixel)) %
+                                             cellHeight;
+                            if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.纵向错位平铺))
+                            {
+                                // 如果是纵向平铺 则 偶数行的时候 平铺开头只有半张图 位移参数需要补偿半张图(一个cell 印花图+间距)的高度
+                                offsetY +=
+                                    (Math.Floor(
+                                        (Math.Abs(tileBackgroundImgTranslateX) + Math.Abs(translateXPixel)) / cellWidth) % 2 == 0
+                                        ? 0
+                                        : cellHeight / 2);
+                            }
+
+                            tileTranslateXPixel = tileBackgroundImgTranslateX + offsetX;
+                            tileTranslateYPixel = tileBackgroundImgTranslateY + offsetY;
+                            finalX = Convert.ToInt32(tileTranslateXPixel);
+                            finalY = Convert.ToInt32(tileTranslateYPixel);
+                            // 旋转轴心 = |印花图平铺背景底图偏移量| + |印花图偏移量| + 印花图的中心 (宽高的一半)   这个计算出来的坐标是以平铺印花图为基准, 需要换算成以裁片底图为基准
+                            // pivotX = Math.Abs(tileTranslateXPixel) + Math.Abs(translateXPixel) + (scalePatternPrintImg.Width / 2.0);
+                            // pivotY = Math.Abs(tileTranslateYPixel) + Math.Abs(translateYPixel) + (scalePatternPrintImg.Height / 2.0);
+
+                            pivotX = Math.Abs(translateXPixel) + (scalePatternPrintImg.Width / 2.0);
+                            pivotY = Math.Abs(translateYPixel) + (scalePatternPrintImg.Height / 2.0);
+                        }
+
+
+                        Image rotatedImage = null;
+                        Image imageToProcess = tileImage;
+                        try
+                        {
+                            if (!patternPrintLayerTask.Rotation.Equals(decimal.Zero))
+                            {
+                                // 3. 旋转 (Rotate)
+                                double rotationAngle = decimal.ToDouble(patternPrintLayerTask.Rotation);
+                                rotatedImage = tileImage.Rotate(rotationAngle);
+                                imageToProcess = rotatedImage;
+
+                                // BOF 因为旋转 需要重新计算偏移量
+                                // 4. 计算最终位移 (Translate) 目前前端传的XY轴偏移量 是offset_x和y, 但是经过旋转 这个值又是存在transform和gtransform, 未能一致, 所以后端自己计算了 ；以后可以统一前端计算; 计算值跟印花图的宽高 旋转角度 原来的XY轴偏移量有关
+                                // a. 获取API提供的、基于“未旋转”图像的左上角目标位置
+                                // b. 计算“未旋转”图像的目标中心点
+
+
+                                /*double targetCenterX = translateXPixel + (tileImage.Width / 2.0);
+        
+                                double targetCenterY = translateYPixel + (tileImage.Height / 2.0);
+        
+                                // c. 旋转后的图像，其内容是居中的，所以我们获取它的尺寸
+                                // d. 根据目标中心点，反向推算出旋转后图像的左上角应该放置的位置，以实现中心对齐
+                                finalX = (int)Math.Round(targetCenterX - (rotatePatternPrintImg.Width / 2.0));
+                                finalY = (int)Math.Round(targetCenterY - (rotatePatternPrintImg.Height / 2.0));*/
+
+
+                                if (!patternPrintLayerTask.TileTool.TileType.Equals(TileType.无平铺))
+                                {
+                                    (double NewX, double NewY) = CalcRotateOffsetByPivot(tileImage.Width, tileImage.Height,
+                                        finalX, finalY, pivotX, pivotY, rotationAngle);
+                                    finalX = Convert.ToInt32(NewX);
+                                    finalY = Convert.ToInt32(NewY);
+                                }
+                            }
+
+                            if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.无平铺))
+                            {
+                                double targetCenterX = translateXPixel + (tileImage.Width / 2.0);
+
+                                double targetCenterY = translateYPixel + (tileImage.Height / 2.0);
+
+                                // c. 旋转后的图像，其内容是居中的，所以我们获取它的尺寸
+                                // d. 根据目标中心点，反向推算出旋转后图像的左上角应该放置的位置，以实现中心对齐
+                                finalX = (int)Math.Round(targetCenterX - (imageToProcess.Width / 2.0));
+                                finalY = (int)Math.Round(targetCenterY - (imageToProcess.Height / 2.0));
+                            }
+
+                            // EOF 因为旋转 需要重新计算偏移量
+                            if (tempCanvas == null)
+                            {
+                                //画布为空的 直接打印出印花图即可
+                                tempCanvas = imageToProcess.Copy();
+                            }
+                            else
+                            {
+                                // 5. 叠加合成
+                                Image newCanvas = tempCanvas.Composite(
+                                    imageToProcess,
+                                    blendMode,
+                                    x: finalX,
+                                    y: finalY
+                                );
+                                if (tempCanvas != newCanvas)
+                                {
+                                    tempCanvas.Dispose();
+                                }
+
+                                tempCanvas = newCanvas;
+                            }
+                        }
+                        finally
+                        {
+                            rotatedImage?.Dispose();
+                            tileImage.Dispose();
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine(
-                            $"全印裁片合成失败 批次号:[{uniqueBatchItem.ProduceBatchNum}] 项:[{uniqueBatchItem.BatchNum}] {ex}");
+                        Console.WriteLine($"印花裁片合成出错 {ex}");
                     }
                 }
-                else if (patternPieceTask.RenderType == RenderType.局部印_矩形框)
+
+                string localOutputPath = FileName.getOrderPatternPrintImgPath(
+                    patternPieceTask.ProduceBatchNum,
+                    patternPieceTask.OrderNo,
+                    patternPieceTask.BatchNum,
+                    patternPieceTask.FactoryId,
+                    0);
+
+                Directory.CreateDirectory(localOutputPath);
+
+                string localOutputThumbPath = FileName.getOrderPatternPrintImgThumbPath(
+                    patternPieceTask.ProduceBatchNum,
+                    patternPieceTask.OrderNo,
+                    patternPieceTask.BatchNum,
+                    patternPieceTask.FactoryId,
+                    0);
+
+                Directory.CreateDirectory(localOutputThumbPath);
+                double pixelsPerMm = patternPieceTask.TargetDpi / ImageHelper.MillimetersPerInch;
+
+                // TODO 如果是 单件手动排版 则不需要保存到磁盘,直接在内存中排版完成 只把生产排版图写入磁盘 以节约磁盘读写
+                /*if (ProduceLayout.MANUAL)
                 {
-                    tempCanvas = _imageCreator.CreateImageFromPhysicalSize(
-                        decimal.ToDouble(patternPieceTask.PatternPieceTargetWidthMm),
-                        decimal.ToDouble(patternPieceTask.PatternPieceTargetHeightMm),
-                        patternPieceTask.TargetDpi,
-                        ImgSupportFormat.Png,
-                        backgroundColor: new double[] { 255, 255, 255, 0 }); // 透明 RGBA
-                }
-                else
+    
+                }*/
+                // 执行印花裁剪 如果有需要 根据 PrintCropType判断
+
+                using (var cropImg = patternPieceTask.PrintCropType.Equals(PrintCropType.裁片满幅裁切)
+                       ? ImageHelper.CropFromCenter(tempCanvas,
+                           ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.WidthMm,
+                               patternPieceTask.TargetDpi),
+                           ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.HeightMm,
+                               patternPieceTask.TargetDpi))
+                       : tempCanvas?.Copy())
                 {
-                    throw new Exception("无法处理的渲染类型【" + patternPieceTask.RenderType.ToString() + "】");
-                }
-            }
-            else
-            {
-                throw new Exception($"未知印花裁切方式{patternPieceTask.PrintCropType}");
-            }
-
-            foreach (PrintLayerInfo patternPrintLayerTask in patternPieceTask.PrintLayers)
-            {
-                try
-                {
-                    using Image patternPrintImg = Image.NewFromFile(
-                        patternPrintLayerTask.DesignImageLocalImg.LocalUrl,
-                        access: Enums.Access.Random
-                    );
-
-                    // 1. 预处理：确保图像有Alpha通道和sRGB身份
-                    using Image cleanPatternPrintImg = patternPrintImg.HasAlpha()
-                        ? patternPrintImg.Colourspace(Enums.Interpretation.Srgb)
-                        : patternPrintImg.AddAlpha().Copy().Colourspace(Enums.Interpretation.Srgb);
-                    using Image flipImage = patternPrintLayerTask.XFlip
-                        // 翻转 - 水平翻转
-                        ? cleanPatternPrintImg.Flip(Enums.Direction.Horizontal)
-                        // 翻转  - 垂直翻转
-                        : (patternPrintLayerTask.YFlip
-                            ? cleanPatternPrintImg.Flip(Enums.Direction.Vertical)
-                            : cleanPatternPrintImg.Copy());
-
-                    // 2. 缩放 (Scale)
-                    using Image scalePatternPrintImg = flipImage.Resize(
-                        ImageHelper.pixelSizeToPhysicalSizeNeedScale(
-                            patternPrintImg.Width,
-                            patternPrintLayerTask.DesignImageSizeMm.Width,
-                            patternPieceTask.TargetDpi),
-                        vscale: ImageHelper.pixelSizeToPhysicalSizeNeedScale(
-                            patternPrintImg.Height,
-                            patternPrintLayerTask.DesignImageSizeMm.Height,
-                            patternPieceTask.TargetDpi));
-
-
-                    double translateXPixel = ImageHelper.ConvertMmToPixels(
-                        patternPrintLayerTask.TranslateX,
-                        patternPieceTask.TargetDpi
-                    );
-
-                    double translateYPixel = ImageHelper.ConvertMmToPixels(
-                        patternPrintLayerTask.TranslateY,
-                        patternPieceTask.TargetDpi
-                    );
-
-
-                    double tileTranslateXPixel = 0;
-                    double tileTranslateYPixel = 0;
-                    // 旋转轴心 = 印花图的中心 (宽高的一半)
-                    double pivotX = scalePatternPrintImg.Width / 2.0;
-                    double pivotY = scalePatternPrintImg.Height / 2.0;
-
-                    // --- [新增的平铺逻辑在这里] ---
-                    Image tileImage;
-                    int finalX = Convert.ToInt32(translateXPixel);
-                    int finalY = Convert.ToInt32(translateYPixel);
-                    if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.无平铺))
+                    if (cropImg != null)
                     {
-                        // 如果不平铺，直接使用缩放后的图像
-                        tileImage = scalePatternPrintImg.Copy();
-                        pivotX = Math.Abs(translateXPixel) + (scalePatternPrintImg.Width / 2.0);
-                        pivotY = Math.Abs(translateYPixel) + (scalePatternPrintImg.Height / 2.0);
-                    }
-                    else
-                    {
-                        // 如果启用了平铺，则调用平铺辅助方法 (如果平铺 画布会变化 XY轴偏移量需要重算)
-                        (tileImage, double cellWidth, double cellHeight) =
-                            CreateTiledBackgroundImage(
-                                scalePatternPrintImg,
-                                patternPrintLayerTask,
-                                patternPieceTask);
-                        // 由于平铺背景底图扩大, 所以需要重新计算新的平铺印花图-大背景图居中的偏移量 ((小图尺寸 - 大图尺寸)/2) 除以2是因为大图和小图都是居中, 那么小图与大图宽度的差值 的一半才是实际偏移量
-                        double tileBackgroundImgTranslateX = (ImageHelper.ConvertMmToPixels(
-                            patternPieceTask.PatternPieceTargetWidthMm,
-                            patternPieceTask.TargetDpi
-                        ) - tileImage.Width) / 2.0;
-
-                        double tileBackgroundImgTranslateY = (ImageHelper.ConvertMmToPixels(
-                            patternPieceTask.PatternPieceTargetHeightMm,
-                            patternPieceTask.TargetDpi
-                        ) - tileImage.Width) / 2.0;
-                        // netvips 平铺无法以印花图为中心进行平铺, 智能从左上角开始平铺, 所以平铺后 印花图不会在原来用户定位的位置上, 需要重新定位, 定位方式就是 [X轴偏移量(这个偏移量为原本印花图的偏移量绝对值+平铺印花图偏移量绝对值)/印花框宽度 取余 然后向X轴减少取余部分] [Y轴偏移量/印花框高度 取余 向Y轴减少取余部分]
-
-                        /*double offsetX = (Math.Abs(tileBackgroundImgTranslateX) + Math.Abs(translateXPixel)) %
-                                         cellWidth + cellWidth / 2;*/
-                        double offsetX = (Math.Abs(tileBackgroundImgTranslateX) + Math.Abs(translateXPixel)) %
-                                         cellWidth;
-                        if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.横向错位平铺))
+                        try
                         {
-                            // 如果是横向平铺 则 偶数行的时候 平铺开头只有半张图 位移参数需要补偿半张图(一个cell 印花图+间距)的宽度
-                            offsetX +=
-                                (Math.Floor(
-                                    (Math.Abs(tileBackgroundImgTranslateY) + Math.Abs(translateYPixel)) / cellHeight
-                                    ) % 2 == 0
-                                    ? 0
-                                    : cellWidth/2);
+                            using (var imageToSave = cropImg.Copy(xres: pixelsPerMm, yres: pixelsPerMm))
+                            {
+                                // TODO 写死了PNG格式
+                                // 裁片稿件名称使用 视图id+裁片名称 (裁片名称可能为空 不能只用裁片名称)
+                                string patternPieceProduceImg = localOutputPath + patternPieceTask.ViewId + "-" +
+                                                                patternPieceTask.PatternPieceTitle + ".png";
+                                // 使用通用的 WriteToFile，它会根据后缀名自动选择 png 保存器
+                                //imageToSave.Tiffsave(localOutputPath, xres: pixelsPerMm, yres: pixelsPerMm);
+                                // TODO 图片被之前打开程序锁死无法写入
+                                imageToSave.Pngsave(patternPieceProduceImg);
+                                patternPieceTask.PatternPieceProduceLocalImgUrl = patternPieceProduceImg;
+                            }
                         }
-                        double offsetY = (Math.Abs(tileBackgroundImgTranslateY) + Math.Abs(translateYPixel)) %
-                                         cellHeight;
-                        if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.纵向错位平铺))
+                        catch (Exception ex)
                         {
-                            // 如果是纵向平铺 则 偶数行的时候 平铺开头只有半张图 位移参数需要补偿半张图(一个cell 印花图+间距)的高度
-                            offsetY +=
-                                (Math.Floor(
-                                    (Math.Abs(tileBackgroundImgTranslateX) + Math.Abs(translateXPixel)) / cellWidth) % 2 == 0
-                                    ? 0
-                                    : cellHeight/2);
-                        }
-                        tileTranslateXPixel = tileBackgroundImgTranslateX + offsetX;
-                        tileTranslateYPixel = tileBackgroundImgTranslateY + offsetY;
-                        finalX = Convert.ToInt32(tileTranslateXPixel);
-                        finalY = Convert.ToInt32(tileTranslateYPixel);
-                        // 旋转轴心 = |印花图平铺背景底图偏移量| + |印花图偏移量| + 印花图的中心 (宽高的一半)   这个计算出来的坐标是以平铺印花图为基准, 需要换算成以裁片底图为基准
-                        // pivotX = Math.Abs(tileTranslateXPixel) + Math.Abs(translateXPixel) + (scalePatternPrintImg.Width / 2.0);
-                        // pivotY = Math.Abs(tileTranslateYPixel) + Math.Abs(translateYPixel) + (scalePatternPrintImg.Height / 2.0);
-
-                        pivotX = Math.Abs(translateXPixel) + (scalePatternPrintImg.Width / 2.0);
-                        pivotY = Math.Abs(translateYPixel) + (scalePatternPrintImg.Height / 2.0);
-                    }
-
-
-                    Image rotatePatternPrintImg = tileImage;
-                    if (!patternPrintLayerTask.Rotation.Equals(decimal.Zero))
-                    {
-                        // 3. 旋转 (Rotate)
-                        double rotationAngle = decimal.ToDouble(patternPrintLayerTask.Rotation);
-                        rotatePatternPrintImg = tileImage.Rotate(rotationAngle);
-
-                        // BOF 因为旋转 需要重新计算偏移量
-                        // 4. 计算最终位移 (Translate) 目前前端传的XY轴偏移量 是offset_x和y, 但是经过旋转 这个值又是存在transform和gtransform, 未能一致, 所以后端自己计算了 ；以后可以统一前端计算; 计算值跟印花图的宽高 旋转角度 原来的XY轴偏移量有关
-                        // a. 获取API提供的、基于“未旋转”图像的左上角目标位置
-                        // b. 计算“未旋转”图像的目标中心点
-
-
-                        /*double targetCenterX = translateXPixel + (tileImage.Width / 2.0);
-
-                        double targetCenterY = translateYPixel + (tileImage.Height / 2.0);
-
-                        // c. 旋转后的图像，其内容是居中的，所以我们获取它的尺寸
-                        // d. 根据目标中心点，反向推算出旋转后图像的左上角应该放置的位置，以实现中心对齐
-                        finalX = (int)Math.Round(targetCenterX - (rotatePatternPrintImg.Width / 2.0));
-                        finalY = (int)Math.Round(targetCenterY - (rotatePatternPrintImg.Height / 2.0));*/
-
-
-                        if (!patternPrintLayerTask.TileTool.TileType.Equals(TileType.无平铺))
-                        {
-                            (double NewX, double NewY) = CalcRotateOffsetByPivot(tileImage.Width, tileImage.Height,
-                                finalX, finalY, pivotX, pivotY, rotationAngle);
-                            finalX = Convert.ToInt32(NewX);
-                            finalY = Convert.ToInt32(NewY);
+                            Console.WriteLine($"裁片印花无法正常合成{ex}");
                         }
                     }
+                }
 
-                    if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.无平铺))
+
+                // TO DO 目前缩略图只在自动排版的时候用到 如果不是自动排版 可以不创建缩略图
+                // a. 计算1/10的缩放比例
+                /*const double thumbnailScale = 0.1; // 1/10
+                // 这样的写法 需要多一次磁盘读取 但是直接从内存裁片生产图再保存成缩略图 不知道为什么报错 无法解决
+                using Image PatternPieceImg = Image.NewFromFile(PatternPieceProduceImg,
+                    access: Enums.Access.Sequential);
+                // b. 对最终要保存的大图（已经带DPI信息）进行高质量缩小
+                using (var thumbnailImage = PatternPieceImg.Resize(thumbnailScale, kernel: Enums.Kernel.Lanczos3))
+                {
+                    try
                     {
-                        double targetCenterX = translateXPixel + (tileImage.Width / 2.0);
-
-                        double targetCenterY = translateYPixel + (tileImage.Height / 2.0);
-
-                        // c. 旋转后的图像，其内容是居中的，所以我们获取它的尺寸
-                        // d. 根据目标中心点，反向推算出旋转后图像的左上角应该放置的位置，以实现中心对齐
-                        finalX = (int)Math.Round(targetCenterX - (rotatePatternPrintImg.Width / 2.0));
-                        finalY = (int)Math.Round(targetCenterY - (rotatePatternPrintImg.Height / 2.0));
+                        // d. 保存缩略图
+                        //    可以为缩略图设置较低的压缩质量以减小文件体积
+                        thumbnailImage.Pngsave(localOutputThumbPath + patternPieceTask.PatternPieceTitle + ".png", compression: 9, interlace: true);
+                        Console.WriteLine($"缩略图已保存至: {localOutputThumbPath}");
                     }
-
-                    // EOF 因为旋转 需要重新计算偏移量
-                    if (tempCanvas == null)
+                    catch (Exception ex)
                     {
-                        //画布为空的 直接打印出印花图即可
-                        tempCanvas = rotatePatternPrintImg.Copy();
+                        int X = 1;
                     }
-                    else
-                    {
-                        // 5. 叠加合成
-                        Image newCanvas = tempCanvas.Composite(
-                            rotatePatternPrintImg,
-                            blendMode,
-                            x: finalX,
-                            y: finalY
-                        );
-                        if (tempCanvas != newCanvas)
-                        {
-                            tempCanvas.Dispose();
-                        }
-
-                        tempCanvas = newCanvas;
-                    }
-
-                    rotatePatternPrintImg.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"印花裁片合成出错 {ex}");
-                }
+                }*/
             }
-
-            string localOutputPath = FileName.getOrderPatternPrintImgPath(
-                patternPieceTask.ProduceBatchNum,
-                patternPieceTask.OrderNo,
-                patternPieceTask.BatchNum,
-                patternPieceTask.FactoryId,
-                0);
-
-            Directory.CreateDirectory(localOutputPath);
-
-            string localOutputThumbPath = FileName.getOrderPatternPrintImgThumbPath(
-                patternPieceTask.ProduceBatchNum,
-                patternPieceTask.OrderNo,
-                patternPieceTask.BatchNum,
-                patternPieceTask.FactoryId,
-                0);
-
-            Directory.CreateDirectory(localOutputThumbPath);
-            double pixelsPerMm = patternPieceTask.TargetDpi / ImageHelper.MillimetersPerInch;
-
-            // TODO 如果是 单件手动排版 则不需要保存到磁盘,直接在内存中排版完成 只把生产排版图写入磁盘 以节约磁盘读写
-            /*if (ProduceLayout.MANUAL)
+            finally
             {
-
-            }*/
-            // 执行印花裁剪 如果有需要 根据 PrintCropType判断
-            var cropImg = tempCanvas;
-            if (patternPieceTask.PrintCropType.Equals(PrintCropType.裁片满幅裁切))
-            {
-                cropImg = ImageHelper.CropFromCenter(tempCanvas,
-                    ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.WidthMm, patternPieceTask.TargetDpi),
-                    ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.HeightMm, patternPieceTask.TargetDpi));
+                tempCanvas?.Dispose();
             }
-
-            try
-            {
-                using (var imageToSave = cropImg.Copy(xres: pixelsPerMm, yres: pixelsPerMm))
-                {
-                    // TODO 写死了PNG格式
-                    // 裁片稿件名称使用 视图id+裁片名称 (裁片名称可能为空 不能只用裁片名称)
-                    string patternPieceProduceImg = localOutputPath + patternPieceTask.ViewId + "-" +
-                                                    patternPieceTask.PatternPieceTitle + ".png";
-                    // 使用通用的 WriteToFile，它会根据后缀名自动选择 png 保存器
-                    //imageToSave.Tiffsave(localOutputPath, xres: pixelsPerMm, yres: pixelsPerMm);
-                    // TODO 图片被之前打开程序锁死无法写入
-                    imageToSave.Pngsave(patternPieceProduceImg);
-                    patternPieceTask.PatternPieceProduceLocalImgUrl = patternPieceProduceImg;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"裁片印花无法正常合成{ex}");
-            }
-
-
-            // TO DO 目前缩略图只在自动排版的时候用到 如果不是自动排版 可以不创建缩略图
-            // a. 计算1/10的缩放比例
-            /*const double thumbnailScale = 0.1; // 1/10
-            // 这样的写法 需要多一次磁盘读取 但是直接从内存裁片生产图再保存成缩略图 不知道为什么报错 无法解决
-            using Image PatternPieceImg = Image.NewFromFile(PatternPieceProduceImg,
-                access: Enums.Access.Sequential);
-            // b. 对最终要保存的大图（已经带DPI信息）进行高质量缩小
-            using (var thumbnailImage = PatternPieceImg.Resize(thumbnailScale, kernel: Enums.Kernel.Lanczos3))
-            {
-                try
-                {
-                    // d. 保存缩略图
-                    //    可以为缩略图设置较低的压缩质量以减小文件体积
-                    thumbnailImage.Pngsave(localOutputThumbPath + patternPieceTask.PatternPieceTitle + ".png", compression: 9, interlace: true);
-                    Console.WriteLine($"缩略图已保存至: {localOutputThumbPath}");
-                }
-                catch (Exception ex)
-                {
-                    int X = 1;
-                }
-            }*/
         }
 
         SaveLocalInfo saveLocalInfo = new SaveLocalInfo();
@@ -810,8 +832,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     (int)Math.Ceiling(backgroundWidth / cellWidth);
                 int down = (int)Math.Ceiling(
                     backgroundHeight / cellHeight);
-
-                // TODO 向Y轴上偏移半个印花图高度  sourceTileWithAlpha.Height/2
+                
                 Image verticalTileLineOne = cell.Replicate(1, down);
 
                 using var doubleCell = cell.Join(cell, Enums.Direction.Vertical);

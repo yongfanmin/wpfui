@@ -30,6 +30,8 @@ public partial class ProcessStepScanViewModel : ObservableObject
     private readonly IProduceBatchApi _produceBatchApi;
 
     private readonly IDatabaseService _databaseService;
+    
+    private readonly ISnackbarService _snackbarService;
 
     // BOF  开始生产
     [ObservableProperty] private string _startProduceBatchNo = string.Empty;
@@ -64,37 +66,119 @@ public partial class ProcessStepScanViewModel : ObservableObject
         IContentDialogService contentDialogService,
         LoginInfoService loginInfoService,
         IProduceBatchApi produceBatchApi,
-        IDatabaseService databaseService
+        IDatabaseService databaseService,
+        ISnackbarService snackbarService
     )
     {
         _contentDialogService = contentDialogService;
         _loginInfoService = loginInfoService;
         _produceBatchApi = produceBatchApi;
         _databaseService = databaseService;
+        _snackbarService = snackbarService;
     }
 
     [RelayCommand]
-    private async void SetProduce(object batchNo)
+    private async void SetProduceBatchStart(object produceBatchNum)
     {
-        if (batchNo is not null)
+        if (produceBatchNum is not null)
         {
-            var messageBox = new Wpf.Ui.Controls.MessageBox
-            {
-                Title = "整批开始生产", Content = $"暂未开发此功能: {batchNo}", CloseButtonText = "好的 (Esc)"
-            };
+            var result = await _contentDialogService.ShowSimpleDialogAsync(
+                new SimpleContentDialogCreateOptions()
+                {
+                    Title = "批量设置生产提示",
+                    Content = "请谨慎操作,批量设置后无法取消",
+                    PrimaryButtonText = "确认 (Enter)",
+                    CloseButtonText = "取消 (Esc)"
+                },
+                CancellationToken.None
+            );
 
-            _ = await messageBox.ShowDialogAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                string token = _loginInfoService.getToken();
+                // 后端接口层出现歧义 实际是扫面单上的 item_id (子项) 进行核验, 但是参数名称叫 batchNo (项批号)
+                FactoryApiResponse<Object> setBatchNo2ProduceResponse =
+                    await _produceBatchApi.setProduceBatchNum2Produce(
+                        new ProduceBatchNum2Produce() { ProduceBatchNum = Convert.ToString(produceBatchNum) },
+                        token);
+                if (setBatchNo2ProduceResponse.IsSuccess)
+                {
+                    _snackbarService.Show("整批开始生产", "此生产计划已被设置为开始生产", ControlAppearance.Success,
+                        new SymbolIcon(SymbolRegular.Check24), TimeSpan.FromSeconds(5));
+                    return;
+                }
+                else
+                {
+                    var messageBox = new Wpf.Ui.Controls.MessageBox
+                    {
+                        Title = "整批操作失败", Content = setBatchNo2ProduceResponse.Msg, CloseButtonText = "好的 (Esc)"
+                    };
+                    _ = await messageBox.ShowDialogAsync();
+                }
+            }
         }
         else
         {
             var messageBox = new Wpf.Ui.Controls.MessageBox
             {
-                Title = "整批开始生产", Content = "请先扫码或输入批次号", CloseButtonText = "好的 (Esc)"
+                Title = "整批操作提示", Content = "请先扫码或输入批次号", CloseButtonText = "好的 (Esc)"
             };
 
             _ = await messageBox.ShowDialogAsync();
         }
     }
+
+    [RelayCommand]
+    private async void SetProduceBatchComplete(object produceBatchNum)
+    {
+        if (produceBatchNum is not null)
+        {
+            var result = await _contentDialogService.ShowSimpleDialogAsync(
+                new SimpleContentDialogCreateOptions()
+                {
+                    Title = "批量设置生产完成提示",
+                    Content = "请谨慎操作,批量设置后无法取消",
+                    PrimaryButtonText = "确认 (Enter)",
+                    CloseButtonText = "取消 (Esc)"
+                },
+                CancellationToken.None
+            );
+
+            if (result == ContentDialogResult.Primary)
+            {
+                string token = _loginInfoService.getToken();
+                FactoryApiResponse<Object> setBatchNo2ProduceResponse =
+                    await _produceBatchApi.setProduceBatchNum2Complete(
+                        new ProduceBatchNo2ProduceComplete() { ProduceBatchNum = Convert.ToString(produceBatchNum) },
+                        token);
+                if (setBatchNo2ProduceResponse.IsSuccess)
+                {
+                    _snackbarService.Show("整批生产完成", "此生产计划已被设置为生产完成", ControlAppearance.Success,
+                        new SymbolIcon(SymbolRegular.Check24), TimeSpan.FromSeconds(5));
+                    return;
+                }
+                else
+                {
+                    var messageBox = new Wpf.Ui.Controls.MessageBox
+                    {
+                        Title = "整批操作失败", Content = setBatchNo2ProduceResponse.Msg, CloseButtonText = "好的 (Esc)"
+                    };
+                    _ = await messageBox.ShowDialogAsync();
+                }
+            }
+        }
+        else
+        {
+            var messageBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "整批操作提示", Content = "请先扫码或输入批次号", CloseButtonText = "好的 (Esc)"
+            };
+
+            _ = await messageBox.ShowDialogAsync();
+        }
+    }
+
+    
 
     // 开始生产
     [RelayCommand]
@@ -181,7 +265,10 @@ public partial class ProcessStepScanViewModel : ObservableObject
         }
     }
 
-    // 完成生产
+    
+    
+    
+    // 完成生产 生产完成
     [RelayCommand]
     private async void OnEnterConfirmCompleteProduce()
     {

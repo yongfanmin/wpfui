@@ -10,6 +10,12 @@ namespace Wpf.Ui.Gallery.Config;
 
 public static class ParallelTaskRunner
 {
+
+    public static Task RunAllWithLimitedConcurrencyAsync(IEnumerable<Action> taskList)
+    {
+        return RunAllWithLimitedConcurrencyAsync(taskList, LocalAppConfig.AppSetting.GetParallelThreads());
+    }
+    
     /// <summary>
     /// Executes a list of actions concurrently with a specified maximum degree of parallelism,
     /// and returns a Task that completes when all actions are finished.
@@ -24,7 +30,7 @@ public static class ParallelTaskRunner
         }
         if (maxConcurrency < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(maxConcurrency), "Concurrency must be at least 1.");
+            throw new ArgumentOutOfRangeException(nameof(maxConcurrency), "你传参设置的执行生产图合成的线程数量不能小于1");
         }
 
         // --- [核心解决方案在这里] ---

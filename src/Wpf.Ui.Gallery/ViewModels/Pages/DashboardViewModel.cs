@@ -54,10 +54,9 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     [ObservableProperty] private bool _isIndicatorBlinking = false;
     [ObservableProperty] private string _batchNo = string.Empty;
 
-    [ObservableProperty]
-    private ObservableCollection<DateFilterButton> _dateFilterButtons = new();
+    [ObservableProperty] private ObservableCollection<DateFilterButton> _dateFilterButtons = new();
 
-    
+
     // DispatcherTimer 使用的是UI线程 会对UI产生阻塞导致卡顿 死锁
     // private readonly DispatcherTimer _pollingTimer;
     private readonly System.Timers.Timer _pollingTimer;
@@ -142,7 +141,6 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                 await SearchBatchDataAsync(button.Value);
             }
         }
-        
     }
 
     private DateFilterButton GetSelectedDateFilterButton()
@@ -154,11 +152,13 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                 return button;
             }
         }
+
         var today = DateTime.Today;
         return DateFilterButtons.FirstOrDefault() ?? new DateFilterButton
         {
-            DisplayText = "最近两天", IsSelected = true,
-            Value = $"{today.AddDays(-1).ToString("yyyy-MM-dd")+","+today.ToString("yyyy-MM-dd")}",
+            DisplayText = "最近两天",
+            IsSelected = true,
+            Value = $"{today.AddDays(-1).ToString("yyyy-MM-dd") + "," + today.ToString("yyyy-MM-dd")}",
         };
     }
 
@@ -169,13 +169,13 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
 
         DateFilterButtons.Add(new DateFilterButton
         {
-            DisplayText = "最近两天", IsSelected = true,
-            Value = $"{today.AddDays(-1).ToString("yyyy-MM-dd")+","+today.ToString("yyyy-MM-dd")}",
+            DisplayText = "最近两天",
+            IsSelected = true,
+            Value = $"{today.AddDays(-1).ToString("yyyy-MM-dd") + "," + today.ToString("yyyy-MM-dd")}",
         });
         DateFilterButtons.Add(new DateFilterButton
         {
-            DisplayText = "前天",
-            Value = today.AddDays(-2).ToString("yyyy-MM-dd"),
+            DisplayText = "前天", Value = today.AddDays(-2).ToString("yyyy-MM-dd"),
         });
 
         var dayBeforeYesterday = today.AddDays(-3);
@@ -184,15 +184,14 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             var date = dayBeforeYesterday.AddDays(-i);
             DateFilterButtons.Add(new DateFilterButton
             {
-                DisplayText = date.ToString("M月d日"),
-                Value = date.ToString("yyyy-MM-dd")
+                DisplayText = date.ToString("M月d日"), Value = date.ToString("yyyy-MM-dd")
             });
         }
-        
+
         DateFilterButtons.Add(new DateFilterButton
         {
-            DisplayText =  $"{today.AddDays(-9).ToString("M月d日")+" ~ "+today.AddDays(-30).ToString("M月d日")}",
-            Value = $"{today.AddDays(-30).ToString("yyyy-MM-dd")+","+today.AddDays(-9).ToString("yyyy-MM-dd")}",
+            DisplayText = $"{today.AddDays(-9).ToString("M月d日") + " ~ " + today.AddDays(-30).ToString("M月d日")}",
+            Value = $"{today.AddDays(-30).ToString("yyyy-MM-dd") + "," + today.AddDays(-9).ToString("yyyy-MM-dd")}",
         });
     }
 
@@ -325,8 +324,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         {
             // 获取订单
             ProduceBatchRequest produceBatchRequest = new ProduceBatchRequest();
-            // TODO 写死固定获取10条
-            produceBatchRequest.Num = 10;
+            // 有多少工作线程 就拉取多少生产计划 最低拉取10条
+            produceBatchRequest.Num = Math.Max(LocalAppConfig.AppSetting.GetParallelThreads(), 10);
             string token = _loginInfoService.getToken();
             // 获取并锁定批次
             FactoryApiResponse<List<ProduceBatchInfo>> produceBatchListResponse =
@@ -375,6 +374,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                     UniqueBatchItem uniqueBatchItem =
                         JsonSerializer.Deserialize<UniqueBatchItem>(produceItemEntity.ProduceBatchDetail);
                     ProduceBatchTaskResult produceResult =
+                        // 执行生产任务 【合成生产图】
                         _produceImageProcessor.ProcessProductionTask(uniqueBatchItem);
                     if (produceResult is null)
                     {
@@ -415,8 +415,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             }
         }
 
-        await ParallelTaskRunner.RunAllWithLimitedConcurrencyAsync(composeActions,
-            LocalAppConfig.AppSetting.GetParallelThreads());
+        await ParallelTaskRunner.RunAllWithLimitedConcurrencyAsync(composeActions);
     }
 
 
@@ -424,65 +423,71 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     {
         List<ProduceItemEntity> produceItemEntityList =
             _databaseService.GetProduceBatchItemList(uniqueBatchItemNumList);
-        var downloadTasks = new List<Task>();
+        var itemParallelTasks = new List<Task>();
         foreach (ProduceItemEntity produceItemEntity in produceItemEntityList)
         {
-            try
+            itemParallelTasks.Add(Task.Run(async () =>
             {
-                UniqueBatchItem uniqueBatchItem =
-                    JsonSerializer.Deserialize<UniqueBatchItem>(produceItemEntity.ProduceBatchDetail);
-                List<ProductionTask> productionTaskList = uniqueBatchItem.ProductionTasks;
-                foreach (ProductionTask productionTask in productionTaskList)
+                var downloadTasks = new List<Task>();
+                try
                 {
-                    downloadTasks.Add(Task.Run(async () =>
+                    UniqueBatchItem uniqueBatchItem =
+                        JsonSerializer.Deserialize<UniqueBatchItem>(produceItemEntity.ProduceBatchDetail);
+                    List<ProductionTask> productionTaskList = uniqueBatchItem.ProductionTasks;
+                    foreach (ProductionTask productionTask in productionTaskList)
                     {
-                        // 下载裁片图
-                        LocalImgInfo? patternPieceImg2localImg =
-                            await _imageDownloader.DownloadImageAsync(
-                                productionTask.PatternPieceImageUrl,
-                                FileName.getPatternPieceImgPath(productionTask.FactoryId,
-                                    productionTask.DesignProductId),
-                                // 一个view包含多个面的情况 例如单幅全印 部分单幅全印
-                                $"{productionTask.ViewId}-{productionTask.PatternPieceTitle}");
-                        // TODO 图片为空 需要报错
-                        productionTask.PatternPieceImageLocalImg = patternPieceImg2localImg;
-                        // 下载裁片对应印花图
-                        foreach (PrintLayerInfo taskPrintLayer in productionTask.PrintLayers)
+                        downloadTasks.Add(Task.Run(async () =>
                         {
-                            string fileName = taskPrintLayer.GalleryId.ToString();
-                            if (taskPrintLayer.GalleryId == -1)
-                            {
-                                // 目前进入这个逻辑的是 文字印花  没有图库图片id ; 不能使用图库id命名文件
-                                fileName = Path.GetFileNameWithoutExtension(taskPrintLayer.DesignImageUrl);
-                                // 名称替换 替换掉原来不合理的名称 没其他用途
-                                fileName = fileName.Replace("-ftp-product","-print-product");
-                            }
-                            LocalImgInfo? patternPrintImg2localImg =
+                            // 下载裁片图
+                            LocalImgInfo? patternPieceImg2localImg =
                                 await _imageDownloader.DownloadImageAsync(
-                                    taskPrintLayer.DesignImageUrl,
-                                    FileName.getPatternPrintImgPath(productionTask.FactoryId,
-                                        taskPrintLayer.GalleryId),
-                                    fileName);
+                                    productionTask.PatternPieceImageUrl,
+                                    FileName.getPatternPieceImgPath(productionTask.FactoryId,
+                                        productionTask.DesignProductId),
+                                    // 一个view包含多个面的情况 例如单幅全印 部分单幅全印
+                                    $"{productionTask.ViewId}-{productionTask.PatternPieceTitle}");
                             // TODO 图片为空 需要报错
-                            taskPrintLayer.DesignImageLocalImg = patternPrintImg2localImg;
-                        }
-                    }));
-                    await Task.WhenAll(downloadTasks);
-                }
+                            productionTask.PatternPieceImageLocalImg = patternPieceImg2localImg;
+                            // 下载裁片对应印花图
+                            foreach (PrintLayerInfo taskPrintLayer in productionTask.PrintLayers)
+                            {
+                                string fileName = taskPrintLayer.GalleryId.ToString();
+                                if (taskPrintLayer.GalleryId == -1)
+                                {
+                                    // 目前进入这个逻辑的是 文字印花  没有图库图片id ; 不能使用图库id命名文件
+                                    fileName = Path.GetFileNameWithoutExtension(taskPrintLayer.DesignImageUrl);
+                                    // 名称替换 替换掉原来不合理的名称 没其他用途
+                                    fileName = fileName.Replace("-ftp-product", "-print-product");
+                                }
 
-                updateProduceBatchItemDetail(
-                    uniqueBatchItem,
-                    ProduceBatchItemProcess.图片已加载
-                );
-                // TODO 整批图片下载不完全的时候需要额外校验 部分出错不能算整批图片下载成功
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"任务 {produceItemEntity.ProduceBatchNum}-{produceItemEntity.BatchNum} 下载图片出错。");
-                // 将 task 或整个 order 持久化到失败列表
-                //await _failedOrderService.SaveFailedTaskAsync(task, ex.Message); 
-            }
+                                LocalImgInfo? patternPrintImg2localImg =
+                                    await _imageDownloader.DownloadImageAsync(
+                                        taskPrintLayer.DesignImageUrl,
+                                        FileName.getPatternPrintImgPath(productionTask.FactoryId,
+                                            taskPrintLayer.GalleryId),
+                                        fileName);
+                                // TODO 图片为空 需要报错
+                                taskPrintLayer.DesignImageLocalImg = patternPrintImg2localImg;
+                            }
+                        }));
+                    }
+
+                    await Task.WhenAll(downloadTasks);
+                    updateProduceBatchItemDetail(
+                        uniqueBatchItem,
+                        ProduceBatchItemProcess.图片已加载
+                    );
+                    // TODO 整批图片下载不完全的时候需要额外校验 部分出错不能算整批图片下载成功
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"任务 {produceItemEntity.ProduceBatchNum}-{produceItemEntity.BatchNum} 下载图片出错。");
+                    // 将 task 或整个 order 持久化到失败列表
+                    //await _failedOrderService.SaveFailedTaskAsync(task, ex.Message); 
+                }
+            }));
         }
+        await Task.WhenAll(itemParallelTasks);
     }
 
 
@@ -509,73 +514,78 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             produceBatchItem.ProduceBatchNumber,
             produceBatchOrderList.Data);
         Console.WriteLine("项批号" + produceBatchItem.ProduceBatchNumber + "详情抓取成功");
+        var downloadTasks = new List<Task>();
         foreach (ProductBatchItemInfo produceBatchItemInfo in produceBatchOrderList.Data)
         {
-            ProduceBatchDetailRequest produceBatchDetailRequest = new ProduceBatchDetailRequest();
-            produceBatchDetailRequest.BatchNo = produceBatchItemInfo.BatchNum;
-
-            // 获取项位批次详情 (订单详情) 同一个订单不同产品不同批次号
-            FactoryApiResponse<List<JsonNode?>> produceBatchOrderDetailObj =
-                await _produceBatchDetailApi.getProduceBatchDetailObjTest(
-                    produceBatchDetailRequest,
-                    token);
-            Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "-项位批次" +
-                              produceBatchItemInfo.BatchNum + "详情抓取成功");
-            List<ProduceBatchItemDetail> orderPrintBatchList =
-                ProduceBatchItemDetail.ConstructByArrayJson(produceBatchOrderDetailObj.Data);
-            var taskBuilder = new ProductionTaskBuilder();
-            // 项批号详情对应子项列表 (一般只有一个子项  一个订单)
-            Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "所有子项数据已加载");
-            UpdateProduceBatchStatus(produceBatchItem.ProduceBatchNumber, ProduceBatchStatus.处理中);
-            foreach (ProduceBatchItemDetail produceBatchItemDetail in orderPrintBatchList)
+            downloadTasks.Add(Task.Run(async () =>
             {
-                try
+                ProduceBatchDetailRequest produceBatchDetailRequest = new ProduceBatchDetailRequest();
+                produceBatchDetailRequest.BatchNo = produceBatchItemInfo.BatchNum;
+
+                // 获取项位批次详情 (订单详情) 同一个订单不同产品不同批次号
+                FactoryApiResponse<List<JsonNode?>> produceBatchOrderDetailObj =
+                    await _produceBatchDetailApi.getProduceBatchDetailObjTest(
+                        produceBatchDetailRequest,
+                        token);
+                Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "-项位批次" +
+                                  produceBatchItemInfo.BatchNum + "详情抓取成功");
+                List<ProduceBatchItemDetail> orderPrintBatchList =
+                    ProduceBatchItemDetail.ConstructByArrayJson(produceBatchOrderDetailObj.Data);
+                var taskBuilder = new ProductionTaskBuilder();
+                // 项批号详情对应子项列表 (一般只有一个子项  一个订单)
+                Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "所有子项数据已加载");
+                UpdateProduceBatchStatus(produceBatchItem.ProduceBatchNumber, ProduceBatchStatus.处理中);
+                foreach (ProduceBatchItemDetail produceBatchItemDetail in orderPrintBatchList)
                 {
-                    AddProduceBatchNeedLayoutItemCount(produceBatchItem.ProduceBatchNumber,
-                        produceBatchItemDetail.IsMultiPiece);
-                    //订单生产信息 转换成本软件 用于制造生产的图最少信息 (可以写各种方法 用于兼容其他平台的生产数据 转换成我们生产软件专用的数据结构)
-                    List<ProductionTask> productionTasks =
-                        taskBuilder.BuildTasksFromItem(produceBatchItemDetail);
-                    //TODO 兼容: 理论上DPI应该设置在整个布料排版上与设备绑定, 但是现在DPI却设置在裁片上
-                    int targetDpi = Decimal.ToInt32(
-                        produceBatchItemDetail.ProducePrintInfo
-                            .FirstOrDefault().Value.TargetDpi);
-                    UniqueBatchItem uniqueBatchItem = new UniqueBatchItem()
+                    try
                     {
-                        DesignProductId = produceBatchItemDetail.DesignProductId,
-                        BatchNum = produceBatchItemDetail.BatchNum,
-                        ProduceBatchNum = produceBatchItemDetail.ProduceBatchNumber,
-                        Size = produceBatchItemDetail.Attributes.SizeAlias,
-                        SizeId = produceBatchItemDetail.Attributes.SizeId,
-                        Color = produceBatchItemDetail.Attributes.ColorAlias,
-                        ProductName = produceBatchItemDetail.DesignName,
-                        OrderNo = produceBatchItemDetail.OrderNo,
-                        OrderCode = produceBatchItemDetail.OrderCode,
-                        ItemId = produceBatchItemDetail.ItemId,
-                        OrderDetailId = produceBatchItemDetail.OrderDetailId,
-                        IsMultiPiece = produceBatchItemDetail.IsMultiPiece,
-                        TargetDpi = targetDpi,
-                        ProductionTasks = productionTasks
-                    };
-                    updateProduceBatchItemDetail(uniqueBatchItem, ProduceBatchItemProcess.数据已加载);
-                    downloadDataList.Add(new UniqueBatchItemNum()
+                        AddProduceBatchNeedLayoutItemCount(produceBatchItem.ProduceBatchNumber,
+                            produceBatchItemDetail.IsMultiPiece);
+                        //订单生产信息 转换成本软件 用于制造生产的图最少信息 (可以写各种方法 用于兼容其他平台的生产数据 转换成我们生产软件专用的数据结构)
+                        List<ProductionTask> productionTasks =
+                            taskBuilder.BuildTasksFromItem(produceBatchItemDetail);
+                        //TODO 兼容: 理论上DPI应该设置在整个布料排版上与设备绑定, 但是现在DPI却设置在裁片上
+                        int targetDpi = Decimal.ToInt32(
+                            produceBatchItemDetail.ProducePrintInfo
+                                .FirstOrDefault().Value.TargetDpi);
+                        UniqueBatchItem uniqueBatchItem = new UniqueBatchItem()
+                        {
+                            DesignProductId = produceBatchItemDetail.DesignProductId,
+                            BatchNum = produceBatchItemDetail.BatchNum,
+                            ProduceBatchNum = produceBatchItemDetail.ProduceBatchNumber,
+                            Size = produceBatchItemDetail.Attributes.SizeAlias,
+                            SizeId = produceBatchItemDetail.Attributes.SizeId,
+                            Color = produceBatchItemDetail.Attributes.ColorAlias,
+                            ProductName = produceBatchItemDetail.DesignName,
+                            OrderNo = produceBatchItemDetail.OrderNo,
+                            OrderCode = produceBatchItemDetail.OrderCode,
+                            ItemId = produceBatchItemDetail.ItemId,
+                            OrderDetailId = produceBatchItemDetail.OrderDetailId,
+                            IsMultiPiece = produceBatchItemDetail.IsMultiPiece,
+                            TargetDpi = targetDpi,
+                            ProductionTasks = productionTasks
+                        };
+                        updateProduceBatchItemDetail(uniqueBatchItem, ProduceBatchItemProcess.数据已加载);
+                        downloadDataList.Add(new UniqueBatchItemNum()
+                        {
+                            ProduceBatchNum = uniqueBatchItem.ProduceBatchNum, BatchNum = uniqueBatchItem.BatchNum,
+                        });
+                        Console.WriteLine(
+                            $"生产计划{uniqueBatchItem.ProduceBatchNum}的项批号{uniqueBatchItem.BatchNum}数据已写入数据库");
+                    }
+                    catch (Exception e)
                     {
-                        ProduceBatchNum = uniqueBatchItem.ProduceBatchNum, BatchNum = uniqueBatchItem.BatchNum,
-                    });
-                    Console.WriteLine($"生产计划{uniqueBatchItem.ProduceBatchNum}的项批号{uniqueBatchItem.BatchNum}数据已写入数据库");
+                        Console.WriteLine(e);
+                    }
                 }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-            }
+            }));
         }
 
-
+        await Task.WhenAll(downloadTasks);
         return downloadDataList;
     }
 
-    
+
     public void UpdateProduceBatchStatus(string produceBatchNum, ProduceBatchStatus produceBatchStatus)
     {
         ProduceBatchVo produceBatchVo =
@@ -602,7 +612,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             }
         }
     }
-    
+
     public void updateProduceBatchItemDetail(UniqueBatchItem uniqueBatchItem,
         ProduceBatchItemProcess produceBatchItemProcess)
     {
@@ -650,12 +660,14 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         }
 
         ProducePlanEntity producePlanEntity = _databaseService.GetProducePlan(produceBatchNumber);
-        if (producePlanEntity.NeedLayoutCount > 0 && (producePlanEntity.NeedLayoutCount == producePlanEntity.LayoutCreateCount))
+        if (producePlanEntity.NeedLayoutCount > 0 &&
+            (producePlanEntity.NeedLayoutCount == producePlanEntity.LayoutCreateCount))
         {
             // 多裁片印花且排版完成
             UpdateProduceBatchStatus(produceBatchNumber, ProduceBatchStatus.生产准备就绪);
         }
-        else if(producePlanEntity.NeedLayoutCount == 0 && (producePlanEntity.AvlProduceBatchItemCount == producePlanEntity.PiecePrintCount))
+        else if (producePlanEntity.NeedLayoutCount == 0 &&
+                 (producePlanEntity.AvlProduceBatchItemCount == producePlanEntity.PiecePrintCount))
         {
             // 非多裁片 裁片印花完成
             UpdateProduceBatchStatus(produceBatchNumber, ProduceBatchStatus.生产准备就绪);
@@ -750,15 +762,11 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     }
 }
 
-
 public partial class DateFilterButton : ObservableObject
 {
-    [ObservableProperty]
-    private string _displayText = string.Empty;
+    [ObservableProperty] private string _displayText = string.Empty;
 
-    [ObservableProperty]
-    private string _value = string.Empty;
+    [ObservableProperty] private string _value = string.Empty;
 
-    [ObservableProperty]
-    private bool _isSelected = false;
+    [ObservableProperty] private bool _isSelected = false;
 }
