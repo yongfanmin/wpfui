@@ -318,6 +318,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         return produceBatchItemVo;
     }
 
+    // TODO 这个方法瞬间抓取大量订单的情况下 会阻塞UI线程 导致程序界面未响应
     private async Task LoadBatchDataAsync()
     {
         try
@@ -758,6 +759,37 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             // 2. 发送一个包含了批次号的消息
             //    我们假设 SettingsViewModel 会监听这个消息
             WeakReferenceMessenger.Default.Send(new ProduceBatchNumMessage() { ProduceBatchNumber = produceBatchNum });
+        }
+    }
+    
+    [RelayCommand]
+    private async void ResetProduction(object? selectedItems)
+    {
+        if (selectedItems is not IList<object> items || items.Count == 0)
+            return;
+
+        var selectedBatches = items.OfType<ProduceBatchVo>().ToList();
+        if (selectedBatches.Count == 0)
+            return;
+
+        var batchNumbers = string.Join(Environment.NewLine, selectedBatches.Select(b => b.ProduceBatchNum));
+
+        var messageBox = new Wpf.Ui.Controls.MessageBox
+        {
+            Title = "确认重置生产",
+            Content = $"确定要重置以下生产计划吗？\n\n{batchNumbers}",
+            PrimaryButtonText = "确定重置",
+            CloseButtonText = "取消"
+        };
+
+        var result = await messageBox.ShowDialogAsync();
+        if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
+        {
+            foreach (var batch in selectedBatches)
+            {
+                //_databaseService.ResetProduction(batch.ProduceBatchNum);
+                ProductBatchCollection.Remove(batch);
+            }
         }
     }
 }
