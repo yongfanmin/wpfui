@@ -6,6 +6,8 @@
     xmlns:local="clr-namespace:Wpf.Ui.Gallery.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:utils="clr-namespace:Wpf.Ui.Gallery.Utils"
+    x:Name="ProduceBatchItemPageRoot"
     Title="ProduceBatchPage"
     d:DataContext="{d:DesignInstance local:ProduceBatchItemPage,
                                      IsDesignTimeCreatable=False}"
@@ -16,6 +18,111 @@
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
     <Page.Resources>
+        <utils:BindingProxy x:Key="Proxy" Data="{Binding ElementName=ProduceBatchItemPageRoot}" />
+        <Style x:Key="DataGridRowStyleWithContextMenu" TargetType="{x:Type DataGridRow}">
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
+            <Setter Property="ValidationErrorTemplate">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <ui:SymbolIcon
+                            Margin="-4,0,-12,0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                            Width="24"
+                            Height="24"
+                            Symbol="ErrorCircle12" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type DataGridRow}">
+                        <Border
+                            x:Name="DGR_Border"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{DynamicResource ControlCornerRadius}"
+                            SnapsToDevicePixels="True">
+                            <SelectiveScrollingGrid>
+                                <SelectiveScrollingGrid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </SelectiveScrollingGrid.ColumnDefinitions>
+                                <SelectiveScrollingGrid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </SelectiveScrollingGrid.RowDefinitions>
+                                <DataGridCellsPresenter
+                                    Grid.Column="1"
+                                    ItemsPanel="{TemplateBinding ItemsPanel}"
+                                    SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                <DataGridDetailsPresenter
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    SelectiveScrollingGrid.SelectiveScrollingOrientation="{Binding AreRowDetailsFrozen, ConverterParameter={x:Static SelectiveScrollingOrientation.Vertical}, Converter={x:Static DataGrid.RowDetailsScrollingConverter}, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                    Visibility="{TemplateBinding DetailsVisibility}" />
+                                <DataGridRowHeader
+                                    Grid.Row="0"
+                                    Grid.RowSpan="2"
+                                    Grid.Column="0"
+                                    SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical"
+                                    Visibility="{Binding HeadersVisibility, ConverterParameter={x:Static DataGridHeadersVisibility.Row}, Converter={x:Static DataGrid.HeadersVisibilityConverter}, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}" />
+                                <Rectangle
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    x:Name="ActiveRectangle"
+                                    Width="3"
+                                    Height="18"
+                                    Margin="0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Fill="{DynamicResource ListViewItemPillFillBrush}"
+                                    RadiusX="2"
+                                    RadiusY="2"
+                                    Visibility="Collapsed" />
+                            </SelectiveScrollingGrid>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="AlternationIndex" Value="0">
+                                <Setter TargetName="DGR_Border" Property="Background" Value="{Binding RowBackground, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}" />
+                            </Trigger>
+                            <Trigger Property="AlternationIndex" Value="1">
+                                <Setter TargetName="DGR_Border" Property="Background" Value="{Binding AlternatingRowBackground, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsEnabled" Value="True" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="DGR_Border" Property="Background" Value="{DynamicResource ListViewItemBackgroundPointerOver}" />
+                            </MultiTrigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ActiveRectangle" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="DGR_Border" Property="Background" Value="{DynamicResource ListViewItemBackgroundPointerOver}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ContextMenu">
+                <Setter.Value>
+                    <ContextMenu>
+                        <MenuItem Header="重置生产"
+                                  Command="{Binding Data.ViewModel.ResetProductionAsyncCommand, Source={StaticResource Proxy}}" />
+                    </ContextMenu>
+                </Setter.Value>
+            </Setter>
+            <EventSetter Event="ContextMenuOpening" Handler="DataGridRow_ContextMenuOpening"/>
+        </Style>
+
         <Style x:Key="SelectableReadOnlyCellStyle" TargetType="{x:Type TextBox}">
             <!-- 1. 核心：设为只读 -->
             <Setter Property="IsReadOnly" Value="True" />
@@ -70,11 +177,14 @@
             BorderThickness="1"
             CornerRadius="8">
             <ui:DataGrid
+                x:Name="ProductBatchItemDataGrid"
+                SelectionMode="Extended"
                 Margin="0 12 0 0"
                 ItemsSource="{Binding ViewModel.ProductBatchItemCollection, Mode=TwoWay}"
                 AutoGenerateColumns="False"
                 CanUserAddRows="False"
-                IsReadOnly="True">
+                IsReadOnly="True"
+                RowStyle="{StaticResource DataGridRowStyleWithContextMenu}">
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Header="项批号">
                         <DataGridTemplateColumn.CellTemplate>

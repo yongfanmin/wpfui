@@ -3,6 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using System.Collections;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Windows.Foundation.Metadata;
@@ -127,5 +128,46 @@ public sealed partial class ProduceBatchItemViewModel : ObservableObject, IRecip
                 }
             }
         }
+    }
+    
+    [RelayCommand]
+    private async void ResetProductionAsync(object? selectedItems)
+    {
+        if (selectedItems is not IList<object> items || items.Count == 0)
+            return;
+        var selectedBatches = items.OfType<ProduceBatchVo>().ToList();
+        if (selectedBatches.Count == 0)
+            return;
+        
+        // 弹出确认对话框
+        var messageBox = new Wpf.Ui.Controls.MessageBox
+        {
+            Title = "确认操作",
+            Content = $"您确定要重置选中的 {selectedBatches.Count} 个生产项吗？此操作将删除相关数据，请谨慎操作。",
+            PrimaryButtonText = "确认重置",
+            CloseButtonText = "取消"
+        };
+
+        var result = await messageBox.ShowDialogAsync();
+        if (result != Wpf.Ui.Controls.MessageBoxResult.Primary)
+        {
+            return;
+        }
+
+        foreach (var item in selectedBatches)
+        {
+           //  _databaseService.ResetProduction(item.ProduceBatchNum);
+        }
+        
+        // 操作完成后给出提示
+        var successMessageBox = new Wpf.Ui.Controls.MessageBox
+        {
+            Title = "操作成功",
+            Content = "选中的生产项已成功重置。",
+            CloseButtonText = "好的"
+        };
+        await successMessageBox.ShowDialogAsync();
+
+        Search(SelectedProduceBatchNumber);
     }
 }
