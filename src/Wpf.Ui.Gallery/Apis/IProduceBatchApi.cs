@@ -49,6 +49,15 @@ public class ProduceBatchNo2ProduceComplete
     public string ProduceBatchNum { get; set; }
 }
 
+public class ResetRequest
+{
+    [JsonPropertyName("produceBatchNumber")]
+    public string ProduceBatchNum { get; set; }
+    
+    [JsonPropertyName("batchNo")]
+    public string BatchNo { get; set; }
+}
+
 
 public interface IProduceBatchApi
 {
@@ -90,4 +99,11 @@ public interface IProduceBatchApi
         [Header("Token")] string token
     );
     
+    
+    [Post("/api/v2/factoryInterface/produce/edit")]
+    Task<FactoryApiResponse<Object>> resetProduce(
+        [Body] ResetRequest request,
+        // TODO 接口端使用非标准鉴权方式
+        [Header("Token")] string token
+    );
 }

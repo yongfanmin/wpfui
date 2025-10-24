@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using System.Timers;
 using CommunityToolkit.Mvvm.Messaging;
 using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
@@ -46,7 +47,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     private readonly INavigationService _navigationService;
 
     private readonly IDatabaseService _databaseService;
-
+    
+    private readonly ISnackbarService _snackbarService;
 
     [ObservableProperty] private bool _isAcceptingOrders = false;
 
@@ -77,6 +79,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         IImageDownloader imageDownloader,
         IProduceImageProcessor produceImageProcessor,
         INavigationService navigationService,
+        ISnackbarService snackbarService,
         IDatabaseService databaseService
     )
     {
@@ -87,6 +90,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         _imageDownloader = imageDownloader;
         _produceImageProcessor = produceImageProcessor;
         _navigationService = navigationService;
+        _snackbarService = snackbarService;
         _databaseService = databaseService;
 
         /*_pollingTimer = new DispatcherTimer
@@ -772,12 +776,14 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         if (selectedBatches.Count == 0)
             return;
 
-        var batchNumbers = string.Join(Environment.NewLine, selectedBatches.Select(b => b.ProduceBatchNum));
+        var content = selectedBatches.Count == 1
+            ? $"确定要重置生产计划【{selectedBatches.First().ProduceBatchNum}】吗？"
+            : $"确定要重置选中的 {selectedBatches.Count} 个生产计划吗？";
 
         var messageBox = new Wpf.Ui.Controls.MessageBox
         {
             Title = "确认重置生产",
-            Content = $"确定要重置以下生产计划吗？\n\n{batchNumbers}",
+            Content = content,
             PrimaryButtonText = "确定重置",
             CloseButtonText = "取消"
         };
@@ -785,10 +791,25 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         var result = await messageBox.ShowDialogAsync();
         if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
         {
-            foreach (var batch in selectedBatches)
+            string token = _loginInfoService.getToken();
+            FactoryApiResponse<object> resetResponse =
+            await _produceBatchApi.resetProduce(
+                new ResetRequest()
+                {
+                    ProduceBatchNum = string.Join(",",selectedBatches.Select(item=>item.ProduceBatchNum).ToList()),
+                    BatchNo = "",
+                },
+                token);
+            if (resetResponse.IsSuccess)
             {
-                //_databaseService.ResetProduction(batch.ProduceBatchNum);
-                ProductBatchCollection.Remove(batch);
+                _snackbarService.Show("重置生产成功", $"生产计划: {string.Join(" ， ",selectedBatches.Select(item=>item.ProduceBatchNum).ToList())}",
+                    ControlAppearance.Success, new SymbolIcon(SymbolRegular.Check24),
+                    TimeSpan.FromSeconds(5));
+            }
+            else
+            {
+                _snackbarService.Show("重置生产失败", resetResponse.Msg, ControlAppearance.Danger,
+                    new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(5));
             }
         }
     }

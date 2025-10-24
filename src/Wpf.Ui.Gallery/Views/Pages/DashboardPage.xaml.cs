@@ -3,6 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using System.Windows.Controls;
 using NetVips;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Dto.CreateImg;
@@ -11,6 +12,7 @@ using Wpf.Ui.Gallery.Services.Creator;
 using Wpf.Ui.Gallery.Services.Downloader;
 using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.ViewModels.Pages;
+using Image = NetVips.Image;
 
 namespace Wpf.Ui.Gallery.Views.Pages;
 
@@ -30,6 +32,24 @@ public partial class DashboardPage : INavigableView<DashboardViewModel>
         InitializeComponent();
 
         ViewModel.PageLoadedCommand.Execute(null);
+    }
+    
+    private void DataGridRow_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (sender is not DataGridRow { ContextMenu: { } } row) return;
+
+        var menuItem = row.ContextMenu.Items.OfType<MenuItem>().FirstOrDefault(x => x.Header as string == "重置生产");
+        if (menuItem == null) return;
+        
+        // If the right-clicked row is not in the current selection,
+        // clear the selection and select only the right-clicked row.
+        if (!ProductBatchDataGrid.SelectedItems.Contains(row.DataContext))
+        {
+            ProductBatchDataGrid.SelectedItems.Clear();
+            ProductBatchDataGrid.SelectedItems.Add(row.DataContext);
+        }
+
+        menuItem.CommandParameter = ProductBatchDataGrid.SelectedItems;
     }
 
     // 单裁片效果图合成 ,  一个产品的效果图 需要由多个裁片叠加 最后再叠加上AO高光图得出最终产品效果图

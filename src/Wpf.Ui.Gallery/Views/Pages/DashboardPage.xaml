@@ -124,11 +124,11 @@
                 <Setter.Value>
                     <ContextMenu>
                         <MenuItem Header="重置生产"
-                                  Command="{Binding Data.ResetProductionCommand, Source={StaticResource Proxy}}" 
-                                  CommandParameter="{Binding Data.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                  Command="{Binding Data.ViewModel.ResetProductionCommand, Source={StaticResource Proxy}}" />
                     </ContextMenu>
                 </Setter.Value>
             </Setter>
+            <EventSetter Event="ContextMenuOpening" Handler="DataGridRow_ContextMenuOpening"/>
         </Style>
 
         <Style x:Key="SelectableReadOnlyCellStyle" TargetType="{x:Type TextBox}">
@@ -391,6 +391,8 @@
             BorderThickness="1"
             CornerRadius="8">
             <ui:DataGrid
+                x:Name="ProductBatchDataGrid"
+                SelectionMode="Extended"
                 ItemsSource="{Binding ViewModel.ProductBatchCollection, Mode=TwoWay}"
                 AutoGenerateColumns="False"
                 CanUserAddRows="False"
