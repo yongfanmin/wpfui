@@ -39,7 +39,7 @@ public partial class App
     // https://docs.microsoft.com/dotnet/core/extensions/logging
 
     // 工厂管理后台地址
-    public static readonly string FactoryManageUrl = "https://factory.sds-diy.xyz";
+    public static readonly string FactoryManageUrl = "https://factory.gongwohuo.cn";
 
     private static readonly string _apiDomain = FactoryManageUrl;
     // private static readonly string _domain = "https://factory.gongwohuo.cn";

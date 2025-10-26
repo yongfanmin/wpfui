@@ -8,7 +8,11 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Windows.Foundation.Metadata;
 using CommunityToolkit.Mvvm.Messaging;
+using Wpf.Ui.Controls;
+using Wpf.Ui.Gallery.Apis;
+using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Models;
+using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Table;
 using Wpf.Ui.Gallery.Vo;
@@ -17,18 +21,31 @@ namespace Wpf.Ui.Gallery.ViewModels.Pages;
 
 public sealed partial class ProduceBatchItemViewModel : ObservableObject, IRecipient<ProduceBatchNumMessage>
 {
-    [ObservableProperty] private string _selectedProduceBatchNumber = "";
+    private readonly IProduceBatchApi _produceBatchApi;
     
-    [ObservableProperty] private string _selectedBatchNum = "";
+    private readonly LoginInfoService _loginInfoService;
     
     private readonly IDatabaseService _databaseService;
+    
+    private readonly ISnackbarService _snackbarService;
 
     private readonly ObservableCollection<ProduceBatchItemVo> _originalProductBatchCollection = new ObservableCollection<ProduceBatchItemVo>();
 
     [ObservableProperty] private ObservableCollection<ProduceBatchItemVo> _productBatchItemCollection;
+    
+    [ObservableProperty] private string _selectedProduceBatchNumber = "";
+    
+    [ObservableProperty] private string _selectedBatchNum = "";
 
-    public ProduceBatchItemViewModel(IDatabaseService databaseService)
+    public ProduceBatchItemViewModel(
+        IProduceBatchApi produceBatchApi,
+        LoginInfoService loginInfoService,
+        ISnackbarService snackbarService,
+        IDatabaseService databaseService)
     {
+        _produceBatchApi = produceBatchApi;
+        _loginInfoService = loginInfoService;
+        _snackbarService = snackbarService;
         _databaseService = databaseService;
         // 3. 在构造函数中注册为消息接收者
         WeakReferenceMessenger.Default.Register<ProduceBatchNumMessage>(this);
@@ -133,41 +150,49 @@ public sealed partial class ProduceBatchItemViewModel : ObservableObject, IRecip
     [RelayCommand]
     private async void ResetProductionAsync(object? selectedItems)
     {
+       
         if (selectedItems is not IList<object> items || items.Count == 0)
             return;
-        var selectedBatches = items.OfType<ProduceBatchVo>().ToList();
+
+        var selectedBatches = items.OfType<ProduceBatchItemVo>().ToList();
         if (selectedBatches.Count == 0)
             return;
-        
-        // 弹出确认对话框
+
+        var content = selectedBatches.Count == 1
+            ? $"确定要重置项批号【{selectedBatches.First().BatchNum}】吗？"
+            : $"确定要重置选中的 {selectedBatches.Count} 个项批号吗？";
+
         var messageBox = new Wpf.Ui.Controls.MessageBox
         {
-            Title = "确认操作",
-            Content = $"您确定要重置选中的 {selectedBatches.Count} 个生产项吗？此操作将删除相关数据，请谨慎操作。",
-            PrimaryButtonText = "确认重置",
+            Title = "确认重置生产",
+            Content = content,
+            PrimaryButtonText = "确定重置",
             CloseButtonText = "取消"
         };
 
         var result = await messageBox.ShowDialogAsync();
-        if (result != Wpf.Ui.Controls.MessageBoxResult.Primary)
+        if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
         {
-            return;
+            string token = _loginInfoService.getToken();
+            FactoryApiResponse<object> resetResponse =
+                await _produceBatchApi.resetProduce(
+                    new ResetRequest()
+                    {
+                        ProduceBatchNum = "",
+                        BatchNo = string.Join(",",selectedBatches.Select(item=>item.BatchNum).ToList()),
+                    },
+                    token);
+            if (resetResponse.IsSuccess)
+            {
+                _snackbarService.Show("重置生产成功", $"项批号: {string.Join(" ， ",selectedBatches.Select(item=>item.BatchNum).ToList())}",
+                    ControlAppearance.Success, new SymbolIcon(SymbolRegular.Check24),
+                    TimeSpan.FromSeconds(5));
+            }
+            else
+            {
+                _snackbarService.Show("重置生产失败", resetResponse.Msg, ControlAppearance.Danger,
+                    new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(5));
+            }
         }
-
-        foreach (var item in selectedBatches)
-        {
-           //  _databaseService.ResetProduction(item.ProduceBatchNum);
-        }
-        
-        // 操作完成后给出提示
-        var successMessageBox = new Wpf.Ui.Controls.MessageBox
-        {
-            Title = "操作成功",
-            Content = "选中的生产项已成功重置。",
-            CloseButtonText = "好的"
-        };
-        await successMessageBox.ShowDialogAsync();
-
-        Search(SelectedProduceBatchNumber);
     }
 }

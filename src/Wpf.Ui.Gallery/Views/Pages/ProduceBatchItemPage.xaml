@@ -112,14 +112,16 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Setter Property="ContextMenu">
+            <!-- 重置项批号 需要在软件端 单独获取此项批号数据 然后在软件端重新生产 不走获取生产计划的统一流程 -->
+            <!--<Setter Property="ContextMenu">
                 <Setter.Value>
                     <ContextMenu>
                         <MenuItem Header="重置生产"
+                                  Tag="ResetMenuItem"
                                   Command="{Binding Data.ViewModel.ResetProductionAsyncCommand, Source={StaticResource Proxy}}" />
                     </ContextMenu>
                 </Setter.Value>
-            </Setter>
+            </Setter>-->
             <EventSetter Event="ContextMenuOpening" Handler="DataGridRow_ContextMenuOpening"/>
         </Style>
 

@@ -105,9 +105,9 @@ public partial class PickingViewModel : ObservableObject
         return true;
     }
 
-    private void ScanOrder(string orderCode)
+    private void ScanOrder(string scanCode)
     {
-        AddOrder(new OrderPick() { OrderNo = "", OrderCode = orderCode, ItemCount = 0, });
+        AddOrder(new OrderPick() { OrderNo = "", OrderCode = scanCode, ItemCount = 0, });
     }
 
     // 拣货
@@ -168,22 +168,48 @@ public partial class PickingViewModel : ObservableObject
                 {
                     //获取订单数据
                     string token = _loginInfoService.getToken();
-                    FactoryApiResponse<Object> orderDetailReturn = await _orderApi.getOrderDetailByOrderCode(
-                        new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
-                        token
-                    );
+                    FactoryApiResponse<Object> orderDetailReturn = null;
+                    string errorMessage = "";
+                    if (StringUtil.IsBatchNo(orderPick.OrderCode))
+                    {
+                        var messageBox = new Wpf.Ui.Controls.MessageBox
+                        {
+                            Title = "警告", Content = "暂不支持项批号查询", CloseButtonText = "好的 (Esc)"
+                        };
+
+                        _ = await messageBox.ShowDialogAsync();
+                        /*errorMessage = "项批号不存在";
+                        orderDetailReturn = await _orderApi.getOrderDetailByBatchNo(
+                            new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
+                            token
+                        );*/
+                    }
+                    else if (StringUtil.IsItem(orderPick.OrderCode))
+                    {
+                        errorMessage = "子项号不存在";
+                        orderDetailReturn = await _orderApi.getOrderDetailByItemId(
+                            new ItemIdRequest() { ItemId = orderPick.OrderCode },
+                            token
+                        );
+                    }
+                    else
+                    {
+                        errorMessage = "订单编码不存在";
+                        orderDetailReturn = await _orderApi.getOrderDetailByOrderCode(
+                            new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
+                            token
+                        );
+                    }
                     if (orderDetailReturn.Data is null)
                     {
                         AudioPlayer.PlayErrorAudio();
                         var messageBox = new Wpf.Ui.Controls.MessageBox
                         {
-                            Title = "警告", Content = "订单编码不存在", CloseButtonText = "好的 (Esc)"
+                            Title = "警告", Content = errorMessage, CloseButtonText = "好的 (Esc)"
                         };
 
                         _ = await messageBox.ShowDialogAsync();
-                    }
-                    else
-                    {
+                    } else {
                         // TODO 需要语音播报几号篮
                         // 开头第一个固定分拣数量为1
                         thisOrderPick.PickCount = 1;
@@ -225,7 +251,7 @@ public partial class PickingViewModel : ObservableObject
             }
         }
     }
-
+    
     // 调整分拣数
     [RelayCommand]
     private async void AdjustSortQuantity(IList<object> selectedItems)

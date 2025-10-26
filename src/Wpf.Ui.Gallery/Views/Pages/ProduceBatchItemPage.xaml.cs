@@ -7,7 +7,7 @@ using System.Windows.Controls;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.ControlsLookup;
 using Wpf.Ui.Gallery.ViewModels.Pages;
-using MenuItem = Wpf.Ui.Controls.MenuItem;
+using MenuItem = System.Windows.Controls.MenuItem;
 
 namespace Wpf.Ui.Gallery.Views.Pages;
 
@@ -28,17 +28,20 @@ public partial class ProduceBatchItemPage : INavigableView<ProduceBatchItemViewM
     {
         if (sender is not DataGridRow { ContextMenu: { } } row) return;
 
-        var menuItem = row.ContextMenu.Items.OfType<MenuItem>().FirstOrDefault(x => x.Header as string == "重置生产");
+        var menuItem = row.ContextMenu.Items.OfType<MenuItem>().FirstOrDefault(x => x.Tag as string == "ResetMenuItem");
         if (menuItem == null) return;
 
+        var PGrid = ProductBatchItemDataGrid;
         // If the right-clicked row is not in the current selection,
         // clear the selection and select only the right-clicked row.
-        if (!ProductBatchItemDataGrid.SelectedItems.Contains(row.DataContext))
+        if (!PGrid.SelectedItems.Contains(row.DataContext))
         {
-            ProductBatchItemDataGrid.SelectedItems.Clear();
-            ProductBatchItemDataGrid.SelectedItems.Add(row.DataContext);
+            PGrid.SelectedItems.Clear();
+            PGrid.SelectedItems.Add(row.DataContext);
         }
-
-        menuItem.CommandParameter = ProductBatchItemDataGrid.SelectedItems;
+        if (PGrid.SelectedItems.Count > 0)
+        {
+            menuItem.CommandParameter = PGrid.SelectedItems;
+        }
     }
 }

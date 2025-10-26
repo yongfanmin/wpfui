@@ -9,7 +9,6 @@ using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Dto.CreateImg;
 using Wpf.Ui.Gallery.Dto.Machine;
 using Wpf.Ui.Gallery.Services.Creator;
-using Wpf.Ui.Gallery.Services.Downloader;
 using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.ViewModels.Pages;
 using Image = NetVips.Image;

@@ -16,12 +16,40 @@ public class OrderCodeRequest
     public string OrderCode { get; set; }
 }
 
+public class BatchNoRequest
+{
+    //[JsonPropertyName("batch_no")]
+    [JsonPropertyName("batchNo")]
+    public string BatchNo { get; set; }
+}
+
+public class ItemIdRequest
+{
+    //[JsonPropertyName("batch_no")]
+    [JsonPropertyName("itemId")]
+    public string ItemId { get; set; }
+}
+
 public interface IOrderApi
 {
     // 获取订单编码
     [Post("/api/v2/factoryInterface/getOrderDetailByOrderCode")]
     Task<FactoryApiResponse<Object>> getOrderDetailByOrderCode(
         [Body] OrderCodeRequest request,
+        [Header("Token")] string token
+    );
+    
+    
+    [Post("/api/v2/factoryInterface/getOrderDetailByBatchNo")]
+    Task<FactoryApiResponse<Object>> getOrderDetailByBatchNo(
+        [Body] BatchNoRequest request,
+        [Header("Token")] string token
+    );
+    
+    
+    [Post("/api/v2/factoryInterface/getOrderDetailByItemId")]
+    Task<FactoryApiResponse<Object>> getOrderDetailByItemId(
+        [Body] ItemIdRequest request,
         [Header("Token")] string token
     );
     
