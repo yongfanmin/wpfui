@@ -559,8 +559,10 @@ public partial class PickingViewModel : ObservableObject
         _printDialogViewModel.SelectedPrinter = LocalAppConfig.AppSetting.DefaultPrinterName;
         try
         {
-            // 需要打印提示
             _printDialogViewModel.PrintCommand.Execute(null);
+            _snackbarService.Show("发货单自动打印中...", $"订单编码: {orderPick.OrderCode}",
+                ControlAppearance.Success, new SymbolIcon(SymbolRegular.Check24),
+                TimeSpan.FromSeconds(3));
         }
         catch (Exception ex)
         {

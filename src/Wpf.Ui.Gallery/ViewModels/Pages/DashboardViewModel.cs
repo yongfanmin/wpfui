@@ -766,6 +766,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         }
     }
     
+    // 重置生产
     [RelayCommand]
     private async void ResetProduction(object? selectedItems)
     {
@@ -812,6 +813,14 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                     new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(5));
             }
         }
+    }
+
+    // 批量打印准备 批量打印 合批打印 印花图归集 创建打印任务
+    [RelayCommand]
+    private async void CreatePrintTask(object? selectedItems)
+    {
+        _snackbarService.Show("开始创建打印任务", "xxxxx", ControlAppearance.Danger,
+            new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(5));
     }
 }
 

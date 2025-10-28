@@ -123,8 +123,11 @@
             <Setter Property="ContextMenu">
                 <Setter.Value>
                     <ContextMenu>
+                        <MenuItem Header="归类印花图"
+                                  Command="{Binding Data.ViewModel.CreatePrintTaskCommand, Source={StaticResource Proxy}}" />
                         <MenuItem Header="重置生产"
                                   Command="{Binding Data.ViewModel.ResetProductionCommand, Source={StaticResource Proxy}}" />
+                        
                     </ContextMenu>
                 </Setter.Value>
             </Setter>
