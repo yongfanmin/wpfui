@@ -9,6 +9,7 @@ using System.Timers;
 using CommunityToolkit.Mvvm.Messaging;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
+using Wpf.Ui.Extensions;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
@@ -49,6 +50,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     private readonly IDatabaseService _databaseService;
     
     private readonly ISnackbarService _snackbarService;
+    
+    private readonly IContentDialogService _contentDialogService;
 
     [ObservableProperty] private bool _isAcceptingOrders = false;
 
@@ -80,6 +83,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         IProduceImageProcessor produceImageProcessor,
         INavigationService navigationService,
         ISnackbarService snackbarService,
+        IContentDialogService contentDialogService,
         IDatabaseService databaseService
     )
     {
@@ -91,6 +95,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         _produceImageProcessor = produceImageProcessor;
         _navigationService = navigationService;
         _snackbarService = snackbarService;
+        _contentDialogService = contentDialogService;
         _databaseService = databaseService;
 
         /*_pollingTimer = new DispatcherTimer
@@ -819,8 +824,25 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     [RelayCommand]
     private async void CreatePrintTask(object? selectedItems)
     {
-        _snackbarService.Show("开始创建打印任务", "xxxxx", ControlAppearance.Danger,
-            new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(5));
+        if (selectedItems is not IList<object> items || items.Count == 0)
+            return;
+        var selectedBatches = items.OfType<ProduceBatchVo>().ToList();
+        if (selectedBatches.Count == 0)
+        {
+            _snackbarService.Show("操作失败", "没有选中任何有效的生产计划", ControlAppearance.Danger,
+                new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(3));
+            return;
+        }
+
+        var viewModel = new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum), _databaseService);
+        var machineConfigModifyBox = await _contentDialogService.ShowSimpleDialogAsync(
+            new SimpleContentDialogCreateOptions()
+            {
+                Title = "创建打印任务",
+                Content = new CreatePrintTaskDialog(viewModel),
+                CloseButtonText = "取消"
+            }
+        );
     }
 }
 

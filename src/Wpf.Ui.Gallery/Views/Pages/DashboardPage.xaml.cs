@@ -37,8 +37,8 @@ public partial class DashboardPage : INavigableView<DashboardViewModel>
     {
         if (sender is not DataGridRow { ContextMenu: { } } row) return;
 
-        var menuItem = row.ContextMenu.Items.OfType<MenuItem>().FirstOrDefault(x => x.Header as string == "重置生产");
-        if (menuItem == null) return;
+        /*var menuItem = row.ContextMenu.Items.OfType<MenuItem>().FirstOrDefault(x => x.Tag as string == "CreatePrintTask" || x.Tag as string == "ResetProduction");
+        if (menuItem == null) return;*/
         
         // If the right-clicked row is not in the current selection,
         // clear the selection and select only the right-clicked row.
@@ -47,8 +47,11 @@ public partial class DashboardPage : INavigableView<DashboardViewModel>
             ProductBatchDataGrid.SelectedItems.Clear();
             ProductBatchDataGrid.SelectedItems.Add(row.DataContext);
         }
-
-        menuItem.CommandParameter = ProductBatchDataGrid.SelectedItems;
+        foreach (var menuItem in row.ContextMenu.Items.OfType<MenuItem>())
+        {
+            menuItem.CommandParameter = ProductBatchDataGrid.SelectedItems;
+        }
+        // menuItem.CommandParameter = ProductBatchDataGrid.SelectedItems;
     }
 
     // 创建生产排版图 
