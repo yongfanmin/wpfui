@@ -28,6 +28,6 @@ public static class StringUtil
         {
             return scanCode.Split("-").ToList().All(item => item.All(char.IsDigit));
         }
-        return true;
+        return false;
     }
 }

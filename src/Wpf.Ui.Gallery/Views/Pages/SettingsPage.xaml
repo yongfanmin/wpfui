@@ -121,7 +121,7 @@
                     Command="{Binding ViewModel.FolderClassifyChangedCommand}"
                     CommandParameter="ByOrder" />
                 <RadioButton
-                    Content="按批次区分文件夹"
+                    Content="按计划区分文件夹"
                     IsChecked="{Binding ViewModel.ProduceImgLayoutFolderClassify, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=ByProduceBatch}"
                     GroupName="FolderClassify"
                     Command="{Binding ViewModel.FolderClassifyChangedCommand}"

@@ -16,6 +16,7 @@ using Wpf.Ui.Gallery.Models;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.Vo;
+using Wpf.Ui.Gallery.ViewModels.Windows;
 using TextBlock = Wpf.Ui.Controls.TextBlock;
 using TextBox = System.Windows.Controls.TextBox;
 
@@ -29,6 +30,7 @@ public partial class PickingViewModel : ObservableObject
     private readonly IContentDialogService _contentDialogService;
     private readonly ISnackbarService _snackbarService;
     private readonly WindowsProviderService _windowsProviderService;
+    private readonly PrintDialogViewModel _printDialogViewModel;
 
     private readonly object _lockObject = new object();
 
@@ -46,7 +48,8 @@ public partial class PickingViewModel : ObservableObject
         ISnackbarService snackbarService,
         IOrderApi orderApi,
         LoginInfoService loginInfoService,
-        WindowsProviderService windowsProviderService
+        WindowsProviderService windowsProviderService,
+        PrintDialogViewModel printDialogViewModel
     )
     {
         _contentDialogService = contentDialogService;
@@ -54,6 +57,7 @@ public partial class PickingViewModel : ObservableObject
         _orderApi = orderApi;
         _loginInfoService = loginInfoService;
         _windowsProviderService = windowsProviderService;
+        _printDialogViewModel = printDialogViewModel;
 
         LoadBasketSortHistory();
         UpdateBasketList();
@@ -107,6 +111,7 @@ public partial class PickingViewModel : ObservableObject
 
     private void ScanOrder(string scanCode)
     {
+        PickOrderCode = string.Empty;
         AddOrder(new OrderPick() { OrderNo = "", OrderCode = scanCode, ItemCount = 0, });
     }
 
@@ -125,6 +130,35 @@ public partial class PickingViewModel : ObservableObject
         }
         else
         {
+            string errorMessage = "";
+            string token = _loginInfoService.getToken();
+            FactoryApiResponse<Object> orderDetailReturn = null;
+            if (StringUtil.IsBatchNo(orderPick.OrderCode))
+            {
+                var messageBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "警告", Content = "暂不支持项批号查询", CloseButtonText = "好的 (Esc)"
+                };
+
+                _ = await messageBox.ShowDialogAsync();
+                return;
+                /*errorMessage = "项批号不存在";
+                orderDetailReturn = await _orderApi.getOrderDetailByBatchNo(
+                    new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
+                    token
+                );*/
+            }
+            else if (StringUtil.IsItem(orderPick.OrderCode))
+            {
+                errorMessage = "子项号不存在";
+                orderDetailReturn = await _orderApi.getOrderDetailByItemId(
+                    new ItemIdRequest() { ItemId = orderPick.OrderCode },
+                    token
+                );
+                OrderReturnDetail orderReturnDetail =
+                    JsonSerializer.Deserialize<OrderReturnDetail>(orderDetailReturn.Data.ToString());
+                orderPick.OrderCode = orderReturnDetail.OrderCode;
+            }
             if (OrderPickBasketList.Any(item => orderPick.OrderCode.Equals(item.OrderCode)))
             {
                 OrderPick thisOrderPick =
@@ -150,7 +184,12 @@ public partial class PickingViewModel : ObservableObject
                                                      thisOrderPick.PickCount >= thisOrderPick.ItemCount;
                             if (thisOrderPick.IsPicked)
                             {
+                                // 分拣完成
                                 AudioPlayer.PlayCompleteAudio();
+                                if (LocalAppConfig.AppSetting.AutoPrintAfterPicking)
+                                {
+                                    AutoPrintWaybill(thisOrderPick);
+                                }
                             }
                             else
                             {
@@ -167,39 +206,11 @@ public partial class PickingViewModel : ObservableObject
                 if (thisOrderPick is not null)
                 {
                     //获取订单数据
-                    string token = _loginInfoService.getToken();
-                    FactoryApiResponse<Object> orderDetailReturn = null;
-                    string errorMessage = "";
-                    if (StringUtil.IsBatchNo(orderPick.OrderCode))
-                    {
-                        var messageBox = new Wpf.Ui.Controls.MessageBox
-                        {
-                            Title = "警告", Content = "暂不支持项批号查询", CloseButtonText = "好的 (Esc)"
-                        };
-
-                        _ = await messageBox.ShowDialogAsync();
-                        /*errorMessage = "项批号不存在";
-                        orderDetailReturn = await _orderApi.getOrderDetailByBatchNo(
-                            new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
-                            token
-                        );*/
-                    }
-                    else if (StringUtil.IsItem(orderPick.OrderCode))
-                    {
-                        errorMessage = "子项号不存在";
-                        orderDetailReturn = await _orderApi.getOrderDetailByItemId(
-                            new ItemIdRequest() { ItemId = orderPick.OrderCode },
-                            token
-                        );
-                    }
-                    else
-                    {
-                        errorMessage = "订单编码不存在";
-                        orderDetailReturn = await _orderApi.getOrderDetailByOrderCode(
-                            new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
-                            token
-                        );
-                    }
+                    errorMessage = "订单编码不存在";
+                    orderDetailReturn = await _orderApi.getOrderDetailByOrderCode(
+                        new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
+                        token
+                    );
                     if (orderDetailReturn.Data is null)
                     {
                         AudioPlayer.PlayErrorAudio();
@@ -227,7 +238,12 @@ public partial class PickingViewModel : ObservableObject
                                                      thisOrderPick.PickCount >= thisOrderPick.ItemCount;
                             if (thisOrderPick.IsPicked)
                             {
+                                //分拣完成
                                 AudioPlayer.PlayCompleteAudio();
+                                if (LocalAppConfig.AppSetting.AutoPrintAfterPicking)
+                                {
+                                    AutoPrintWaybill(thisOrderPick);
+                                }
                             }
                             else
                             {
@@ -477,10 +493,40 @@ public partial class PickingViewModel : ObservableObject
     private async Task OpenSettingsDialog()
     {
         var dialog = new ContentDialog(_contentDialogService.GetDialogHost());
+
+        // Basket count setting
         var numberBox = new NumberBox { Value = BasketCount };
 
-        dialog.Title = "设置分拣篮总数量";
-        dialog.Content = new StackPanel { Children = { new TextBlock { Text = "输入当前分拣篮总数量:" }, numberBox } };
+        // Printer setting
+        var printerComboBox = new System.Windows.Controls.ComboBox();
+        var printers = new List<string>();
+        foreach (string printer in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
+        {
+            printers.Add(printer);
+        }
+        printerComboBox.ItemsSource = printers;
+        printerComboBox.SelectedItem = LocalAppConfig.AppSetting.DefaultPrinterName;
+
+        // Auto-print setting
+        var autoPrintToggle = new ToggleSwitch
+        {
+            Margin = new System.Windows.Thickness(0, 10, 0, 0),
+            IsChecked = LocalAppConfig.AppSetting.AutoPrintAfterPicking,
+            Content = "分拣完成后自动打印面单"
+        };
+
+        dialog.Title = "设置";
+        dialog.Content = new StackPanel
+        {
+            Children =
+            {
+                new TextBlock { Text = "输入当前分拣篮总数量:" },
+                numberBox,
+                new TextBlock { Text = "选择默认打印机:", Margin = new Thickness(0, 10, 0, 0) },
+                printerComboBox,
+                autoPrintToggle
+            }
+        };
         dialog.PrimaryButtonText = "确定";
         dialog.CloseButtonText = "取消";
 
@@ -488,29 +534,41 @@ public partial class PickingViewModel : ObservableObject
 
         if (result == ContentDialogResult.Primary)
         {
+            // Save basket count
             int currentBasketCount = BasketCount;
             int newBasketCount = (int)numberBox.Value;
-            if (newBasketCount > currentBasketCount)
+            if (newBasketCount != currentBasketCount)
             {
-                // 新增分拣篮 .... 如果需要进行判断
                 BasketCount = newBasketCount;
-            }
-            else if (newBasketCount < currentBasketCount)
-            {
-                // 新增分拣篮 .... 如果需要进行判断
-                BasketCount = newBasketCount;
-            }
-            else
-            {
-                // 分拣篮数量不变 不需要更新
-                return;
+                if (!UpdateBasketList())
+                {
+                    BasketCount = currentBasketCount; // Revert on failure
+                }
             }
 
-            if (!UpdateBasketList())
+            // Save printer and auto-print settings
+            LocalAppConfig.AppSetting.DefaultPrinterName = printerComboBox.SelectedItem as string;
+            LocalAppConfig.AppSetting.AutoPrintAfterPicking = autoPrintToggle.IsChecked ?? false;
+            LocalAppConfig.Save(LocalAppConfig.AppSetting);
+        }
+    }
+
+    private async void AutoPrintWaybill(OrderPick orderPick)
+    {
+        await _printDialogViewModel.FetchAndDownloadWaybill(orderPick);
+        _printDialogViewModel.SelectedPrinter = LocalAppConfig.AppSetting.DefaultPrinterName;
+        try
+        {
+            // 需要打印提示
+            _printDialogViewModel.PrintCommand.Execute(null);
+        }
+        catch (Exception ex)
+        {
+            var messageBox = new Wpf.Ui.Controls.MessageBox
             {
-                // 更新失败 恢复原来的分拣篮数量
-                BasketCount = currentBasketCount;
-            }
+                Title = "警告", Content = $"分拣完成, 打印面单失败 {ex.Message}", CloseButtonText = "好的 (Esc)"
+            };
+            _ = messageBox.ShowDialogAsync();
         }
     }
 

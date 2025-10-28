@@ -76,7 +76,7 @@ public class AppSetting
         {
             { ProduceImgLayoutFolderClassify.AllInOne, "统一文件夹" },
             { ProduceImgLayoutFolderClassify.ByOrder, "按单归类" },
-            { ProduceImgLayoutFolderClassify.ByProduceBatch, "按批次归类" },
+            { ProduceImgLayoutFolderClassify.ByProduceBatch, "按计划归类" },
             { ProduceImgLayoutFolderClassify.ByProduct, "按产品归类" },
         };
 
@@ -120,6 +120,10 @@ public class AppSetting
     public bool ShowDeliveryProduceSuccessDialog { get; set; } = true;
     
     public List<BasketSort> BasketSortList { get; set; } = new();
+    
+    public string DefaultPrinterName { get; set; } = string.Empty;
+
+    public bool AutoPrintAfterPicking { get; set; } = false;
 }
 
 public class WindowSettings

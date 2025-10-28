@@ -188,11 +188,13 @@ public partial class ProcessStepScanViewModel : ObservableObject
         {
             string token = _loginInfoService.getToken();
             // 后端接口层出现歧义 实际是扫面单上的 item_id (子项) 进行核验, 但是参数名称叫 batchNo (项批号)
+            string batchNo = StartProduceBatchNo;
+            StartProduceBatchNo = string.Empty;
             FactoryApiResponse<Object> setBatchNo2ProduceResponse =
                 await _produceBatchApi.setBatchNo2Produce(
                 new BatchNo2Produce()
                 {
-                    BatchNo = StartProduceBatchNo
+                    BatchNo = batchNo
                 },
                 token);
             ProduceItemScanResultVo produceItemScanResultVo =
@@ -215,13 +217,13 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 {
                     var messageBox = new Wpf.Ui.Controls.MessageBox
                     {
-                        Title = "扫码枪确认", Content = $"开始生产计划编号: {StartProduceBatchNo}", CloseButtonText = "好的 (Esc)"
+                        Title = "扫码枪确认", Content = $"开始生产计划编号: {batchNo}", CloseButtonText = "好的 (Esc)"
                     };
                     _ = await messageBox.ShowDialogAsync();
                 }
 
                 // 同步到主界面 同步到本地数据库
-                _databaseService.updateProduceBatchProcess(StartProduceBatchNo, ProduceBatchItemProcess.生产中);
+                _databaseService.updateProduceBatchProcess(batchNo, ProduceBatchItemProcess.生产中);
             }
             else
             {
@@ -237,7 +239,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 }
             }
 
-            ProduceItemEntity produceItemEntity = _databaseService.GetProduceItemByItemId(StartProduceBatchNo);
+            ProduceItemEntity produceItemEntity = _databaseService.GetProduceItemByItemId(batchNo);
             List<string> printLayerImgList = new List<string>();
             if (produceItemEntity is not null)
             {
@@ -303,6 +305,7 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 {
                     var messageBox = new Wpf.Ui.Controls.MessageBox
                     {
+                        // TODO 提示不准确 不一定是扫码枪 也可能是人工点击 "生产完成"按钮触发
                         Title = "扫码枪确认", Content = $"完成项批号: {batchNo}", CloseButtonText = "好的 (Esc)"
                     };
                     _ = await messageBox.ShowDialogAsync();
@@ -368,7 +371,6 @@ public partial class ProcessStepScanViewModel : ObservableObject
                 string.IsNullOrEmpty(CompleteProduceBatchNo) ? ScanEnterValue : CompleteProduceBatchNo;
             OnEnterConfirmCompleteProduce();
         }
-
         ScanEnterValue = string.Empty;
     }
 

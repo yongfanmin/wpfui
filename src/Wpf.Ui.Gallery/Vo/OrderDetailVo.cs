@@ -17,7 +17,7 @@ public class OrderDetailVo
 
     [JsonPropertyName("buy_type_count")] public int TypeCount { get; set; }
 
-    [JsonPropertyName("but_number_count")] public int ItemCount { get; set; }
+    [JsonPropertyName("buy_number_count")] public int ItemCount { get; set; }
 
     [JsonPropertyName("paytime")] public string PayTime { get; set; }
 
