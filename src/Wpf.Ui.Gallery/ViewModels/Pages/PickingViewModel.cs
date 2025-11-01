@@ -505,7 +505,7 @@ public partial class PickingViewModel : ObservableObject
             printers.Add(printer);
         }
         printerComboBox.ItemsSource = printers;
-        printerComboBox.SelectedItem = LocalAppConfig.AppSetting.DefaultPrinterName;
+        printerComboBox.SelectedItem = LocalAppConfig.AppSetting.DefaultWaybillPrinterName;
 
         // Auto-print setting
         var autoPrintToggle = new ToggleSwitch
@@ -547,7 +547,7 @@ public partial class PickingViewModel : ObservableObject
             }
 
             // Save printer and auto-print settings
-            LocalAppConfig.AppSetting.DefaultPrinterName = printerComboBox.SelectedItem as string;
+            LocalAppConfig.AppSetting.DefaultWaybillPrinterName = printerComboBox.SelectedItem as string;
             LocalAppConfig.AppSetting.AutoPrintAfterPicking = autoPrintToggle.IsChecked ?? false;
             LocalAppConfig.Save(LocalAppConfig.AppSetting);
         }
@@ -556,7 +556,7 @@ public partial class PickingViewModel : ObservableObject
     private async void AutoPrintWaybill(OrderPick orderPick)
     {
         await _printDialogViewModel.FetchAndDownloadWaybill(orderPick);
-        _printDialogViewModel.SelectedPrinter = LocalAppConfig.AppSetting.DefaultPrinterName;
+        _printDialogViewModel.SelectedPrinter = LocalAppConfig.AppSetting.DefaultWaybillPrinterName;
         try
         {
             _printDialogViewModel.PrintCommand.Execute(null);

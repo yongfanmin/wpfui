@@ -49,6 +49,8 @@ public interface IDatabaseService
     public void updateProduceBatchProcess(string produceBatchNum, ProduceBatchItemProcess produceBatchItemProcess);
     
     public ProduceItemEntity GetProduceBatchItem(string produceBatchNum, long batchNum);
+
+    public List<ProduceItemEntity> GetProduceItemList(string produceBatchNum);
     
     // 删除数据
     public void DeleteOldProductionData(int days);

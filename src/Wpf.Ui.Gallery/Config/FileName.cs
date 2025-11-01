@@ -75,6 +75,11 @@ public class FileName
                Path.DirectorySeparatorChar;
     }
 
+    public static string getPhotoshopJsxScriptPath()
+    {
+        return AppContext.BaseDirectory + "Assets"+Path.DirectorySeparatorChar+"Script"+Path.DirectorySeparatorChar+"AnyChannel2spot.jsx";
+    }
+
     public static readonly string ProduceImgLayoutName = "ProduceImgLayout";
 
 

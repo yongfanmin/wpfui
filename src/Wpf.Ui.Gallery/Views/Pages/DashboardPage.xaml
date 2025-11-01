@@ -399,6 +399,7 @@
             CornerRadius="8">
             <ui:DataGrid
                 x:Name="ProductBatchDataGrid"
+                SelectionChanged="ProductBatchDataGrid_OnSelectionChanged"
                 SelectionMode="Extended"
                 ItemsSource="{Binding ViewModel.ProductBatchCollection, Mode=TwoWay}"
                 AutoGenerateColumns="False"

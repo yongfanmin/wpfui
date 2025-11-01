@@ -121,9 +121,17 @@ public class AppSetting
     
     public List<BasketSort> BasketSortList { get; set; } = new();
     
-    public string DefaultPrinterName { get; set; } = string.Empty;
+    // 默认发货面单打印机
+    public string DefaultWaybillPrinterName { get; set; } = string.Empty;
 
+    // 分拣完成后自动打印
     public bool AutoPrintAfterPicking { get; set; } = false;
+    
+    // 即将被打印机打印的印花图临时存放文件夹
+    public string PrintTaskDestinationFolder { get; set; } = string.Empty;
+    
+    // 主界面 列表条目 选中后是否弹出 帮助小提示
+    public bool ShowDashboardSelectionHelp { get; set; } = true;
 }
 
 public class WindowSettings

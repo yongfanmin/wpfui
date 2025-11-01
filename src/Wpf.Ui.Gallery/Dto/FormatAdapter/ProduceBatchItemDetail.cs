@@ -213,7 +213,7 @@ public class DesignImageInfo
     [JsonConverter(typeof(StringOrNumberToLongConverter))]
     public long GalleryId { get; set; } // 印花图对应图库id
 
-    [JsonPropertyName("designImg")] public string DesignImageUrl { get; set; } // 印花图URL
+    [JsonPropertyName("url_origin")] public string DesignImageUrl { get; set; } // 印花图URL
 
 
     // matrix(1.7412, 0, 0, 1.7412, -112.8034, -112.8034)

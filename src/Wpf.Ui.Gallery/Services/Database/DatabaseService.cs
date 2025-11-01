@@ -657,4 +657,15 @@ public class DatabaseService : IDatabaseService
             _dbWriteLock.Release();
         }
     }
+
+    public List<ProduceItemEntity> GetProduceItemList(string produceBatchNum)
+    {
+        using (var db = GetConnection())
+        {
+            return db.Table<ProduceItemEntity>()
+                .Where(field => field.ProduceBatchNum == produceBatchNum)
+                .OrderByDescending(o => o.CreateTime)
+                .ToList();
+        }
+    }
 }

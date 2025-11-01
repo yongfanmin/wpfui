@@ -5,13 +5,18 @@
 
 using System.Windows.Controls;
 using NetVips;
+using Wpf.Ui.Controls;
+using Wpf.Ui.Extensions;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Dto.CreateImg;
 using Wpf.Ui.Gallery.Dto.Machine;
+using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Services.Creator;
 using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.ViewModels.Pages;
 using Image = NetVips.Image;
+using MenuItem = System.Windows.Controls.MenuItem;
+using TextBlock = System.Windows.Controls.TextBlock;
 
 namespace Wpf.Ui.Gallery.Views.Pages;
 
@@ -21,16 +26,58 @@ public partial class DashboardPage : INavigableView<DashboardViewModel>
 
     private readonly IImageCreator _imageCreator;
     
+    private readonly IContentDialogService _contentDialogService;
 
-    public DashboardPage(DashboardViewModel viewModel, IImageCreator imageCreator)
+    public DashboardPage(DashboardViewModel viewModel, IImageCreator imageCreator, IContentDialogService contentDialogService)
     {
         ViewModel = viewModel;
         DataContext = this;
         _imageCreator = imageCreator;
-
+        _contentDialogService = contentDialogService;
         InitializeComponent();
 
         ViewModel.PageLoadedCommand.Execute(null);
+    }
+    
+    private bool _isHelpDialogShown = false;
+
+    private async void ProductBatchDataGrid_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems.Count > 0 && !_isHelpDialogShown && LocalAppConfig.AppSetting.ShowDashboardSelectionHelp)
+        {
+            _isHelpDialogShown = true;
+
+            var helpTextBlock = new TextBlock
+            {
+                Text = "1. 按着键盘左下角的 Ctrl 键,可以同时选中多个条目\n2. 选中条目后鼠标右键可以打开更多操作的菜单栏 [ 归类印花图 , 重置生产 ]",
+                TextWrapping = TextWrapping.Wrap
+            };
+
+            var dontShowAgainCheckBox = new CheckBox
+            {
+                Content = "下次不再提醒"
+            };
+
+            var contentStackPanel = new StackPanel();
+            contentStackPanel.Children.Add(helpTextBlock);
+            contentStackPanel.Children.Add(dontShowAgainCheckBox);
+            
+            var result = await _contentDialogService.ShowSimpleDialogAsync(
+                new SimpleContentDialogCreateOptions()
+                {
+                    Title = "使用帮助",
+                    Content = contentStackPanel,
+                    CloseButtonText = "关闭"
+                },
+                CancellationToken.None
+            );
+
+            if (dontShowAgainCheckBox.IsChecked == true)
+            {
+                LocalAppConfig.AppSetting.ShowDashboardSelectionHelp = false;
+                LocalAppConfig.Save(LocalAppConfig.AppSetting);
+            }
+        }
     }
     
     private void DataGridRow_ContextMenuOpening(object sender, ContextMenuEventArgs e)

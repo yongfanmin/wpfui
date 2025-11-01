@@ -10,8 +10,14 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows.Documents;
 using System.Windows.Media.Imaging;
+using DataJuggler.RealESRGAN;
+using DataJuggler.RealESRGAN.Enumerations;
+using ImageMagick;
+using ImageMagick.Formats;
+using Microsoft.Win32;
 using NetVips;
 using Wpf.Ui.Gallery.Apis;
+using Wpf.Ui.Gallery.Component;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Converters;
@@ -47,17 +53,21 @@ public class ProduceImageProcessor : IProduceImageProcessor
     private readonly ILayoutApi _layoutApi;
 
     private readonly LoginInfoService _loginInfoService;
+    
+    private readonly PhotoshopService _photoshopService;
 
     // 构造函数：声明自己需要一个 IImageProcessor
     public ProduceImageProcessor(
         IImageCreator imageCreator,
         ILayoutApi layoutApi,
-        LoginInfoService loginInfoService
+        LoginInfoService loginInfoService,
+        PhotoshopService photoshopService
     )
     {
         _imageCreator = imageCreator;
         _layoutApi = layoutApi; // DI容器会自动提供实例
         _loginInfoService = loginInfoService;
+        _photoshopService = photoshopService;
     }
 
     // TODO 现在同产品多印花面 会打印N次 导致磁盘多写入N次 但生产图会覆盖 所以结果没问题 因为获取一个生产项信息的数据包含多个面信息 直接一次生成了全部生产图
@@ -68,7 +78,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
         {
             if (!uniqueBatchItem.IsMultiPiece)
             {
-                Console.WriteLine($"批次号[{uniqueBatchItem.ProduceBatchNum}]项批号[{uniqueBatchItem.BatchNum}]没有任何印花图层 已跳过生产");
+                Console.WriteLine(
+                    $"批次号[{uniqueBatchItem.ProduceBatchNum}]项批号[{uniqueBatchItem.BatchNum}]没有任何印花图层 已跳过生产");
                 return null;
             }
             // 这个写法有bug， 局部印的时候(印花单独制造的工艺) 没印花才不打印; 全印的时候, 没有印花 也需要打印出空白裁片
@@ -107,7 +118,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                         // 算出多印花叠加需要的画布大小 [节约画布写法]
                         /*foreach (ProductionTask productionTask in patternPieceTask.PrintLayers)
                         {
-    
+
                         }*/
                     }
                 }
@@ -262,7 +273,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
                                 // 如果是纵向平铺 则 偶数行的时候 平铺开头只有半张图 位移参数需要补偿半张图(一个cell 印花图+间距)的高度
                                 offsetY +=
                                     (Math.Floor(
-                                        (Math.Abs(tileBackgroundImgTranslateX) + Math.Abs(translateXPixel)) / cellWidth) % 2 == 0
+                                        (Math.Abs(tileBackgroundImgTranslateX) + Math.Abs(translateXPixel)) /
+                                        cellWidth) % 2 == 0
                                         ? 0
                                         : cellHeight / 2);
                             }
@@ -298,9 +310,9 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
 
                                 /*double targetCenterX = translateXPixel + (tileImage.Width / 2.0);
-        
+
                                 double targetCenterY = translateYPixel + (tileImage.Height / 2.0);
-        
+
                                 // c. 旋转后的图像，其内容是居中的，所以我们获取它的尺寸
                                 // d. 根据目标中心点，反向推算出旋转后图像的左上角应该放置的位置，以实现中心对齐
                                 finalX = (int)Math.Round(targetCenterX - (rotatePatternPrintImg.Width / 2.0));
@@ -309,7 +321,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
                                 if (!patternPrintLayerTask.TileTool.TileType.Equals(TileType.无平铺))
                                 {
-                                    (double NewX, double NewY) = CalcRotateOffsetByPivot(tileImage.Width, tileImage.Height,
+                                    (double NewX, double NewY) = CalcRotateOffsetByPivot(tileImage.Width,
+                                        tileImage.Height,
                                         finalX, finalY, pivotX, pivotY, rotationAngle);
                                     finalX = Convert.ToInt32(NewX);
                                     finalY = Convert.ToInt32(NewY);
@@ -359,7 +372,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"印花裁片合成出错 {ex}");
+                        throw new Exception($"印花裁片合成出错 {ex}");
                     }
                 }
 
@@ -385,17 +398,17 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 // TODO 如果是 单件手动排版 则不需要保存到磁盘,直接在内存中排版完成 只把生产排版图写入磁盘 以节约磁盘读写
                 /*if (ProduceLayout.MANUAL)
                 {
-    
+
                 }*/
                 // 执行印花裁剪 如果有需要 根据 PrintCropType判断
 
                 using (var cropImg = patternPieceTask.PrintCropType.Equals(PrintCropType.裁片满幅裁切)
-                       ? ImageHelper.CropFromCenter(tempCanvas,
-                           ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.WidthMm,
-                               patternPieceTask.TargetDpi),
-                           ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.HeightMm,
-                               patternPieceTask.TargetDpi))
-                       : tempCanvas?.Copy())
+                           ? ImageHelper.CropFromCenter(tempCanvas,
+                               ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.WidthMm,
+                                   patternPieceTask.TargetDpi),
+                               ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.HeightMm,
+                                   patternPieceTask.TargetDpi))
+                           : tempCanvas?.Copy())
                 {
                     if (cropImg != null)
                     {
@@ -559,9 +572,12 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 patternPiece.ViewId = patternPiecePosition.ViewId;
                 patternPiece.TranslateX = patternPiecePosition.OffsetX;
                 patternPiece.TranslateY = patternPiecePosition.OffsetY;
-                ProductionTask productionTask = productionTasks.Count(item => item.ViewId.Equals(patternPiecePosition.ViewId)) > 1 ?
-                        productionTasks.FirstOrDefault(item => item.ViewId.Equals(patternPiecePosition.ViewId) && item.PatternPieceTitle.Equals(patternPiecePosition.PatternPieceTitle))
-                     : productionTasks.FirstOrDefault(item => item.ViewId.Equals(patternPiecePosition.ViewId));
+                ProductionTask productionTask =
+                    productionTasks.Count(item => item.ViewId.Equals(patternPiecePosition.ViewId)) > 1
+                        ? productionTasks.FirstOrDefault(item =>
+                            item.ViewId.Equals(patternPiecePosition.ViewId) &&
+                            item.PatternPieceTitle.Equals(patternPiecePosition.PatternPieceTitle))
+                        : productionTasks.FirstOrDefault(item => item.ViewId.Equals(patternPiecePosition.ViewId));
                 if (productionTask is null)
                 {
                     //TODO 排版缺少裁片信息
@@ -789,7 +805,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     (int)Math.Ceiling(backgroundWidth / cellWidth);
                 int down = (int)Math.Ceiling(
                     backgroundHeight / cellHeight);
-                
+
                 Image horizontalTileLineOne = cell.Replicate(across, 1);
 
                 using var doubleCell = cell.Join(cell, Enums.Direction.Horizontal);
@@ -832,7 +848,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     (int)Math.Ceiling(backgroundWidth / cellWidth);
                 int down = (int)Math.Ceiling(
                     backgroundHeight / cellHeight);
-                
+
                 Image verticalTileLineOne = cell.Replicate(1, down);
 
                 using var doubleCell = cell.Join(cell, Enums.Direction.Vertical);
@@ -850,12 +866,12 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 // 因为 tileDoubleMod 的宽度是 2 * cellWidth
                 var modDown = (int)Math.Ceiling(across / 2.0);
 
-                using var finalTiledImage = tileDoubleMod.Replicate(modDown,1);
+                using var finalTiledImage = tileDoubleMod.Replicate(modDown, 1);
 
                 // --- 步骤 5: 裁剪到最终需要的精确尺寸 ---
                 var finalImage = finalTiledImage.Crop(0, 0, (int)backgroundWidth, (int)backgroundHeight);
-                
-                
+
+
                 // 返回最终图像和单元格尺寸
                 return (finalImage, cellWidth, cellHeight);
             }
@@ -1032,6 +1048,534 @@ public class ProduceImageProcessor : IProduceImageProcessor
         {
             Console.WriteLine($"生成二维码失败: {ex.Message}");
             return null;
+        }
+    }
+
+    /** 使用 NetVips 将常见图像（如 PNG）转换为带有白色专色通道的 CMYK TIFF 文件。
+    * 此方法性能高，内存占用低。
+    * </summary>
+    * <param name="inputImagePath">输入图像文件（例如 a.png）的完整路径。</param>
+    * <param name="outputTiffPath">输出 TIFF 文件（例如 a.tif）的保存路径。</param>
+    * <param name="cmykProfilePath">（强烈推荐）用于精确颜色转换的 CMYK ICC 颜色配置文件路径。</param> **/
+    public static void ConvertToCmykWithSpotColor(
+        string inputImagePath,
+        string outputTiffPath,
+        string? cmykProfilePath = null, // 参数仍然是可选的
+        double defaultDpi = 300.0)
+    {
+        // AddSpotChannel(inputImagePath,outputTiffPath,"W1");
+        // 测试放放大四倍正常 放大两倍出错 AI图片放大
+        // RealESRGANHelper.UpscaleImage(inputImagePath, outputTiffPath,UpscaleModelEnum.UltraSharp,ScaleEnum.Four_X);
+
+        if (!File.Exists(inputImagePath))
+        {
+            throw new FileNotFoundException("输入图像文件未找到。", inputImagePath);
+        }
+
+        var iccProfileToUse = cmykProfilePath;
+        if (string.IsNullOrEmpty(iccProfileToUse) || !File.Exists(iccProfileToUse))
+        {
+            iccProfileToUse = FindDefaultCmykProfile();
+        }
+
+        string finalCorrectPath = Path.ChangeExtension(outputTiffPath, ".tif");
+
+        using var image = Image.NewFromFile(inputImagePath);
+
+        // --- DPI 准备 ---
+        double dpiX, dpiY;
+        var xresInPpm = image.Xres;
+        var yresInPpm = image.Yres;
+        if (xresInPpm <= 0 || yresInPpm <= 0)
+        {
+            dpiX = defaultDpi;
+            dpiY = defaultDpi;
+        }
+        else
+        {
+            dpiX = xresInPpm * ImageHelper.MillimetersPerInch;
+            dpiY = yresInPpm * ImageHelper.MillimetersPerInch;
+        }
+
+        // --- [最终核心修复：重构整个图像处理流程] ---
+
+        // 步骤 1: 确保我们有一个带 Alpha 通道的源图像。
+        // Alpha 通道将作为我们的专色通道。
+        using var imageWithAlpha = image.HasAlpha()
+            ? image.Copy() // 如果已经有 alpha，直接使用
+            : image.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
+
+        // 步骤 2: 将这个 4 通道的 RGBA 图像转换到目标 CMYK 色彩空间。
+        // libvips 会智能地将 RGB -> CMYK (4 个通道)，并将原始的 Alpha 通道作为第 5 个通道附加。
+        // 这一步的结果是一个 5 通道的图像，其 interpretation 为 Multiband。
+        //using var cmykWithSpot = imageWithAlpha.Colourspace(Enums.Interpretation.Cmyk, sourceSpace: Enums.Interpretation.Srgb);
+        
+        // --- 专色层和 CMYK 图像准备 ---
+        using Image spotPlate = image.HasAlpha()
+            ? image.ExtractBand(image.Bands - 1).Invert()
+            : Image.Black(image.Width, image.Height).Invert();
+        // 创建一个 5x5 的方形结构元素 (核)，用于一次性腐蚀2个像素。 (n-1)/2  n为矩阵长度
+        // 在 NetVips 中，结构元素本身就是一个 Image 对象。
+        using var mask = Image.NewFromArray(new byte[,]
+        {
+            { 255, 255, 255, 255, 255},
+            { 255, 255, 255, 255, 255},
+            { 255, 255, 255, 255, 255},
+            { 255, 255, 255, 255, 255},
+            { 255, 255, 255, 255, 255}
+        });
+        // 使用创建的 5x5 核，对专色蒙版执行一次腐蚀操作。
+        //using var spotPlateShrunk = spotPlate.Erode(mask);
+        // 先对透明通道取反->外扩 = 非透明区域内缩
+        using var spotPlateShrunk = spotPlate.Dilate(mask);
+        
+        using var imageWithoutAlpha = image.HasAlpha() ? image.Copy() : image;
+
+        using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
+
+        using var cmykWithSpot = cmykImage.Bandjoin(spotPlateShrunk);
+        // --- 通道合并 ---
+        /*
+        
+        
+        byte[] cmykBytes = cmykWithSpot.TiffsaveBuffer(compression: Enums.ForeignTiffCompression.Lzw, profile: iccProfileToUse);
+
+        using (var imageToProcess = new MagickImage(cmykBytes))
+        {
+            var cmykChannels = imageToProcess.Separate(Channels.CMYK);
+            var alphaChannel = imageToProcess.Separate(Channels.Alpha);
+
+            // Create a collection of channels to combine
+            using (var channels = new MagickImageCollection())
+            {
+                channels.AddRange(cmykChannels);
+                channels.AddRange(alphaChannel);
+
+                // Combine the channels
+                using (var combinedImage = channels.Combine(ColorSpace.CMYK))
+                {
+                    // Set the photometric interpretation to "Separated". This is crucial for spot colors.
+                    combinedImage.Settings.SetDefine(MagickFormat.Tiff, "photometric", "separated");
+
+                    // result.Settings.SetDefine(MagickFormat.Tiff, "ink-names", "Cyan,Magenta,Yellow,Black,W1");
+                    // Tag 333: Provide the names for all inks. The number of names must match the number of channels.
+                    combinedImage.Settings.SetDefine(MagickFormat.Tiff, "ink-names", "Cyan\0Magenta\0Yellow\0Black\0W1");
+
+                    // Tag 338: Describe the extra sample. '2' stands for 'Unspecified data',
+                    // which is typically used for spot colors.
+                    combinedImage.Settings.SetDefine(MagickFormat.Tiff, "extra-samples", "2");
+                    // Set the colorspace to CMYK explicitly.
+                    combinedImage.ColorSpace = ColorSpace.CMYK;
+
+                    // Write the final TIFF image
+                    combinedImage.Write(finalCorrectPath);
+                }
+            }
+        }*/
+        /*byte[] spotChannelBytes = spotPlateShrunk.TiffsaveBuffer(compression: Enums.ForeignTiffCompression.Lzw);
+        byte[] cmykBytes = cmykImage.TiffsaveBuffer(compression: Enums.ForeignTiffCompression.Lzw, profile: iccProfileToUse);
+
+        using (var imageToProcess = new MagickImage(cmykBytes))
+        {
+            var cmykChannels = imageToProcess.Separate(Channels.CMYK);
+            var alphaChannel = imageToProcess.Separate(Channels.Alpha);
+
+            // Create a collection of channels to combine
+            using (var channels = new MagickImageCollection())
+            {
+                channels.AddRange(cmykChannels);
+                channels.AddRange(alphaChannel);
+
+                // Combine the channels
+                using (var result = channels.Combine(ColorSpace.CMYK))
+                {
+                    // Set TIFF defines for spot color
+                    result.Settings.SetDefine(MagickFormat.Tiff, "photometric", "separated");
+                    result.Settings.SetDefine(MagickFormat.Tiff, "ink-names", "Cyan,Magenta,Yellow,Black,W1");
+
+                    // Write the output file
+                    result.Write(finalCorrectPath);
+                }
+            }
+
+
+            // 1. 检查文件是否确实有Alpha通道
+            if (!imageToProcess.HasAlpha)
+            {
+                throw new InvalidOperationException("临时文件未能正确生成Alpha通道。");
+            }
+
+            // 2. 将Alpha通道分离出来，成为一个独立的灰度图像
+            // DeactivateAlpha() 会移除Alpha通道，并将其作为单独的图像返回
+            using (IMagickImage spotChannel = imageToProcess.Separate(Channels.Alpha)[0])
+            {
+                // 此时, imageToProcess 变回了4通道的CMYK图像
+                // spotChannel 是一个只包含原Alpha数据的灰度图
+
+                // 3. 为这个分离出的通道附加专色元数据
+                spotChannel.SetArtifact("channel:type", "spot");
+                spotChannel.SetArtifact("channel:alias", "W1");
+
+                imageToProcess.SetWriteMask(spotChannel);
+            }
+
+            imageToProcess.Settings.SetDefine(MagickFormat.Tiff, "write-spot-channels", "true");
+
+            // 6. 保存最终文件
+            imageToProcess.Write(finalCorrectPath);
+            Console.WriteLine($"转换成功！最终文件已保存到: {finalCorrectPath}");
+        }*/
+        
+        /*using (var cmykMagickImage = new MagickImage(cmykBytes)) // 直接从内存TIFF读取
+        using (var spotMagickImage = new MagickImage(spotChannelBytes)) // 直接从内存TIFF读取
+        {
+            // ... (所有 SetArtifact, SetChannel, Write 的逻辑与方案一完全相同) ...
+            spotMagickImage.SetArtifact("channel:type", "spot");
+            spotMagickImage.SetArtifact("channel:alias", "W1");
+            // cmykMagickImage.SetChannel(PixelChannel.Meta0, spotMagickImage);
+            cmykMagickImage.SetWriteMask(spotMagickImage);
+            //var tiffDefines = new TiffWriteDefines { WriteSpotChannels = true };
+            cmykMagickImage.Settings.SetDefine(MagickFormat.Tiff, "write-spot-channels", "true");
+            cmykMagickImage.Write(finalCorrectPath);
+
+            // 保存带有专色通道的新TIFF文件
+            // 注意：这里不再需要 TiffWriteDefines 对象
+            //image.Write(outputTiffPath+".tif");
+        }*/
+        
+        
+        // 人工检查专色通道是否正藏
+        // cmykWithSpot.ExtractBand(4).Pngsave("spotcolorcheck.png");
+        
+        // 步骤 3: 保存这个 5 通道的图像。
+        // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
+        // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
+        cmykWithSpot.Tiffsave(finalCorrectPath,
+            compression: Enums.ForeignTiffCompression.Lzw,
+            profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
+            tile: true,
+            pyramid: false,
+            resunit: Enums.ForeignTiffResunit.Inch,
+            xres: xresInPpm,
+            yres: yresInPpm
+        );
+        ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalCorrectPath});
+        Console.WriteLine($"转换成功！文件已保存到: {finalCorrectPath}");
+    }
+
+    // 运行ps脚本转换任意通道成专色通道
+    private static async void ExecutePhotoshopJsxAnyChannel2SpotColor(List<string> inputImagePathList)
+    {
+        /*OpenFileDialog openFileDialog = new OpenFileDialog
+        {
+            Filter = "Image Files|*.jpg;*.jpeg;*.tif;*.tiff;*.psd",
+            Title = "请选择一张需要处理的图片"
+        };
+
+        if (openFileDialog.ShowDialog() != true) return;
+
+        string selectedImagePath = openFileDialog.FileName;*/
+
+
+        try
+        {
+            // 异步调用处理方法，并解构返回的元组
+            var (isSuccess, message) = await PhotoshopService.ProcessImageAsync(inputImagePathList);
+
+            if (isSuccess)
+            {
+                //StatusTextBlock.Text = $"处理成功！\n文件已保存到: {_outputFolderPath}";
+            }
+            else
+            {
+                // 显示来自服务层的详细错误信息
+                //StatusTextBlock.Text = $"处理失败！\n详细信息: {message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            // 捕获异步任务中未处理的异常
+            //StatusTextBlock.Text = $"程序发生意外错误: {ex.Message}";
+        }
+        finally
+        {
+            //ProcessButton.IsEnabled = true;
+        }
+    }
+
+    private static string FindDefaultCmykProfile()
+    {
+        // 定义常见的 ICC 配置文件存放目录
+        var profilePaths = new[]
+        {
+            // Windows
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "spool", "drivers", "color"),
+            AppContext.BaseDirectory + "Assets" + Path.DirectorySeparatorChar + "Icc" +
+            Path.DirectorySeparatorChar + "CMYK"
+        };
+
+        // 定义我们优先想要的通用配置文件
+        var preferredProfiles = new[] { "USWebCoatedSWOPv2.icc", "USWebCoatedSWOP.icc", "CoatedFOGRA39.icc" };
+
+        foreach (var path in profilePaths)
+        {
+            if (Directory.Exists(path))
+            {
+                // 优先查找我们想要的配置文件
+                foreach (var preferred in preferredProfiles)
+                {
+                    var fullPath = Path.Combine(path, preferred);
+                    if (File.Exists(fullPath))
+                    {
+                        Console.WriteLine($"找到首选的 CMYK 配置文件: {fullPath}");
+                        return fullPath;
+                    }
+                }
+
+                // 如果没找到首选的，就找目录下任何一个 .icc 文件作为备用
+                try
+                {
+                    var fallbackProfile = Directory.GetFiles(path, "*.icc").FirstOrDefault();
+                    if (fallbackProfile != null)
+                    {
+                        Console.WriteLine($"警告: 未找到首选的 CMYK 配置文件，使用备用文件: {fallbackProfile}");
+                        return fallbackProfile;
+                    }
+                }
+                catch (IOException)
+                {
+                    /* 忽略权限等问题 */
+                }
+            }
+        }
+
+        throw new FileNotFoundException(
+            "在系统中找不到默认的 CMYK ICC 配置文件。请在调用方法时手动提供一个有效的 cmykProfilePath。");
+    }
+    
+    public static void AddSpotChannel(string inputTiffPath, string outputTiffPath, string spotColorName)
+    {
+        // 确保输出目录存在
+        string directoryName = Path.GetDirectoryName(outputTiffPath);
+        if (!string.IsNullOrEmpty(directoryName))
+        {
+            Directory.CreateDirectory(directoryName);
+        }
+
+        try
+        {
+            // 使用using语句确保资源被正确释放
+            using (MagickImage image = new MagickImage(inputTiffPath))
+            {
+                // 1. 确保图像是CMYK模式，这是添加专色的常见基础
+                if (image.ColorSpace != ColorSpace.CMYK)
+                {
+                    Console.WriteLine("警告: 图像不是CMYK格式，正在尝试转换为CMYK。");
+                    // 实际应用中，你可能需要根据具体情况加载合适的色彩配置文件(ICC profile)
+                    image.ColorSpace = ColorSpace.CMYK;
+                }
+
+                // 2. 创建一个新的图层作为专色通道
+                // 尺寸与原图相同，背景为白色。
+                // 在专色通道中，白色通常代表100%的油墨浓度，黑色代表0%。
+                using (MagickImage spotChannel = new MagickImage(MagickColors.White, image.Width, image.Height))
+                {
+                    // 3. 将这个新图层设置为灰度图，这是作为通道的必要步骤
+                    spotChannel.Grayscale(PixelIntensityMethod.Average);
+
+                    // 4. 将此通道设置为非主要通道（读/写通道），并指定为专色
+                    spotChannel.SetArtifact("channel:type", "spot");
+                    spotChannel.SetArtifact("channel:alias", spotColorName); // 设置专色名称
+                    // Magick.NET 7 (旧版) 的写法
+                    image.SetWriteMask(spotChannel); 
+                    // image.Settings.SetDefine(MagickFormat.Tiff, "write-spot-channels", "true");
+
+                    // Magick.NET 8+ (推荐) 的写法
+                    // 将专色通道合并到原图像中
+                    // image.SetChannel(PixelChannel.Meta0, spotChannel);
+                }
+
+                // TiffWriteDefines defines = new TiffWriteDefines { WriteSpotChannels = true };
+                image.Settings.SetDefine(MagickFormat.Tiff, "write-spot-channels", "true");
+
+                // 保存带有专色通道的新TIFF文件
+                // 注意：这里不再需要 TiffWriteDefines 对象
+                image.Write(outputTiffPath+".tif");
+
+                Console.WriteLine($"成功添加专色通道 '{spotColorName}' 并保存至: {outputTiffPath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"处理TIFF文件时发生错误: {ex.Message}");
+        }
+    }
+    
+    public static Dictionary<string, Image> ExtractSpotChannels(string inputTiffPath)
+    {
+        var extractedChannels = new Dictionary<string, Image>();
+
+        if (!File.Exists(inputTiffPath))
+        {
+            Console.WriteLine($"错误: 文件未找到 '{inputTiffPath}'");
+            return extractedChannels;
+        }
+
+        try
+        {
+            using (Image image = Image.NewFromFile(inputTiffPath))
+            {
+                Console.WriteLine($"已加载图像: {inputTiffPath}");
+                Console.WriteLine($" - 尺寸: {image.Width}x{image.Height}");
+                Console.WriteLine($" - 通道数: {image.Bands}");
+                Console.WriteLine($" - 色彩空间: {image.Interpretation}");
+
+                // 1. 检查是否有额外通道
+                // 假设基础是CMYK，有4个通道
+                if (image.Interpretation != Enums.Interpretation.Cmyk || image.Bands <= 4)
+                {
+                    Console.WriteLine("该图像不是带有额外通道的CMYK图像。");
+                    return extractedChannels;
+                }
+
+                int numSpotChannels = image.Bands - 4;
+                Console.WriteLine($"发现 {numSpotChannels} 个额外的通道。");
+
+                // 2. 尝试读取专色通道名称 (InkNames Tag)
+                List<string> spotChannelNames = new List<string>();
+                try
+                {
+                    // InkNames TIFF tag is 333. libvips exposes it this way.
+                    string inkNamesRaw = image.Get("tiff-tag-333-ink-names") as string;
+                    if (!string.IsNullOrEmpty(inkNamesRaw))
+                    {
+                        // The InkNames tag is a list of names, each separated by a null character.
+                        spotChannelNames.AddRange(inkNamesRaw.Split(new[] { '\0' }, StringSplitOptions.RemoveEmptyEntries));
+                        Console.WriteLine("成功读取到以下专色名称: " + string.Join(", ", spotChannelNames));
+                    }
+                }
+                catch (VipsException)
+                {
+                    Console.WriteLine("未找到 'InkNames' (TIFF Tag 333) 元数据。将使用默认名称。");
+                }
+
+                // 3. 提取每个专色通道的数据
+                for (int i = 0; i < numSpotChannels; i++)
+                {
+                    // 通道索引从0开始，CMYK是0,1,2,3。第一个专色通道是索引4。
+                    int channelIndex = 4 + i;
+
+                    // 确定通道名称
+                    string channelName;
+                    if (i < spotChannelNames.Count)
+                    {
+                        channelName = spotChannelNames[i];
+                    }
+                    else
+                    {
+                        // 如果元数据中的名称不够，则提供一个备用名称
+                        channelName = $"Unknown Name!";
+                    }
+
+                    Console.WriteLine($"正在提取通道索引 {channelIndex}，命名为 '{channelName}'...");
+
+                    // 提取通道数据
+                    // 注意：返回的 Image 对象需要由调用者管理其生命周期 (dispose)
+                    Image spotChannelImage = image.ExtractBand(channelIndex);
+                    // 由于ps无法预览 输入图片 人工检查专色通道是否正确
+                    // spotChannelImage.Pngsave("xxx.png");
+                    extractedChannels.Add(channelName, spotChannelImage);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"使用 NetVips 提取专色通道时发生错误: {ex.Message}");
+        }
+
+        return extractedChannels;
+    }
+    
+    public static void ReadSpotChannelNamesWithMagick(string inputTiffPath)
+    {
+        Console.WriteLine($"--- 使用 Magick.NET 读取文件: {inputTiffPath} ---");
+        if (!File.Exists(inputTiffPath))
+        {
+            Console.WriteLine("错误: 文件未找到！");
+            return;
+        }
+
+        try
+        {
+            using (var image = new MagickImage(inputTiffPath))
+            {
+                // 1. 检查是否有额外的通道
+                // Magick.NET 会自动将专色通道识别为额外的通道
+                // image.ChannelCount 会包含所有通道 (CMYK + Spots)
+                if (image.ColorSpace != ColorSpace.CMYK || image.ChannelCount <= 4)
+                {
+                    Console.WriteLine("图像不是带有额外通道的CMYK文件。");
+                    return;
+                }
+
+                Console.WriteLine($"文件总通道数: {image.ChannelCount}");
+
+                // 2. (关键) 使用 GetAttribute 来获取专色名称
+                // 这个方法会智能地查找 Tag 333 和 Adobe 私有数据块
+                string inkNamesAttribute = image.GetAttribute("tiff:ink-names");
+
+                if (!string.IsNullOrEmpty(inkNamesAttribute))
+                {
+                    // Photoshop 返回的 ink-names 属性通常是用换行符 \n 分隔的
+                    string[] names = inkNamesAttribute.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    Console.WriteLine($"成功! 读取到以下专色通道名称: '{string.Join(", ", names)}'");
+
+                    // 3. (可选但推荐) 提取每个专色通道的图像数据
+                    // 你可以通过通道索引来分离它们
+                    uint spotChannelCount = image.ChannelCount - 4;
+                    for (int i = 0; i < spotChannelCount; i++)
+                    {
+                        // CMYK = 0,1,2,3。第一个专色是通道 4
+                        int channelIndex = 4 + i;
+                        Console.WriteLine($"正在分离通道 {channelIndex} ({names[i]}) ...");
+
+                        using (IMagickImage spotChannelImage = image.Separate(GetChannelByIndex(channelIndex))[0])
+                        {
+                            // 现在 spotChannelImage 就是一个只包含该专色数据的灰度图
+                            // 你可以保存它或进行进一步处理
+                             spotChannelImage.Write($@"C:\temp\Extracted_{names[i]}.tif");
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("失败! 未能从文件中读取到 'tiff:ink-names' 属性。");
+                    Console.WriteLine("这可能意味着文件没有专色通道，或者元数据格式非常特殊。");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"读取文件时发生错误: {ex.Message}");
+        }
+    }
+    
+    // 辅助函数，根据索引获取 PixelChannel 枚举
+    private static Channels GetChannelByIndex(int index)
+    {
+        // ImageMagick 7+ 使用 Channels 枚举
+        switch (index)
+        {
+            case 0: return Channels.Cyan;
+            case 1: return Channels.Magenta;
+            case 2: return Channels.Yellow;
+            case 3: return Channels.Black;
+            case 4: return Channels.Gray; // 第一个额外通道通常映射到Alpha/Gray
+            // Magick.NET 可能会将后续通道视为 Meta 通道
+            default:
+                 // 对于第五个以上通道，需要更复杂的处理
+                 // 但对于提取第一个专色，Channels.Gray 或 Channels.Alpha 通常有效
+                 return Channels.Gray;
         }
     }
 }

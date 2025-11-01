@@ -437,4 +437,42 @@ public static class FileHelper
             }
         }
     }
+    
+    // 获取目录下所有文件地址
+    public static string[] GetAllFiles(string directoryPath)
+    {
+        // 1. 输入验证：确保路径不是 null 或空白
+        if (string.IsNullOrWhiteSpace(directoryPath))
+        {
+            // 抛出异常或返回空数组，取决于您希望的严格程度。
+            // 在工具类中，返回空数组通常更友好。
+            Console.WriteLine("错误: 提供的目录路径无效。");
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            // 2. 核心逻辑：使用 Directory.GetFiles
+            // - 第一个参数是目标目录。
+            // - 第二个参数是搜索模式，"*" 代表所有文件。
+            // - 第三个参数是搜索选项，SearchOption.AllDirectories 表示包含所有子目录。
+            return Directory.GetFiles(directoryPath, "*", SearchOption.AllDirectories);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            Console.WriteLine($"错误: 目录未找到 '{directoryPath}'");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Console.WriteLine($"错误: 无权访问目录 '{directoryPath}' 或其子目录。");
+        }
+        catch (Exception ex)
+        {
+            // 捕获其他可能的未知异常
+            Console.WriteLine($"发生未知错误: {ex.Message}");
+        }
+
+        // 3. 如果发生任何异常，返回一个空数组
+        return Array.Empty<string>();
+    }
 }

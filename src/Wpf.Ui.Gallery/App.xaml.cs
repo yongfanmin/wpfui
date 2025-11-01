@@ -118,7 +118,10 @@ public partial class App
                 _ = services.AddSingleton<IProduceImageProcessor, ProduceImageProcessor>();
 
                 _ = services.AddSingleton<IDatabaseService, DatabaseService>();
-
+                
+                // Photoshop组件
+                _ = services.AddSingleton<Component.PhotoshopService>();
+                
                 // All other pages and view models
                 _ = services.AddTransientFromNamespace("Wpf.Ui.Gallery.Views", GalleryAssembly.Asssembly);
                 _ = services.AddTransientFromNamespace(
