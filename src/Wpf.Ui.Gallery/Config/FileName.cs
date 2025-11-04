@@ -80,6 +80,12 @@ public class FileName
         return AppContext.BaseDirectory + "Assets"+Path.DirectorySeparatorChar+"Script"+Path.DirectorySeparatorChar+"AnyChannel2spot.jsx";
     }
 
+
+    public static string getLayoutBackground()
+    {
+        return AppContext.BaseDirectory + "/Assets/Layout/layout_base.tif";
+    }
+    
     public static readonly string ProduceImgLayoutName = "ProduceImgLayout";
 
 

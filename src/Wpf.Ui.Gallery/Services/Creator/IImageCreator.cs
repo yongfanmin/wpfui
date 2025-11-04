@@ -5,6 +5,7 @@
 
 using NetVips;
 using Wpf.Ui.Gallery.Constant;
+using Wpf.Ui.Gallery.Dto.PrintTask;
 
 namespace Wpf.Ui.Gallery.Services.Creator;
 
@@ -16,6 +17,6 @@ public interface IImageCreator
         int dpi,
         ImgSupportFormat format,
         double[]? backgroundColor = null);
-
+    
     public void SaveImageForProduction(Image image, string filePathWithoutExtension, ImgSupportFormat format);
 }

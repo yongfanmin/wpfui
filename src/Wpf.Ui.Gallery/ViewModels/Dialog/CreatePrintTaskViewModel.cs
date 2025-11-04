@@ -8,9 +8,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.IO;
 using System.Text.Json;
+using NetVips;
 using Wpf.Ui.Gallery.Dto.CreateImg;
+using Wpf.Ui.Gallery.Dto.PrintTask;
 using Wpf.Ui.Gallery.ImageProcessor;
 using Wpf.Ui.Gallery.LocalConfig;
+using Wpf.Ui.Gallery.Services.Creator;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Table;
 using Wpf.Ui.Gallery.Utils;
@@ -20,7 +23,8 @@ namespace Wpf.Ui.Gallery.ViewModels.Pages;
 public partial class CreatePrintTaskViewModel : ObservableObject
 {
     private readonly IDatabaseService _databaseService;
-
+    
+    
     [ObservableProperty]
     private ObservableCollection<string> _produceBatchNumbers = new();
 
@@ -38,6 +42,15 @@ public partial class CreatePrintTaskViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartBatchPrintCommand))]
     private bool _isPrintButtonEnabled = false;
+    
+    // 转成CYMK
+    [ObservableProperty]
+    private bool _isConvertToCmyk = true;
+
+    //白墨烫画专用工艺 [CMYK+内缩2px的专色通道]
+    [ObservableProperty]
+    private bool _isWhiteInkSpot = false;
+    
 
     public CreatePrintTaskViewModel(IEnumerable<string> produceBatchNumbers, IDatabaseService databaseService)
     {
@@ -63,6 +76,12 @@ public partial class CreatePrintTaskViewModel : ObservableObject
     [RelayCommand]
     private async Task OnConvertFormat2print()
     {
+        PrintTaskConfig printTaskConfig = new PrintTaskConfig()
+        {
+            ToCymk = IsConvertToCmyk,
+            ToWhiteInkSpot = IsWhiteInkSpot,
+        };
+        
         if (string.IsNullOrEmpty(DestinationFolder) || !Directory.Exists(DestinationFolder))
         {
             // Ideally, show a message to the user
@@ -91,13 +110,34 @@ public partial class CreatePrintTaskViewModel : ObservableObject
             }
         }
 
+        List<LayoutImg> printImgList = new List<LayoutImg>();
+        decimal machinePrintWidthMm = 600;
+        int printerDpi = 300;
+        
+        
         for (int i = 0; i < allFilesToCopy.Count; i++)
         {
             var sourcePath = allFilesToCopy[i];
             var destinationPath = Path.Combine(DestinationFolder, Path.GetFileName(sourcePath));
-            // await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
-            ProduceImageProcessor.ConvertToCmykWithSpotColor(sourcePath, destinationPath);
+            if (printTaskConfig.IsNeedProcess())
+            {
+                LayoutImg layoutImg = await ProduceImageProcessor.PrintTaskImgProcess(sourcePath, destinationPath,printTaskConfig);
+                layoutImg.Id = i;
+                printImgList.Add(layoutImg);
+            }
+            else
+            {
+                await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
+            }
             CopyProgress = (double)(i + 1) / allFilesToCopy.Count * 100;
+        }
+        
+        // 自动排版 输入需要排版的图片 与 机器打印宽度  (实际都是毫米 但是计算库只支持 无符号整数 所以按照像素排版 然后再转成毫米)
+        if (printImgList.Count > 0)
+        {
+            LayoutResult layoutResult = StripPackingLayout.SkylineLayout(printImgList, (uint)ImageHelper.ConvertMmToPixels(machinePrintWidthMm, printerDpi));
+            // 创建排版画布 将排版数据换成印花图排版到 画布上
+            ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResult,Path.Combine(DestinationFolder, Path.GetFileName("layout.tif")), printerDpi);
         }
 
         IsExecuting = false;

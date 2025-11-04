@@ -29,9 +29,12 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Web.WebView2" />
+    <PackageReference Include="NetTopologySuite" />
     <PackageReference Include="NetVips" />
     <PackageReference Include="NetVips.Native.win-x64" />
+    <PackageReference Include="OpenCvSharp4.Windows" />
     <PackageReference Include="PdfiumPrinter" />
+    <PackageReference Include="RectpackSharp" />
     <PackageReference Include="Refit" />
     <PackageReference Include="Refit.HttpClientFactory" />
     <PackageReference Include="ReflectionEventing" />
@@ -83,6 +86,12 @@
 
   <ItemGroup>
     <Content Include="Assets\Script\**">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\Layout\**">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

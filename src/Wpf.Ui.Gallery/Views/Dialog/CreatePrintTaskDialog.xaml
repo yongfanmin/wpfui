@@ -32,6 +32,10 @@
                 Command="{Binding SelectFolderCommand}"
                 Margin="10,0,0,0" />
         </Grid>
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <CheckBox IsChecked="{Binding IsConvertToCmyk}" Content="转为TIF (CYMK)" />
+            <CheckBox IsChecked="{Binding IsWhiteInkSpot}" Content="白墨烫画 (CYMK+内缩2像素专色通道)" Margin="10,0,0,0" />
+        </StackPanel>
         <ProgressBar Value="{Binding CopyProgress}" Margin="0,10" />
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button

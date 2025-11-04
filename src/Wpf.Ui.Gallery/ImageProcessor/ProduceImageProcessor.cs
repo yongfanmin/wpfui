@@ -24,6 +24,7 @@ using Wpf.Ui.Gallery.Converters;
 using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.CreateImg;
 using Wpf.Ui.Gallery.Dto.Machine;
+using Wpf.Ui.Gallery.Dto.PrintTask;
 using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Creator;
@@ -1057,9 +1058,10 @@ public class ProduceImageProcessor : IProduceImageProcessor
     * <param name="inputImagePath">输入图像文件（例如 a.png）的完整路径。</param>
     * <param name="outputTiffPath">输出 TIFF 文件（例如 a.tif）的保存路径。</param>
     * <param name="cmykProfilePath">（强烈推荐）用于精确颜色转换的 CMYK ICC 颜色配置文件路径。</param> **/
-    public static void ConvertToCmykWithSpotColor(
+    public static async Task<LayoutImg>  PrintTaskImgProcess(
         string inputImagePath,
         string outputTiffPath,
+        PrintTaskConfig printTaskConfig,
         string? cmykProfilePath = null, // 参数仍然是可选的
         double defaultDpi = 300.0)
     {
@@ -1078,24 +1080,13 @@ public class ProduceImageProcessor : IProduceImageProcessor
             iccProfileToUse = FindDefaultCmykProfile();
         }
 
-        string finalCorrectPath = Path.ChangeExtension(outputTiffPath, ".tif");
+        string finalPath = Path.ChangeExtension(outputTiffPath, ".tif");
 
         using var image = Image.NewFromFile(inputImagePath);
 
         // --- DPI 准备 ---
-        double dpiX, dpiY;
         var xresInPpm = image.Xres;
         var yresInPpm = image.Yres;
-        if (xresInPpm <= 0 || yresInPpm <= 0)
-        {
-            dpiX = defaultDpi;
-            dpiY = defaultDpi;
-        }
-        else
-        {
-            dpiX = xresInPpm * ImageHelper.MillimetersPerInch;
-            dpiY = yresInPpm * ImageHelper.MillimetersPerInch;
-        }
 
         // --- [最终核心修复：重构整个图像处理流程] ---
 
@@ -1172,85 +1163,11 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 }
             }
         }*/
-        /*byte[] spotChannelBytes = spotPlateShrunk.TiffsaveBuffer(compression: Enums.ForeignTiffCompression.Lzw);
-        byte[] cmykBytes = cmykImage.TiffsaveBuffer(compression: Enums.ForeignTiffCompression.Lzw, profile: iccProfileToUse);
-
-        using (var imageToProcess = new MagickImage(cmykBytes))
-        {
-            var cmykChannels = imageToProcess.Separate(Channels.CMYK);
-            var alphaChannel = imageToProcess.Separate(Channels.Alpha);
-
-            // Create a collection of channels to combine
-            using (var channels = new MagickImageCollection())
-            {
-                channels.AddRange(cmykChannels);
-                channels.AddRange(alphaChannel);
-
-                // Combine the channels
-                using (var result = channels.Combine(ColorSpace.CMYK))
-                {
-                    // Set TIFF defines for spot color
-                    result.Settings.SetDefine(MagickFormat.Tiff, "photometric", "separated");
-                    result.Settings.SetDefine(MagickFormat.Tiff, "ink-names", "Cyan,Magenta,Yellow,Black,W1");
-
-                    // Write the output file
-                    result.Write(finalCorrectPath);
-                }
-            }
-
-
-            // 1. 检查文件是否确实有Alpha通道
-            if (!imageToProcess.HasAlpha)
-            {
-                throw new InvalidOperationException("临时文件未能正确生成Alpha通道。");
-            }
-
-            // 2. 将Alpha通道分离出来，成为一个独立的灰度图像
-            // DeactivateAlpha() 会移除Alpha通道，并将其作为单独的图像返回
-            using (IMagickImage spotChannel = imageToProcess.Separate(Channels.Alpha)[0])
-            {
-                // 此时, imageToProcess 变回了4通道的CMYK图像
-                // spotChannel 是一个只包含原Alpha数据的灰度图
-
-                // 3. 为这个分离出的通道附加专色元数据
-                spotChannel.SetArtifact("channel:type", "spot");
-                spotChannel.SetArtifact("channel:alias", "W1");
-
-                imageToProcess.SetWriteMask(spotChannel);
-            }
-
-            imageToProcess.Settings.SetDefine(MagickFormat.Tiff, "write-spot-channels", "true");
-
-            // 6. 保存最终文件
-            imageToProcess.Write(finalCorrectPath);
-            Console.WriteLine($"转换成功！最终文件已保存到: {finalCorrectPath}");
-        }*/
-        
-        /*using (var cmykMagickImage = new MagickImage(cmykBytes)) // 直接从内存TIFF读取
-        using (var spotMagickImage = new MagickImage(spotChannelBytes)) // 直接从内存TIFF读取
-        {
-            // ... (所有 SetArtifact, SetChannel, Write 的逻辑与方案一完全相同) ...
-            spotMagickImage.SetArtifact("channel:type", "spot");
-            spotMagickImage.SetArtifact("channel:alias", "W1");
-            // cmykMagickImage.SetChannel(PixelChannel.Meta0, spotMagickImage);
-            cmykMagickImage.SetWriteMask(spotMagickImage);
-            //var tiffDefines = new TiffWriteDefines { WriteSpotChannels = true };
-            cmykMagickImage.Settings.SetDefine(MagickFormat.Tiff, "write-spot-channels", "true");
-            cmykMagickImage.Write(finalCorrectPath);
-
-            // 保存带有专色通道的新TIFF文件
-            // 注意：这里不再需要 TiffWriteDefines 对象
-            //image.Write(outputTiffPath+".tif");
-        }*/
-        
-        
-        // 人工检查专色通道是否正藏
-        // cmykWithSpot.ExtractBand(4).Pngsave("spotcolorcheck.png");
         
         // 步骤 3: 保存这个 5 通道的图像。
         // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
         // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
-        cmykWithSpot.Tiffsave(finalCorrectPath,
+        cmykWithSpot.Tiffsave(finalPath,
             compression: Enums.ForeignTiffCompression.Lzw,
             profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
             tile: true,
@@ -1259,12 +1176,22 @@ public class ProduceImageProcessor : IProduceImageProcessor
             xres: xresInPpm,
             yres: yresInPpm
         );
-        ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalCorrectPath});
-        Console.WriteLine($"转换成功！文件已保存到: {finalCorrectPath}");
+        bool success = await ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalPath});
+        if (success)
+        {
+            return new LayoutImg()
+            {
+                WidthPx = (uint)cmykWithSpot.Width, HeightPx = (uint)cmykWithSpot.Height, ImgPath = finalPath,
+            };
+        }
+        else
+        {
+            throw new Exception("PS转换专色通道出错");
+        }
     }
 
     // 运行ps脚本转换任意通道成专色通道
-    private static async void ExecutePhotoshopJsxAnyChannel2SpotColor(List<string> inputImagePathList)
+    private static async Task<bool> ExecutePhotoshopJsxAnyChannel2SpotColor(List<string> inputImagePathList)
     {
         /*OpenFileDialog openFileDialog = new OpenFileDialog
         {
@@ -1284,6 +1211,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
             if (isSuccess)
             {
+                return isSuccess;
                 //StatusTextBlock.Text = $"处理成功！\n文件已保存到: {_outputFolderPath}";
             }
             else
@@ -1300,7 +1228,71 @@ public class ProduceImageProcessor : IProduceImageProcessor
         finally
         {
             //ProcessButton.IsEnabled = true;
+           
         }
+
+        return false;
+    }
+    
+    // 这个方法有误: C#程序现在无法处理专色通道, 如果先给印花生成专色通道 再进行排版, 专色通道会丢失
+    // 能用的写法: 先给png图片排版 然后整排版图再转 CMYK+专色通道
+    public static void CreateLayoutTiffFromPxSize(
+        LayoutResult layoutResult,
+        string outputTiffPath,
+        int dpi,
+        string? cmykProfilePath = null)
+    {
+        // 根据 layoutResult.LayoutWidthPx  layoutResult.LayoutHeightPx 生成一张透明背景的画布,然后将layoutResult.LayoutImgList的图片根据X,Y的坐标信息排版再画布上， 然后将画布保存成tif格式
+        // --- 1. 创建一个单像素的透明图像 ---
+        using var transparentPixel = Image.NewFromFile(FileName.getLayoutBackground());
+
+        // --- 2. 将该单像素扩展(平铺)成所需尺寸的透明画布 ---
+        using Image canvas = transparentPixel.Embed(0, 0, (int)layoutResult.LayoutWidthPx, (int)layoutResult.LayoutHeightPx,
+            extend: Enums.Extend.Copy);
+        using Image srgbCanvas = canvas.Copy(interpretation: Enums.Interpretation.Cmyk);
+
+        Image currentResult = srgbCanvas;
+
+        // --- 2. 将图片根据X,Y的坐标信息排版在画布上 ---
+        foreach (var imgInfo in layoutResult.LayoutImgList)
+        {
+            using Image piece = Image.NewFromFile(imgInfo.ImgPath, access: Enums.Access.Random);
+            if (piece.Bands == currentResult.Bands)
+            {
+                Image newResult = currentResult.Composite(piece, Enums.BlendMode.Over, x: (int)imgInfo.PositionX, y: (int)imgInfo.PositionY);
+
+                if (currentResult != srgbCanvas)
+                {
+                    currentResult.Dispose();
+                }
+                currentResult = newResult;
+            }
+            else
+            {
+                // 通道数量不相符 无法合成 (可能图片存在隐形通道/或者PS生成通道错误)
+                Console.WriteLine($"图像通道不符(不是CMYK+专色通道):{imgInfo.ImgPath}");
+            }
+        }
+
+        // --- 3. 设置DPI并返回最终图像 ---
+        double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
+        var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
+        
+        if (currentResult != srgbCanvas)
+        {
+            currentResult.Dispose();
+        }
+        var iccProfileToUse = cmykProfilePath;
+        if (string.IsNullOrEmpty(iccProfileToUse) || !File.Exists(iccProfileToUse))
+        {
+            iccProfileToUse = FindDefaultCmykProfile();
+        }
+        finalImage.Tiffsave(outputTiffPath,
+            compression: Enums.ForeignTiffCompression.Lzw,
+            profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
+            tile: true,
+            pyramid: false
+        );
     }
 
     private static string FindDefaultCmykProfile()

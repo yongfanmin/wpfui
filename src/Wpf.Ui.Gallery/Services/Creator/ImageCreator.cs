@@ -6,6 +6,7 @@
 using NetVips;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Converters;
+using Wpf.Ui.Gallery.Dto.PrintTask;
 using Wpf.Ui.Gallery.Utils;
 
 namespace Wpf.Ui.Gallery.Services.Creator;
@@ -81,6 +82,7 @@ public class ImageCreator : IImageCreator
             var finalImage = newImage.Copy(xres: pixelsPerInch, yres: pixelsPerInch);
             return finalImage;
         }
+    
 
     /// <summary>
     /// Saves a NetVips image to a file with format-specific, high-quality options suitable for production.
