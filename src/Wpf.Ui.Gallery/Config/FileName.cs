@@ -85,6 +85,11 @@ public class FileName
         return produceBatchNumberList.Count > 1 ? $"{string.Join("--",produceBatchNumberList)}_生产图排版.tif" : "生产图排版.tif";
     }
     
+    public static string getLayoutTargetName(ObservableCollection<string> produceBatchNumberList, string uniFileName, string sourceName)
+    {
+        return produceBatchNumberList.Count > 1 ? $"{uniFileName}_{sourceName}" : sourceName;
+    }
+    
     public static readonly string ProduceImgLayoutName = "ProduceImgLayout";
 
 

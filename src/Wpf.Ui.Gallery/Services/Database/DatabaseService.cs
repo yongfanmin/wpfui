@@ -438,6 +438,8 @@ public class DatabaseService : IDatabaseService
                     // 3. 修改对象的属性
                     planToUpdate.ProduceBatchDetail = JsonSerializer.Serialize(uniqueBatchItem);
                     planToUpdate.SkuAlias = uniqueBatchItem.ProductName;
+                    planToUpdate.Color = uniqueBatchItem.Color;
+                    planToUpdate.Size = uniqueBatchItem.Size;
                     planToUpdate.ItemId = uniqueBatchItem.ItemId;
                     planToUpdate.OrderNo = uniqueBatchItem.OrderNo;
                     planToUpdate.OrderDetailId = uniqueBatchItem.OrderDetailId;

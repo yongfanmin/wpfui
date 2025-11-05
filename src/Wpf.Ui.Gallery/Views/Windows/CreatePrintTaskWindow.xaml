@@ -12,9 +12,20 @@
     MinHeight="250"
     MinWidth="600"
     ExtendsContentIntoTitleBar="True"
-    WindowBackdropType="Mica"
     WindowCornerPreference="Round"
-    WindowStartupLocation="CenterScreen"
->
-    <local:CreatePrintTaskDialog DataContext="{Binding}" />
+    WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar
+            Title="{Binding Title, RelativeSource={RelativeSource AncestorType={x:Type local:CreatePrintTaskWindow}}}"
+            Grid.Row="0"
+            Icon="pack://application:,,,/Assets/applicationIcon-256.png"
+        />
+
+        <Grid x:Name="RootGrid" Grid.Row="1" Margin="20" />
+    </Grid>
 </ui:FluentWindow>

@@ -10,6 +10,8 @@ using System.IO;
 using System.Text.Json;
 using NetVips;
 using Wpf.Ui.Gallery.Config;
+using Wpf.Ui.Gallery.Constant;
+using Wpf.Ui.Gallery.Converters;
 using Wpf.Ui.Gallery.Dto.CreateImg;
 using Wpf.Ui.Gallery.Dto.PrintTask;
 using Wpf.Ui.Gallery.ImageProcessor;
@@ -58,6 +60,12 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         }
 
 
+        public class CopyFile
+        {
+            public string SourceFile { get; set; }
+            public string UniFileName { get; set; }
+        }
+
         [RelayCommand]
         private void OnSelectFolder()
         {
@@ -89,7 +97,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             IsExecuting = true;
             CopyProgress = 0;
 
-            var allFilesToCopy = new List<string>();
+            var allFilesToCopy = new List<CopyFile>();
             foreach (var produceBatchNumber in ProduceBatchNumbers)
             {
                 List<ProduceItemEntity> items = _databaseService.GetProduceItemList(produceBatchNumber);
@@ -99,9 +107,27 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                     {
                         if (!string.IsNullOrEmpty(produceItemEntity.ProduceImgLocalPath))
                         {
-                            foreach (string file in FileHelper.GetAllFiles(produceItemEntity.ProduceImgLocalPath))
+                            UniqueBatchItem uniqueBatchItem =
+                                JsonSerializer.Deserialize<UniqueBatchItem>(produceItemEntity.ProduceBatchDetail);
+                            if (uniqueBatchItem.ProductionTasks.Count == 1)
                             {
-                                allFilesToCopy.Add(file);
+                                allFilesToCopy.Add(new CopyFile()
+                                {
+                                    SourceFile = produceItemEntity.ProduceImgLocalPath + produceItemEntity.ProduceImgName,
+                                    UniFileName = $"{produceItemEntity.ProduceBatchNum}-{produceItemEntity.Color}-{produceItemEntity.Size}-{produceItemEntity.SkuAlias}-{produceItemEntity.OrderDetailId}"
+                                });
+                            }
+                            else
+                            {
+                                // 多任务 (代表着 多印花面)
+                                foreach (ProductionTask productionTask in uniqueBatchItem.ProductionTasks)
+                                {
+                                    allFilesToCopy.Add(new CopyFile()
+                                    {
+                                        SourceFile = produceItemEntity.ProduceImgLocalPath + $"{productionTask.ViewId}-{productionTask.ViewName}{ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)}",
+                                        UniFileName = $"{produceItemEntity.ProduceBatchNum}-{produceItemEntity.Color}-{produceItemEntity.Size}-{produceItemEntity.SkuAlias}-{produceItemEntity.OrderDetailId}"
+                                    });
+                                }
                             }
                         }
                     }
@@ -132,7 +158,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 // 需要排版 就先读取原来的图片 然后排版 再进行格式转换
                 if (allFilesToCopy.Count > 0)
                 {
-                    LayoutResult layoutResult = StripPackingLayout.SkylineLayout(allFilesToCopy,
+                    LayoutResult layoutResult = StripPackingLayout.SkylineLayout(allFilesToCopy.Select(item=>item.SourceFile).ToList(),
                         (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi),
                         ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
                     // 创建排版画布 将排版数据换成印花图排版到 画布上
@@ -151,8 +177,8 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 //TODO 缺少格式转换
                 for (int i = 0; i < allFilesToCopy.Count; i++)
                 {
-                    var sourcePath = allFilesToCopy[i];
-                    var destinationPath = Path.Combine(targetPath, Path.GetFileName(sourcePath));
+                    var sourcePath = allFilesToCopy[i].SourceFile;
+                    var destinationPath = Path.Combine(targetPath, FileName.getLayoutTargetName(ProduceBatchNumbers, allFilesToCopy[i].UniFileName, Path.GetFileName(sourcePath)));
                     await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
                     CopyProgress = (double)(i + 1) / allFilesToCopy.Count * 100;
                 }

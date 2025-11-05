@@ -27,6 +27,10 @@ public partial class ProduceBatchItemVo : ObservableObject
 
     // sku别名 (颜色-尺码 等集合的名称)
     public string? SkuAlias { get; set; }
+    
+    public string? Color { get; set; }
+    
+    public string? Size { get; set; }
 
     // 订单支付时间
     //public string? PayTime { get; set; }

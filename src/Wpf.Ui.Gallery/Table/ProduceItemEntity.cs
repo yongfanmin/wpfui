@@ -30,6 +30,10 @@ public class ProduceItemEntity
     public int OrderDetailId { get; set; }
 
     public string? SkuAlias { get; set; }
+    
+    public string? Color { get; set; }
+    
+    public string? Size { get; set; }
 
     public ProduceBatchItemProcess ProduceBatchItemProcess { get; set; } = ProduceBatchItemProcess.等待数据;
 

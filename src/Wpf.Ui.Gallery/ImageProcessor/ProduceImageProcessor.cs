@@ -1288,7 +1288,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
             iccProfileToUse = FindDefaultCmykProfile();
         }
 
-        string finalPath = Path.ChangeExtension(outputTiffPath, ".tif");
+        string finalPath = Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Tiff));
         // --- DPI 准备 ---
         var xresInPpm = finalImage.Xres;
         var yresInPpm = finalImage.Yres;
@@ -1452,7 +1452,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
                 // 保存带有专色通道的新TIFF文件
                 // 注意：这里不再需要 TiffWriteDefines 对象
-                image.Write(outputTiffPath+".tif");
+                image.Write(outputTiffPath+ImgFormat2Extend.GetExtend(ImgSupportFormat.Tiff));
 
                 Console.WriteLine($"成功添加专色通道 '{spotColorName}' 并保存至: {outputTiffPath}");
             }

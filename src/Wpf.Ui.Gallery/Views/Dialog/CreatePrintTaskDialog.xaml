@@ -50,7 +50,7 @@
         <ProgressBar Value="{Binding CopyProgress}" Margin="0,10" />
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button
-                Content="转换印花到打印目录"
+                Content="制作印刷生产图"
                 Command="{Binding ConvertFormat2printCommand}"
                 IsEnabled="{Binding IsExecuting, Converter={StaticResource InvertBooleanConverter}}"
                 Margin="0,0,10,0" />
