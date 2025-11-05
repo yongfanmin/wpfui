@@ -25,7 +25,9 @@ using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Services.Downloader;
 using Wpf.Ui.Gallery.Table;
+using Wpf.Ui.Gallery.ViewModels.Windows;
 using Wpf.Ui.Gallery.Views.Pages;
+using Wpf.Ui.Gallery.Views.Windows;
 using Wpf.Ui.Gallery.Vo;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
@@ -52,6 +54,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     private readonly ISnackbarService _snackbarService;
     
     private readonly IContentDialogService _contentDialogService;
+    
+    private readonly WindowsProviderService _windowsProviderService;
 
     [ObservableProperty] private bool _isAcceptingOrders = false;
 
@@ -84,6 +88,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         INavigationService navigationService,
         ISnackbarService snackbarService,
         IContentDialogService contentDialogService,
+        WindowsProviderService windowsProviderService,
         IDatabaseService databaseService
     )
     {
@@ -96,6 +101,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         _navigationService = navigationService;
         _snackbarService = snackbarService;
         _contentDialogService = contentDialogService;
+        _windowsProviderService =  windowsProviderService;
         _databaseService = databaseService;
 
         /*_pollingTimer = new DispatcherTimer
@@ -834,15 +840,10 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             return;
         }
 
-        var viewModel = new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum), _databaseService);
-        var machineConfigModifyBox = await _contentDialogService.ShowSimpleDialogAsync(
-            new SimpleContentDialogCreateOptions()
-            {
-                Title = "创建打印任务",
-                Content = new CreatePrintTaskDialog(viewModel),
-                CloseButtonText = "取消"
-            }
-        );
+        var viewModel = new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum).ToList(), _databaseService);
+        var window = _windowsProviderService.GetWindow<CreatePrintTaskWindow>();
+        window.DataContext = viewModel;
+        window.Show();
     }
 }
 

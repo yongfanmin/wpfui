@@ -80,12 +80,6 @@ public class FileName
         return AppContext.BaseDirectory + "Assets"+Path.DirectorySeparatorChar+"Script"+Path.DirectorySeparatorChar+"AnyChannel2spot.jsx";
     }
 
-
-    public static string getLayoutTiffSpot()
-    {
-        return AppContext.BaseDirectory + "/Assets/Layout/layout_base.tif";
-    }
-
     public static string getLayoutTargetName(ObservableCollection<string> produceBatchNumberList)
     {
         return produceBatchNumberList.Count > 1 ? $"{string.Join("--",produceBatchNumberList)}_生产图排版.tif" : "生产图排版.tif";

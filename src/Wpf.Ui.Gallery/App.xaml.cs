@@ -93,7 +93,10 @@ public partial class App
                 // 打印面弹窗
                 _ = services.AddTransient<PrintDialog>();
                 _ = services.AddTransient<PrintDialogViewModel>();
-                
+                // 打印任务弹窗
+                _ = services.AddTransient<CreatePrintTaskWindow>();
+
+
                 _ = services.AddSingleton<SettingsPage>();
                 _ = services.AddSingleton<SettingsViewModel>();
                 // Top-level pages

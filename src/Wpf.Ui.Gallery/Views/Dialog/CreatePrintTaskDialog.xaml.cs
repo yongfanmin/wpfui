@@ -3,18 +3,22 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
-using Wpf.Ui.Gallery.ViewModels.Pages;
+using Wpf.Ui.Gallery.ViewModels.Windows;
 
-namespace Wpf.Ui.Gallery.Views.Pages;
-
-public partial class CreatePrintTaskDialog
+namespace Wpf.Ui.Gallery.Views.Windows
 {
-    public CreatePrintTaskViewModel ViewModel { get; }
-
-    public CreatePrintTaskDialog(CreatePrintTaskViewModel viewModel)
+    /// <summary>
+    /// Interaction logic for CreatePrintTaskDialog.xaml
+    /// </summary>
+    public partial class CreatePrintTaskDialog
     {
-        ViewModel = viewModel;
-        DataContext = ViewModel;
-        InitializeComponent();
+        public CreatePrintTaskViewModel ViewModel { get; }
+
+        public CreatePrintTaskDialog(CreatePrintTaskViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            DataContext = ViewModel;
+            InitializeComponent();
+        }
     }
 }
