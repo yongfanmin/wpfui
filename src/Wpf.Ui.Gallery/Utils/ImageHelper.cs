@@ -144,4 +144,37 @@ public static class ImageHelper
 
         return croppedImage;
     }
+    
+    /// <summary>
+    /// 使用NetVips为图像四周添加指定宽度的透明边距。
+    /// </summary>
+    /// <param name="inputImage">输入的NetVips图像对象。</param>
+    /// <param name="paddingCm">边距宽度（单位：厘米）。</param>
+    /// <returns>一个添加了透明边距的新NetVips图像对象。</returns>
+    public static Image AddTransparentPadding(Image inputImage, int paddingPx)
+    {
+
+        // 2. 计算新图像的总尺寸
+        int newWidth = inputImage.Width + (2 * paddingPx);
+        int newHeight = inputImage.Height + (2 * paddingPx);
+        
+        // 确保图像有Alpha通道，如果没有，则添加一个
+        Image imageWithAlpha = inputImage.HasAlpha() ? inputImage : inputImage.BandjoinConst(new [] { 255d });
+
+        // 3. 使用 Gravity 方法将原图放置在更大的画布中央
+        //    - 第一个参数：对齐方式。Enums.CompassDirection.Centre 表示居中。
+        //    - 第二、三个参数：新画布的宽度和高度。
+        //    - "extend" 参数：定义画布空白区域的填充方式。
+        //        Enums.Extend.Background 表示使用背景色填充。
+        //    - "background" 参数：指定背景色。对于RGBA，[0, 0, 0, 0] 表示完全透明。
+        Image paddedImage = imageWithAlpha.Gravity(
+            Enums.CompassDirection.Centre, 
+            newWidth, 
+            newHeight, 
+            extend: Enums.Extend.Background,
+            background: new double[] { 0, 0, 0, 0 }
+        );
+
+        return paddedImage;
+    }
 }

@@ -1236,32 +1236,32 @@ public class ProduceImageProcessor : IProduceImageProcessor
     
     // 这个方法有误: C#程序现在无法处理专色通道, 如果先给印花生成专色通道 再进行排版, 专色通道会丢失
     // 能用的写法: 先给png图片排版 然后整排版图再转 CMYK+专色通道
-    public static void CreateLayoutTiffFromPxSize(
+    public async static void CreateLayoutTiffFromPxSize(
         LayoutResult layoutResult,
         string outputTiffPath,
+        int safeEdgeWithoutPaddingMm,
         int dpi,
+        PrintTaskConfig printTaskConfig,
         string? cmykProfilePath = null)
     {
         // 根据 layoutResult.LayoutWidthPx  layoutResult.LayoutHeightPx 生成一张透明背景的画布,然后将layoutResult.LayoutImgList的图片根据X,Y的坐标信息排版再画布上， 然后将画布保存成tif格式
         // --- 1. 创建一个单像素的透明图像 ---
-        using var transparentPixel = Image.NewFromFile(FileName.getLayoutBackground());
+        using Image image = Image.Black((int)layoutResult.LayoutWidthPx, (int)layoutResult.LayoutHeightPx, bands: 4);
 
-        // --- 2. 将该单像素扩展(平铺)成所需尺寸的透明画布 ---
-        using Image canvas = transparentPixel.Embed(0, 0, (int)layoutResult.LayoutWidthPx, (int)layoutResult.LayoutHeightPx,
-            extend: Enums.Extend.Copy);
-        using Image srgbCanvas = canvas.Copy(interpretation: Enums.Interpretation.Cmyk);
-
-        Image currentResult = srgbCanvas;
+        // 将图像的色彩空间解释为 SRGB
+        using Image layoutCanvas = ImageHelper.AddTransparentPadding(image.Copy(interpretation: Enums.Interpretation.Srgb), ImageHelper.ConvertMmToPixels(safeEdgeWithoutPaddingMm, dpi));
+        
+        Image currentResult = layoutCanvas;
 
         // --- 2. 将图片根据X,Y的坐标信息排版在画布上 ---
         foreach (var imgInfo in layoutResult.LayoutImgList)
         {
-            using Image piece = Image.NewFromFile(imgInfo.ImgPath, access: Enums.Access.Random);
+            using Image piece = imgInfo.LayoutCropImg is not null ? imgInfo.LayoutCropImg : Image.NewFromFile(imgInfo.ImgPath);
             if (piece.Bands == currentResult.Bands)
             {
                 Image newResult = currentResult.Composite(piece, Enums.BlendMode.Over, x: (int)imgInfo.PositionX, y: (int)imgInfo.PositionY);
 
-                if (currentResult != srgbCanvas)
+                if (currentResult != layoutCanvas)
                 {
                     currentResult.Dispose();
                 }
@@ -1277,8 +1277,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
         // --- 3. 设置DPI并返回最终图像 ---
         double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
         var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
-        
-        if (currentResult != srgbCanvas)
+
+        if (currentResult != layoutCanvas)
         {
             currentResult.Dispose();
         }
@@ -1287,12 +1287,72 @@ public class ProduceImageProcessor : IProduceImageProcessor
         {
             iccProfileToUse = FindDefaultCmykProfile();
         }
-        finalImage.Tiffsave(outputTiffPath,
+
+        string finalPath = Path.ChangeExtension(outputTiffPath, ".tif");
+        // --- DPI 准备 ---
+        var xresInPpm = finalImage.Xres;
+        var yresInPpm = finalImage.Yres;
+
+        // --- [最终核心修复：重构整个图像处理流程] ---
+
+        // 步骤 1: 确保我们有一个带 Alpha 通道的源图像。
+        // Alpha 通道将作为我们的专色通道。
+        using var imageWithAlpha = finalImage.HasAlpha()
+            ? finalImage.Copy() // 如果已经有 alpha，直接使用
+            : finalImage.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
+
+        // 步骤 2: 将这个 4 通道的 RGBA 图像转换到目标 CMYK 色彩空间。
+        // libvips 会智能地将 RGB -> CMYK (4 个通道)，并将原始的 Alpha 通道作为第 5 个通道附加。
+        // 这一步的结果是一个 5 通道的图像，其 interpretation 为 Multiband。
+        //using var cmykWithSpot = imageWithAlpha.Colourspace(Enums.Interpretation.Cmyk, sourceSpace: Enums.Interpretation.Srgb);
+
+        // --- 专色层和 CMYK 图像准备 ---
+        using Image spotPlate = finalImage.HasAlpha()
+            ? finalImage.ExtractBand(finalImage.Bands - 1).Invert()
+            : Image.Black(finalImage.Width, finalImage.Height).Invert();
+        // 创建一个 5x5 的方形结构元素 (核)，用于一次性腐蚀2个像素。 (n-1)/2  n为矩阵长度
+        // 在 NetVips 中，结构元素本身就是一个 Image 对象。
+        using var mask = Image.NewFromArray(new byte[,]
+        {
+            { 255, 255, 255, 255, 255},
+            { 255, 255, 255, 255, 255},
+            { 255, 255, 255, 255, 255},
+            { 255, 255, 255, 255, 255},
+            { 255, 255, 255, 255, 255}
+        });
+        // 使用创建的 5x5 核，对专色蒙版执行一次腐蚀操作。
+        //using var spotPlateShrunk = spotPlate.Erode(mask);
+        // 先对透明通道取反->外扩 = 非透明区域内缩
+        using var spotPlateShrunk = spotPlate.Dilate(mask);
+        
+        using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.Copy() : finalImage;
+
+        using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
+
+        using var cmykWithSpot = cmykImage.Bandjoin(spotPlateShrunk);
+        // --- 通道合并 ---
+
+        // 步骤 3: 保存这个 5 通道的图像。
+        // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
+        // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
+        cmykWithSpot.Tiffsave(finalPath,
             compression: Enums.ForeignTiffCompression.Lzw,
             profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
             tile: true,
-            pyramid: false
+            pyramid: false,
+            resunit: Enums.ForeignTiffResunit.Inch,
+            xres: xresInPpm,
+            yres: yresInPpm
         );
+        bool success = await ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalPath});
+        if (success)
+        {
+            // 成功
+        }
+        else
+        {
+            throw new Exception("PS转换专色通道出错");
+        }
     }
 
     private static string FindDefaultCmykProfile()

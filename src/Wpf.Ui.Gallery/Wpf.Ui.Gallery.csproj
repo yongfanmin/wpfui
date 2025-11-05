@@ -32,7 +32,6 @@
     <PackageReference Include="NetTopologySuite" />
     <PackageReference Include="NetVips" />
     <PackageReference Include="NetVips.Native.win-x64" />
-    <PackageReference Include="OpenCvSharp4.Windows" />
     <PackageReference Include="PdfiumPrinter" />
     <PackageReference Include="RectpackSharp" />
     <PackageReference Include="Refit" />

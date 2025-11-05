@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.IO;
 using System.Text.Json;
 using NetVips;
+using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Dto.CreateImg;
 using Wpf.Ui.Gallery.Dto.PrintTask;
 using Wpf.Ui.Gallery.ImageProcessor;
@@ -51,6 +52,12 @@ public partial class CreatePrintTaskViewModel : ObservableObject
     [ObservableProperty]
     private bool _isWhiteInkSpot = false;
     
+    [ObservableProperty]
+    private OutputFormat _outputFormatOb = OutputFormat.Png;
+
+    [ObservableProperty]
+    private LayoutOption _layoutOptionOb = LayoutOption.Automatic;
+    
 
     public CreatePrintTaskViewModel(IEnumerable<string> produceBatchNumbers, IDatabaseService databaseService)
     {
@@ -76,18 +83,19 @@ public partial class CreatePrintTaskViewModel : ObservableObject
     [RelayCommand]
     private async Task OnConvertFormat2print()
     {
-        PrintTaskConfig printTaskConfig = new PrintTaskConfig()
-        {
-            ToCymk = IsConvertToCmyk,
-            ToWhiteInkSpot = IsWhiteInkSpot,
-        };
-        
         if (string.IsNullOrEmpty(DestinationFolder) || !Directory.Exists(DestinationFolder))
         {
             // Ideally, show a message to the user
             return;
         }
 
+        // 打印任务配置
+        PrintTaskConfig printTaskConfig = new PrintTaskConfig()
+        {
+            OutputFormat = OutputFormatOb,
+            LayoutOption = LayoutOptionOb
+        };
+        
         IsExecuting = true;
         CopyProgress = 0;
 
@@ -110,35 +118,52 @@ public partial class CreatePrintTaskViewModel : ObservableObject
             }
         }
 
-        List<LayoutImg> printImgList = new List<LayoutImg>();
-        decimal machinePrintWidthMm = 600;
+        
+        int machinePrintWidthMm = 600;
+        // 打印机安全边缘 (左右各 ? 毫米)
+        int machinePrintSafeEdgeMm = 10; 
         int printerDpi = 300;
+        // 印花图安全间距( ? 毫米) 用于裁剪
+        int printImgPaddingMm = 5;
         
+        // 可安全排版的宽度
+        int machineLayoutSafeWidthMm = machinePrintWidthMm - (machinePrintSafeEdgeMm * 2) + (printImgPaddingMm * 2);
+        // 出血位 (印刷机器 左右两侧夹具占用空间 无法印刷的宽度)
+        int safeEdgeWithoutPaddingMm = machinePrintSafeEdgeMm - printImgPaddingMm;
         
-        for (int i = 0; i < allFilesToCopy.Count; i++)
+        string targetPath = Path.Combine(DestinationFolder, string.Join("--", ProduceBatchNumbers));
+        if (!Directory.Exists(targetPath))
         {
-            var sourcePath = allFilesToCopy[i];
-            var destinationPath = Path.Combine(DestinationFolder, Path.GetFileName(sourcePath));
-            if (printTaskConfig.IsNeedProcess())
+            Directory.CreateDirectory(targetPath);
+        }
+        if (printTaskConfig.IsNeedLayout())
+        {
+            // 需要排版 就先读取原来的图片 然后排版 再进行格式转换
+            if (allFilesToCopy.Count > 0)
             {
-                LayoutImg layoutImg = await ProduceImageProcessor.PrintTaskImgProcess(sourcePath, destinationPath,printTaskConfig);
-                layoutImg.Id = i;
-                printImgList.Add(layoutImg);
+                LayoutResult layoutResult = StripPackingLayout.SkylineLayout(allFilesToCopy, (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi), ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
+                // 创建排版画布 将排版数据换成印花图排版到 画布上
+                ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResult, Path.Combine(targetPath, Path.GetFileName(FileName.getLayoutTargetName(ProduceBatchNumbers))), safeEdgeWithoutPaddingMm, printerDpi, printTaskConfig);
             }
             else
             {
-                await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
+                throw new Exception("不存在需要排版的印花图");
             }
-            CopyProgress = (double)(i + 1) / allFilesToCopy.Count * 100;
         }
-        
-        // 自动排版 输入需要排版的图片 与 机器打印宽度  (实际都是毫米 但是计算库只支持 无符号整数 所以按照像素排版 然后再转成毫米)
-        if (printImgList.Count > 0)
+        else
         {
-            LayoutResult layoutResult = StripPackingLayout.SkylineLayout(printImgList, (uint)ImageHelper.ConvertMmToPixels(machinePrintWidthMm, printerDpi));
-            // 创建排版画布 将排版数据换成印花图排版到 画布上
-            ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResult,Path.Combine(DestinationFolder, Path.GetFileName("layout.tif")), printerDpi);
+            // 不需要排版 复制原来的印花到打印目录 如果需要格式转换的情况 复制的时候再转换
+            //TODO 缺少格式转换
+            for (int i = 0; i < allFilesToCopy.Count; i++)
+            {
+                var sourcePath = allFilesToCopy[i];
+                var destinationPath = Path.Combine(targetPath, Path.GetFileName(sourcePath));
+                await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
+                CopyProgress = (double)(i + 1) / allFilesToCopy.Count * 100;
+            }
         }
+        // 自动排版 输入需要排版的图片 与 机器打印宽度  (实际都是毫米 但是计算库只支持 无符号整数 所以按照像素排版 然后再转成毫米)
+        
 
         IsExecuting = false;
         IsPrintButtonEnabled = true;

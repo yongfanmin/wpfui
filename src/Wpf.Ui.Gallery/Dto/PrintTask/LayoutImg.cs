@@ -3,6 +3,8 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using NetVips;
+
 namespace Wpf.Ui.Gallery.Dto.PrintTask;
 
 public class LayoutImg
@@ -17,4 +19,6 @@ public class LayoutImg
     public uint PositionY { get; set; }
     
     public string ImgPath { get; set; }
+
+    public Image LayoutCropImg { get; set; }
 }

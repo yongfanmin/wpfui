@@ -3,8 +3,10 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using NetVips;
 using RectpackSharp;
 using Wpf.Ui.Gallery.Dto.PrintTask;
+using Wpf.Ui.Gallery.Utils;
 
 namespace Wpf.Ui.Gallery.ImageProcessor;
 
@@ -64,9 +66,52 @@ public class StripPackingLayout
         return polygon;
     }*/
 
-    // 使用skyline算法进行矩形图片排版 支持旋转正负90度排版
-    public static LayoutResult SkylineLayout(List<LayoutImg> printImgList, uint machinePrintWidthPx)
+    // 使用skyline算法进行矩形图片排版 支持旋转正负90度排版  自动排版
+    public static LayoutResult SkylineLayout(List<string> printImgPathList, uint machinePrintWidthPx , int printImgPaddingPx)
     {
+        List<LayoutImg> printImgList = new List<LayoutImg>();
+        int id = 0;
+        foreach (string imgPath in printImgPathList)
+        {
+            using Image image = Image.NewFromFile(imgPath);
+            if (image.HasAlpha())
+            {
+                object[] trimResult = image.FindTrim();
+
+                // FindTrim 返回一个 object[] { left, top, width, height }
+                // 我们需要将它们转换为正确的类型 (通常是 int 或 long)
+                int left = Convert.ToInt32(trimResult[0]);
+                int top = Convert.ToInt32(trimResult[1]);
+                int width = Convert.ToInt32(trimResult[2]);
+                int height = Convert.ToInt32(trimResult[3]);
+
+                if (width == 0 || height == 0)
+                {
+                    Console.WriteLine("图片内容为空（完全透明）。");
+                }
+
+                Console.WriteLine($"内容边界框: X={left}, Y={top}, 宽度={width}, 高度={height}");
+                // --- 第二步: Crop ---
+                Image croppedImage = ImageHelper.AddTransparentPadding(image.Crop(left, top, width, height), printImgPaddingPx);
+                
+                printImgList.Add(new LayoutImg()
+                {
+                    WidthPx = (uint)croppedImage.Width,
+                    HeightPx = (uint)croppedImage.Height,
+                    Id = id++,
+                    ImgPath = imgPath,
+                    LayoutCropImg = croppedImage,
+                });
+            }
+            else
+            {
+                printImgList.Add(new LayoutImg()
+                {
+                    WidthPx = (uint)image.Width, HeightPx = (uint)image.Height, Id = id++, ImgPath = imgPath
+                });
+            }
+        }
+
         var rectanglesToPack = new PackingRectangle[printImgList.Count];
         for (int i = 0; i < rectanglesToPack.Length; i++)
         {
@@ -110,12 +155,13 @@ public class StripPackingLayout
             LayoutImg layoutImg = printImgList.Where(item => item.Id == packed.Id).FirstOrDefault();
             layoutImgList.Add(new LayoutImg()
             {
-                WidthPx = layoutImg.WidthPx,
-                HeightPx = layoutImg.HeightPx,
-                Id = layoutImg.Id,
-                PositionX = layoutImg.PositionX,
-                PositionY = layoutImg.PositionY,
+                WidthPx = packed.Width,
+                HeightPx = packed.Height,
+                Id = packed.Id,
+                PositionX = packed.X,
+                PositionY = packed.Y,
                 ImgPath = layoutImg.ImgPath,
+                LayoutCropImg = layoutImg.LayoutCropImg
             });
             /*Console.WriteLine(
                 $"矩形: 原始尺寸({original.Width}x{original.Height}), " +
@@ -127,9 +173,7 @@ public class StripPackingLayout
 
         return new LayoutResult()
         {
-            LayoutWidthPx = bounds.Width,
-            LayoutHeightPx = bounds.Height,
-            LayoutImgList = layoutImgList,
+            LayoutWidthPx = bounds.Width, LayoutHeightPx = bounds.Height, LayoutImgList = layoutImgList,
         };
     }
 }

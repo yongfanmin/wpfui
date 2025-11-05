@@ -132,6 +132,39 @@ public class AppSetting
     
     // 主界面 列表条目 选中后是否弹出 帮助小提示
     public bool ShowDashboardSelectionHelp { get; set; } = true;
+    
+    public PrintTaskConfig PrintTaskConfig { get; set; } = new();
+}
+
+public class PrintTaskConfig
+{
+    public OutputFormat OutputFormat { get; set; } = OutputFormat.Png;
+
+    public LayoutOption LayoutOption { get; set; } = LayoutOption.Automatic;
+
+    public bool IsNeedLayout()
+    {
+        return this.LayoutOption == LayoutOption.Automatic;
+    }
+
+    public bool IsCymk()
+    {
+        return this.OutputFormat == OutputFormat.TifWithSpotColor || this.OutputFormat == OutputFormat.TifCymk;
+    }
+}
+
+public enum OutputFormat
+{
+    Png, // .png(RGBA)
+    Jpg, // .jpg(RGB)
+    TifCymk, // .tif(CYMK)
+    TifWithSpotColor // .tif(CYMK+专色通道)
+}
+
+public enum LayoutOption
+{
+    Automatic, // 自动排版
+    Manual // 不排版(后续手动排版)
 }
 
 public class WindowSettings
