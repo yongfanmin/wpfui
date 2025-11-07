@@ -16,6 +16,8 @@ using ImageMagick;
 using ImageMagick.Formats;
 using Microsoft.Win32;
 using NetVips;
+using OpenCvSharp;
+using OpenCvSharp.XImgProc;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Component;
 using Wpf.Ui.Gallery.Config;
@@ -35,6 +37,8 @@ using ZXing.QrCode;
 using ZXing.Rendering;
 using Image = NetVips.Image;
 using PixelFormat = System.Windows.Media.PixelFormat;
+using OpenCvSharp.XImgProc;
+using Size = OpenCvSharp.Size;
 
 namespace Wpf.Ui.Gallery.ImageProcessor;
 
@@ -1234,9 +1238,41 @@ public class ProduceImageProcessor : IProduceImageProcessor
         return false;
     }
     
+    
+    /// <summary>
+    /// 将RGBA图像转换为一个新的RGBA图像，其中有颜色的区域变为完全不透明。
+    /// 纯白区域(255,255,255)被视为空白，并变为完全透明。
+    /// </summary>
+    /// <param name="inputRgbaImage">输入的4通道RGBA图像。</param>
+    /// <returns>一个新的RGBA图像，其Alpha通道基于内容生成。</returns>
+    /*public static Image SolidifyColorAreas(Image inputRgbaImage)
+    {
+        if (!inputRgbaImage.HasAlpha() || inputRgbaImage.Bands != 4)
+        {
+            // 如果输入不是RGBA，则无法处理，直接返回副本
+            return inputRgbaImage.Copy();
+        }
+
+        // 步骤 1: 将原始图像分离为RGB部分和Alpha部分
+        using var rgb = inputRgbaImage.ExtractBand(0, n: 3);
+        using var originalAlpha = inputRgbaImage.ExtractBand(3);
+
+        // 步骤 2: (关键!) 基于原始Alpha通道，创建新的Alpha通道
+        // 如果原始Alpha > 0，则新Alpha为255，否则为0。
+        // `(originalAlpha > 0)` 这行代码会精确地生成这个二值蒙版。
+        using var newAlpha = (originalAlpha > 0);
+
+        // 步骤 3: 将原始的RGB通道与我们新生成的Alpha通道合并
+        // 首先物理拼接
+        using var fourBandImage = rgb.Bandjoin(newAlpha);
+        // 然后进行语义解释，告诉NetVips这是一个 sRGB + Alpha 图像
+        return fourBandImage.Copy(interpretation: Enums.Interpretation.Srgb);
+
+    }*/
+    
     // 这个方法有误: C#程序现在无法处理专色通道, 如果先给印花生成专色通道 再进行排版, 专色通道会丢失
     // 能用的写法: 先给png图片排版 然后整排版图再转 CMYK+专色通道
-    public async static void CreateLayoutTiffFromPxSize(
+    public async static Task<bool> CreateLayoutTiffFromPxSize(
         LayoutResult layoutResult,
         string outputTiffPath,
         int safeEdgeWithoutPaddingMm,
@@ -1256,7 +1292,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         // --- 2. 将图片根据X,Y的坐标信息排版在画布上 ---
         foreach (var imgInfo in layoutResult.LayoutImgList)
         {
-            using Image piece = imgInfo.LayoutCropImg is not null ? imgInfo.LayoutCropImg : Image.NewFromFile(imgInfo.ImgPath);
+            Image piece = imgInfo.LayoutCropImg is not null ? imgInfo.LayoutCropImg : Image.NewFromFile(imgInfo.ImgPath);
             if (piece.Bands == currentResult.Bands)
             {
                 Image newResult = currentResult.Composite(piece, Enums.BlendMode.Over, x: (int)imgInfo.PositionX, y: (int)imgInfo.PositionY);
@@ -1300,7 +1336,10 @@ public class ProduceImageProcessor : IProduceImageProcessor
         using var imageWithAlpha = finalImage.HasAlpha()
             ? finalImage.Copy() // 如果已经有 alpha，直接使用
             : finalImage.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
+        using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.Copy() : finalImage;
 
+        using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
+        
         // 步骤 2: 将这个 4 通道的 RGBA 图像转换到目标 CMYK 色彩空间。
         // libvips 会智能地将 RGB -> CMYK (4 个通道)，并将原始的 Alpha 通道作为第 5 个通道附加。
         // 这一步的结果是一个 5 通道的图像，其 interpretation 为 Multiband。
@@ -1310,26 +1349,23 @@ public class ProduceImageProcessor : IProduceImageProcessor
         using Image spotPlate = finalImage.HasAlpha()
             ? finalImage.ExtractBand(finalImage.Bands - 1).Invert()
             : Image.Black(finalImage.Width, finalImage.Height).Invert();
+
+        
+        using Image skeletonImg = ImageHelper.UnifiedSkeletonize(spotPlate,2);
+        
+        // 内缩两个像素
         // 创建一个 5x5 的方形结构元素 (核)，用于一次性腐蚀2个像素。 (n-1)/2  n为矩阵长度
         // 在 NetVips 中，结构元素本身就是一个 Image 对象。
-        using var mask = Image.NewFromArray(new byte[,]
-        {
-            { 255, 255, 255, 255, 255},
-            { 255, 255, 255, 255, 255},
-            { 255, 255, 255, 255, 255},
-            { 255, 255, 255, 255, 255},
-            { 255, 255, 255, 255, 255}
-        });
+        // 内缩两像素
+        using var mask = Image.NewFromArray(CreateImageMask(2));
         // 使用创建的 5x5 核，对专色蒙版执行一次腐蚀操作。
         //using var spotPlateShrunk = spotPlate.Erode(mask);
         // 先对透明通道取反->外扩 = 非透明区域内缩
         using var spotPlateShrunk = spotPlate.Dilate(mask);
+
+        Image spotComplete = spotPlateShrunk.Composite2(skeletonImg, Enums.BlendMode.Darken);
         
-        using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.Copy() : finalImage;
-
-        using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
-
-        using var cmykWithSpot = cmykImage.Bandjoin(spotPlateShrunk);
+        using var cmykWithSpot = cmykImage.Bandjoin(spotComplete[0]);
         // --- 通道合并 ---
 
         // 步骤 3: 保存这个 5 通道的图像。
@@ -1348,11 +1384,31 @@ public class ProduceImageProcessor : IProduceImageProcessor
         if (success)
         {
             // 成功
+            return true;
         }
         else
         {
             throw new Exception("PS转换专色通道出错");
         }
+    }
+    
+    // 专色通道内缩量
+    public static byte[,] CreateImageMask(int safeSpotPixel)
+    {
+        int n = safeSpotPixel * 2 + 1;
+        // Create an n x n two-dimensional byte array.
+        byte[,] matrix = new byte[n, n];
+
+        // Iterate through each row and column to set the value to 255.
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                matrix[i, j] = 255;
+            }
+        }
+        
+        return matrix;
     }
 
     private static string FindDefaultCmykProfile()

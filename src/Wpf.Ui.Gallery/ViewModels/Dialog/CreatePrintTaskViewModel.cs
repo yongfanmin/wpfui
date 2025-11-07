@@ -80,11 +80,18 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
 
         // 执行印花图归集 合批打印  执行转换格式 png->TIFF(CMYK)->移动文件到打印文件夹
         [RelayCommand]
+        
         private async Task OnConvertFormat2print()
         {
             if (string.IsNullOrEmpty(DestinationFolder) || !Directory.Exists(DestinationFolder))
             {
                 // Ideally, show a message to the user
+                var messageBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "文件夹不存在", Content = "请先选择一个文件夹用于存放即将印刷的印花生产图", CloseButtonText = "好的"
+                };
+
+                _ = await messageBox.ShowDialogAsync();
                 return;
             }
 
@@ -140,7 +147,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             int machinePrintSafeEdgeMm = 10;
             int printerDpi = 300;
             // 印花图安全间距( ? 毫米) 用于裁剪
-            int printImgPaddingMm = 5;
+            int printImgPaddingMm = 10;
 
             // 可安全排版的宽度
             int machineLayoutSafeWidthMm = machinePrintWidthMm - (machinePrintSafeEdgeMm * 2) + (printImgPaddingMm * 2);
@@ -162,7 +169,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                         (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi),
                         ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
                     // 创建排版画布 将排版数据换成印花图排版到 画布上
-                    ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResult,
+                    await ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResult,
                         Path.Combine(targetPath, Path.GetFileName(FileName.getLayoutTargetName(ProduceBatchNumbers))),
                         safeEdgeWithoutPaddingMm, printerDpi, printTaskConfig);
                 }
@@ -179,15 +186,30 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 {
                     var sourcePath = allFilesToCopy[i].SourceFile;
                     var destinationPath = Path.Combine(targetPath, FileName.getLayoutTargetName(ProduceBatchNumbers, allFilesToCopy[i].UniFileName, Path.GetFileName(sourcePath)));
-                    await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
+                    
+                    // 如果格式为PNG，则直接复制
+                    if (printTaskConfig.OutputFormat == OutputFormat.Png)
+                    {
+                        await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
+                    }
+                    else
+                    {
+                        // 否则，进行格式转换
+                        await ConvertImageAsync(sourcePath, destinationPath, printTaskConfig);
+                    }
                     CopyProgress = (double)(i + 1) / allFilesToCopy.Count * 100;
                 }
+                
+                
             }
             // 自动排版 输入需要排版的图片 与 机器打印宽度  (实际都是毫米 但是计算库只支持 无符号整数 所以按照像素排版 然后再转成毫米)
 
 
             IsExecuting = false;
             IsPrintButtonEnabled = true;
+            // 自动打开文件夹
+            Process.Start("explorer.exe", $"/select,\"{targetPath}\"");
+            AudioPlayer.PlayManualWaiting();
         }
 
 
@@ -205,6 +227,25 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         private bool CanStartBatchPrint()
         {
             return IsPrintButtonEnabled;
+        }
+        
+        public async Task ConvertImageAsync(string sourcePath, string destinationPath, PrintTaskConfig printTaskConfig)
+        {
+            await Task.Run(async () =>
+            {
+                using var image = Image.NewFromFile(sourcePath);
+                var extension = "." + printTaskConfig.OutputFormat.ToString().ToLower();
+                var finalPath = Path.ChangeExtension(destinationPath, extension);
+
+                if (printTaskConfig.IsCymk())
+                {
+                    //await PrintTaskImgProcess(sourcePath, finalPath, printTaskConfig);
+                }
+                else
+                {
+                    image.WriteToFile(finalPath);
+                }
+            });
         }
     }
 }

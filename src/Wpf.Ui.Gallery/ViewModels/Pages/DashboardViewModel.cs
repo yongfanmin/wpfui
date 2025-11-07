@@ -25,6 +25,7 @@ using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Services.Downloader;
 using Wpf.Ui.Gallery.Table;
+using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.ViewModels.Windows;
 using Wpf.Ui.Gallery.Views.Pages;
 using Wpf.Ui.Gallery.Views.Windows;
@@ -50,11 +51,11 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     private readonly INavigationService _navigationService;
 
     private readonly IDatabaseService _databaseService;
-    
+
     private readonly ISnackbarService _snackbarService;
-    
+
     private readonly IContentDialogService _contentDialogService;
-    
+
     private readonly WindowsProviderService _windowsProviderService;
 
     [ObservableProperty] private bool _isAcceptingOrders = false;
@@ -101,7 +102,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         _navigationService = navigationService;
         _snackbarService = snackbarService;
         _contentDialogService = contentDialogService;
-        _windowsProviderService =  windowsProviderService;
+        _windowsProviderService = windowsProviderService;
         _databaseService = databaseService;
 
         /*_pollingTimer = new DispatcherTimer
@@ -503,6 +504,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                 }
             }));
         }
+
         await Task.WhenAll(itemParallelTasks);
     }
 
@@ -533,68 +535,87 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         var downloadTasks = new List<Task>();
         foreach (ProductBatchItemInfo produceBatchItemInfo in produceBatchOrderList.Data)
         {
-            downloadTasks.Add(Task.Run(async () =>
+            // 需要限制线程池数量, 过多超过PHP的请求限制, 会导致大量请求超时进入重试 PHP支持并发数不多 多线程请求意义不大
+            ThreadPool5Config.EnqueueAsync(async () =>
             {
-                ProduceBatchDetailRequest produceBatchDetailRequest = new ProduceBatchDetailRequest();
-                produceBatchDetailRequest.BatchNo = produceBatchItemInfo.BatchNum;
-
-                // 获取项位批次详情 (订单详情) 同一个订单不同产品不同批次号
-                FactoryApiResponse<List<JsonNode?>> produceBatchOrderDetailObj =
-                    await _produceBatchDetailApi.getProduceBatchDetailObjTest(
-                        produceBatchDetailRequest,
-                        token);
-                Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "-项位批次" +
-                                  produceBatchItemInfo.BatchNum + "详情抓取成功");
-                List<ProduceBatchItemDetail> orderPrintBatchList =
-                    ProduceBatchItemDetail.ConstructByArrayJson(produceBatchOrderDetailObj.Data);
-                var taskBuilder = new ProductionTaskBuilder();
-                // 项批号详情对应子项列表 (一般只有一个子项  一个订单)
-                Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "所有子项数据已加载");
-                UpdateProduceBatchStatus(produceBatchItem.ProduceBatchNumber, ProduceBatchStatus.处理中);
-                foreach (ProduceBatchItemDetail produceBatchItemDetail in orderPrintBatchList)
+                int retryTotal = 3;
+                int retryCount = retryTotal;
+                while (retryCount > 0)
                 {
+                    --retryCount;
                     try
                     {
-                        AddProduceBatchNeedLayoutItemCount(produceBatchItem.ProduceBatchNumber,
-                            produceBatchItemDetail.IsMultiPiece);
-                        //订单生产信息 转换成本软件 用于制造生产的图最少信息 (可以写各种方法 用于兼容其他平台的生产数据 转换成我们生产软件专用的数据结构)
-                        List<ProductionTask> productionTasks =
-                            taskBuilder.BuildTasksFromItem(produceBatchItemDetail);
-                        //TODO 兼容: 理论上DPI应该设置在整个布料排版上与设备绑定, 但是现在DPI却设置在裁片上
-                        int targetDpi = Decimal.ToInt32(
-                            produceBatchItemDetail.ProducePrintInfo
-                                .FirstOrDefault().Value.TargetDpi);
-                        UniqueBatchItem uniqueBatchItem = new UniqueBatchItem()
+                        ProduceBatchDetailRequest produceBatchDetailRequest = new ProduceBatchDetailRequest();
+                        produceBatchDetailRequest.BatchNo = produceBatchItemInfo.BatchNum;
+
+                        // 获取项位批次详情 (订单详情) 同一个订单不同产品不同批次号
+                        FactoryApiResponse<List<JsonNode?>> produceBatchOrderDetailObj =
+                            await _produceBatchDetailApi.getProduceBatchDetailObjTest(
+                                produceBatchDetailRequest,
+                                token);
+                        Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "-项位批次" +
+                                          produceBatchItemInfo.BatchNum + "详情抓取成功");
+                        List<ProduceBatchItemDetail> orderPrintBatchList =
+                            ProduceBatchItemDetail.ConstructByArrayJson(produceBatchOrderDetailObj.Data);
+                        var taskBuilder = new ProductionTaskBuilder();
+                        // 项批号详情对应子项列表 (一般只有一个子项  一个订单)
+                        Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "所有子项数据已加载");
+                        UpdateProduceBatchStatus(produceBatchItem.ProduceBatchNumber, ProduceBatchStatus.处理中);
+                        foreach (ProduceBatchItemDetail produceBatchItemDetail in orderPrintBatchList)
                         {
-                            DesignProductId = produceBatchItemDetail.DesignProductId,
-                            BatchNum = produceBatchItemDetail.BatchNum,
-                            ProduceBatchNum = produceBatchItemDetail.ProduceBatchNumber,
-                            Size = produceBatchItemDetail.Attributes.SizeAlias,
-                            SizeId = produceBatchItemDetail.Attributes.SizeId,
-                            Color = produceBatchItemDetail.Attributes.ColorAlias,
-                            ProductName = produceBatchItemDetail.DesignName,
-                            OrderNo = produceBatchItemDetail.OrderNo,
-                            OrderCode = produceBatchItemDetail.OrderCode,
-                            ItemId = produceBatchItemDetail.ItemId,
-                            OrderDetailId = produceBatchItemDetail.OrderDetailId,
-                            IsMultiPiece = produceBatchItemDetail.IsMultiPiece,
-                            TargetDpi = targetDpi,
-                            ProductionTasks = productionTasks
-                        };
-                        updateProduceBatchItemDetail(uniqueBatchItem, ProduceBatchItemProcess.数据已加载);
-                        downloadDataList.Add(new UniqueBatchItemNum()
-                        {
-                            ProduceBatchNum = uniqueBatchItem.ProduceBatchNum, BatchNum = uniqueBatchItem.BatchNum,
-                        });
-                        Console.WriteLine(
-                            $"生产计划{uniqueBatchItem.ProduceBatchNum}的项批号{uniqueBatchItem.BatchNum}数据已写入数据库");
+                            try
+                            {
+                                AddProduceBatchNeedLayoutItemCount(produceBatchItem.ProduceBatchNumber,
+                                    produceBatchItemDetail.IsMultiPiece);
+                                //订单生产信息 转换成本软件 用于制造生产的图最少信息 (可以写各种方法 用于兼容其他平台的生产数据 转换成我们生产软件专用的数据结构)
+                                List<ProductionTask> productionTasks =
+                                    taskBuilder.BuildTasksFromItem(produceBatchItemDetail);
+                                //TODO 兼容: 理论上DPI应该设置在整个布料排版上与设备绑定, 但是现在DPI却设置在裁片上
+                                int targetDpi = Decimal.ToInt32(
+                                    produceBatchItemDetail.ProducePrintInfo
+                                        .FirstOrDefault().Value.TargetDpi);
+                                UniqueBatchItem uniqueBatchItem = new UniqueBatchItem()
+                                {
+                                    DesignProductId = produceBatchItemDetail.DesignProductId,
+                                    BatchNum = produceBatchItemDetail.BatchNum,
+                                    ProduceBatchNum = produceBatchItemDetail.ProduceBatchNumber,
+                                    Size = produceBatchItemDetail.Attributes.SizeAlias,
+                                    SizeId = produceBatchItemDetail.Attributes.SizeId,
+                                    Color = produceBatchItemDetail.Attributes.ColorAlias,
+                                    ProductName = produceBatchItemDetail.DesignName,
+                                    OrderNo = produceBatchItemDetail.OrderNo,
+                                    OrderCode = produceBatchItemDetail.OrderCode,
+                                    ItemId = produceBatchItemDetail.ItemId,
+                                    OrderDetailId = produceBatchItemDetail.OrderDetailId,
+                                    IsMultiPiece = produceBatchItemDetail.IsMultiPiece,
+                                    TargetDpi = targetDpi,
+                                    ProductionTasks = productionTasks
+                                };
+                                updateProduceBatchItemDetail(uniqueBatchItem, ProduceBatchItemProcess.数据已加载);
+                                downloadDataList.Add(new UniqueBatchItemNum()
+                                {
+                                    ProduceBatchNum = uniqueBatchItem.ProduceBatchNum,
+                                    BatchNum = uniqueBatchItem.BatchNum,
+                                });
+                                Console.WriteLine(
+                                    $"生产计划{uniqueBatchItem.ProduceBatchNum}的项批号{uniqueBatchItem.BatchNum}数据已写入数据库");
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e);
+                            }
+                        }
+
+                        retryCount = 0;
                     }
-                    catch (Exception e)
+                    catch (Exception ex)
                     {
-                        Console.WriteLine(e);
+                        Console.WriteLine(
+                            $"请求生产计划项批号{produceBatchItemInfo.BatchNum}详情出错{ex}");
+                        Thread.Sleep(5000 * (retryTotal - retryCount + 1));
                     }
                 }
-            }));
+            });
         }
 
         await Task.WhenAll(downloadTasks);
@@ -612,6 +633,10 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         }
 
         _databaseService.UpdateProduceBatchStatus(produceBatchNum, produceBatchStatus);
+        if (produceBatchStatus == ProduceBatchStatus.生产准备就绪)
+        {
+            AudioPlayer.PlayManualWaiting();
+        }
     }
 
     public void AddProduceBatchNeedLayoutItemCount(string produceBatchNum, bool isMultiPiece)
@@ -679,7 +704,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         if (producePlanEntity.NeedLayoutCount > 0 &&
             (producePlanEntity.NeedLayoutCount == producePlanEntity.LayoutCreateCount))
         {
-            // 多裁片印花且排版完成
+            // 多裁片印花
             UpdateProduceBatchStatus(produceBatchNumber, ProduceBatchStatus.生产准备就绪);
         }
         else if (producePlanEntity.NeedLayoutCount == 0 &&
@@ -776,7 +801,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             WeakReferenceMessenger.Default.Send(new ProduceBatchNumMessage() { ProduceBatchNumber = produceBatchNum });
         }
     }
-    
+
     // 重置生产
     [RelayCommand]
     private async void ResetProduction(object? selectedItems)
@@ -794,10 +819,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
 
         var messageBox = new Wpf.Ui.Controls.MessageBox
         {
-            Title = "确认重置生产",
-            Content = content,
-            PrimaryButtonText = "确定重置",
-            CloseButtonText = "取消"
+            Title = "确认重置生产", Content = content, PrimaryButtonText = "确定重置", CloseButtonText = "取消"
         };
 
         var result = await messageBox.ShowDialogAsync();
@@ -805,16 +827,18 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         {
             string token = _loginInfoService.getToken();
             FactoryApiResponse<object> resetResponse =
-            await _produceBatchApi.resetProduce(
-                new ResetRequest()
-                {
-                    ProduceBatchNum = string.Join(",",selectedBatches.Select(item=>item.ProduceBatchNum).ToList()),
-                    BatchNo = "",
-                },
-                token);
+                await _produceBatchApi.resetProduce(
+                    new ResetRequest()
+                    {
+                        ProduceBatchNum =
+                            string.Join(",", selectedBatches.Select(item => item.ProduceBatchNum).ToList()),
+                        BatchNo = "",
+                    },
+                    token);
             if (resetResponse.IsSuccess)
             {
-                _snackbarService.Show("重置生产成功", $"生产计划: {string.Join(" ， ",selectedBatches.Select(item=>item.ProduceBatchNum).ToList())}",
+                _snackbarService.Show("重置生产成功",
+                    $"生产计划: {string.Join(" ， ", selectedBatches.Select(item => item.ProduceBatchNum).ToList())}",
                     ControlAppearance.Success, new SymbolIcon(SymbolRegular.Check24),
                     TimeSpan.FromSeconds(5));
             }
@@ -840,7 +864,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             return;
         }
 
-        var viewModel = new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum).ToList(), _databaseService);
+        var viewModel =
+            new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum).ToList(), _databaseService);
         var window = _windowsProviderService.GetWindow<CreatePrintTaskWindow>();
         window.DataContext = viewModel;
         window.Show();

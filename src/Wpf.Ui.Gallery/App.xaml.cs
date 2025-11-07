@@ -5,6 +5,8 @@
 
 using Lepo.i18n.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Extensions.Http;
 using Refit;
 using Serilog;
 using Serilog.Core;
@@ -173,7 +175,13 @@ public partial class App
                     {
                         //接口域名 接口地址 生产计划详情接口
                         c.BaseAddress = new Uri(_apiDomain);
-                    }).AddHttpMessageHandler<NetworkActivityHandler>();
+                    }).AddPolicyHandler(HttpPolicyExtensions
+                        // 选择要处理的异常和HTTP错误
+                        .HandleTransientHttpError() // 自动处理 HttpRequestException, 5xx 状态码, 408 状态码
+                        .Or<IOException>() // 特别加入 IOException 来捕获 "The response ended prematurely"
+                        .Or<Refit.ApiException>(ex => ex.StatusCode == System.Net.HttpStatusCode.InternalServerError) // 也可以处理特定的 Refit 异常
+                        // 设置重试策略：重试4次，每次等待时间为 2^n 秒 (即 3, 6, 9, 27 秒)
+                        .WaitAndRetryAsync(4, retryAttempt => TimeSpan.FromSeconds(Math.Pow(3, retryAttempt)))).AddHttpMessageHandler<NetworkActivityHandler>();
                 _ = services
                     .AddRefitClient<IOrderApi>()
                     .ConfigureHttpClient(c =>

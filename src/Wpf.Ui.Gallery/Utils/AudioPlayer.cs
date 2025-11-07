@@ -9,6 +9,17 @@ public static class AudioPlayer
 {
      private static readonly List<MediaPlayer> PlayingMedia = new List<MediaPlayer>();
 
+     private static bool _isPlaying = false;
+     
+     public static void PlayManualWaiting()
+     {
+         if (!_isPlaying)
+         {
+             _isPlaying = true;
+             PlayAudio(AppContext.BaseDirectory + "/Assets/Audio/manual_waiting.mp3");
+             _isPlaying = false;
+         }
+     }
 
      public static void PlaySuccessAudio()
      {
