@@ -103,107 +103,119 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
 
             IsExecuting = true;
             CopyProgress = 0;
-
-            var allFilesToCopy = new List<CopyFile>();
-            foreach (var produceBatchNumber in ProduceBatchNumbers)
+            string targetPath = Path.Combine(DestinationFolder, string.Join("--", ProduceBatchNumbers));
+            await Task.Run(async () =>
             {
-                List<ProduceItemEntity> items = _databaseService.GetProduceItemList(produceBatchNumber);
-                foreach (var produceItemEntity in items)
+                var allFilesToCopy = new List<CopyFile>();
+                foreach (var produceBatchNumber in ProduceBatchNumbers)
                 {
-                    if (!string.IsNullOrEmpty(produceItemEntity.ProduceBatchDetail))
+                    List<ProduceItemEntity> items = _databaseService.GetProduceItemList(produceBatchNumber);
+                    foreach (var produceItemEntity in items)
                     {
-                        if (!string.IsNullOrEmpty(produceItemEntity.ProduceImgLocalPath))
+                        if (!string.IsNullOrEmpty(produceItemEntity.ProduceBatchDetail))
                         {
-                            UniqueBatchItem uniqueBatchItem =
-                                JsonSerializer.Deserialize<UniqueBatchItem>(produceItemEntity.ProduceBatchDetail);
-                            if (uniqueBatchItem.ProductionTasks.Count == 1)
+                            if (!string.IsNullOrEmpty(produceItemEntity.ProduceImgLocalPath))
                             {
-                                allFilesToCopy.Add(new CopyFile()
-                                {
-                                    SourceFile = produceItemEntity.ProduceImgLocalPath + produceItemEntity.ProduceImgName,
-                                    UniFileName = $"{produceItemEntity.ProduceBatchNum}-{produceItemEntity.Color}-{produceItemEntity.Size}-{produceItemEntity.SkuAlias}-{produceItemEntity.OrderDetailId}"
-                                });
-                            }
-                            else
-                            {
-                                // 多任务 (代表着 多印花面)
-                                foreach (ProductionTask productionTask in uniqueBatchItem.ProductionTasks)
+                                UniqueBatchItem uniqueBatchItem =
+                                    JsonSerializer.Deserialize<UniqueBatchItem>(produceItemEntity.ProduceBatchDetail);
+                                if (uniqueBatchItem.ProductionTasks.Count == 1)
                                 {
                                     allFilesToCopy.Add(new CopyFile()
                                     {
-                                        SourceFile = produceItemEntity.ProduceImgLocalPath + $"{productionTask.ViewId}-{productionTask.ViewName}{ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)}",
-                                        UniFileName = $"{produceItemEntity.ProduceBatchNum}-{produceItemEntity.Color}-{produceItemEntity.Size}-{produceItemEntity.SkuAlias}-{produceItemEntity.OrderDetailId}"
+                                        SourceFile =
+                                            produceItemEntity.ProduceImgLocalPath +
+                                            produceItemEntity.ProduceImgName,
+                                        UniFileName =
+                                            $"{produceItemEntity.ProduceBatchNum}-{produceItemEntity.Color}-{produceItemEntity.Size}-{produceItemEntity.SkuAlias}-{produceItemEntity.OrderDetailId}"
                                     });
+                                }
+                                else
+                                {
+                                    // 多任务 (代表着 多印花面)
+                                    foreach (ProductionTask productionTask in uniqueBatchItem.ProductionTasks)
+                                    {
+                                        allFilesToCopy.Add(new CopyFile()
+                                        {
+                                            SourceFile =
+                                                produceItemEntity.ProduceImgLocalPath +
+                                                $"{productionTask.ViewId}-{productionTask.ViewName}{ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)}",
+                                            UniFileName =
+                                                $"{produceItemEntity.ProduceBatchNum}-{produceItemEntity.Color}-{produceItemEntity.Size}-{produceItemEntity.SkuAlias}-{produceItemEntity.OrderDetailId}"
+                                        });
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
 
-            int machinePrintWidthMm = 600;
-            // 打印机安全边缘 (左右各 ? 毫米)
-            int machinePrintSafeEdgeMm = 10;
-            int printerDpi = 300;
-            // 印花图安全间距( ? 毫米) 用于裁剪
-            int printImgPaddingMm = 10;
+                int machinePrintWidthMm = 600;
+                // 打印机安全边缘 (左右各 ? 毫米)
+                int machinePrintSafeEdgeMm = 10;
+                int printerDpi = 300;
+                // 印花图安全间距( ? 毫米) 用于裁剪
+                int printImgPaddingMm = 10;
 
-            // 可安全排版的宽度
-            int machineLayoutSafeWidthMm = machinePrintWidthMm - (machinePrintSafeEdgeMm * 2) + (printImgPaddingMm * 2);
-            // 出血位 (印刷机器 左右两侧夹具占用空间 无法印刷的宽度)
-            int safeEdgeWithoutPaddingMm = machinePrintSafeEdgeMm - printImgPaddingMm;
+                // 可安全排版的宽度
+                int machineLayoutSafeWidthMm =
+                    machinePrintWidthMm - (machinePrintSafeEdgeMm * 2) + (printImgPaddingMm * 2);
+                // 出血位 (印刷机器 左右两侧夹具占用空间 无法印刷的宽度)
+                int safeEdgeWithoutPaddingMm = machinePrintSafeEdgeMm - printImgPaddingMm;
 
-            string targetPath = Path.Combine(DestinationFolder, string.Join("--", ProduceBatchNumbers));
-            if (!Directory.Exists(targetPath))
-            {
-                Directory.CreateDirectory(targetPath);
-            }
-
-            if (printTaskConfig.IsNeedLayout())
-            {
-                // 需要排版 就先读取原来的图片 然后排版 再进行格式转换
-                if (allFilesToCopy.Count > 0)
+               
+                if (!Directory.Exists(targetPath))
                 {
-                    LayoutResult layoutResult = StripPackingLayout.SkylineLayout(allFilesToCopy.Select(item=>item.SourceFile).ToList(),
-                        (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi),
-                        ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
-                    // 创建排版画布 将排版数据换成印花图排版到 画布上
-                    await ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResult,
-                        Path.Combine(targetPath, Path.GetFileName(FileName.getLayoutTargetName(ProduceBatchNumbers))),
-                        safeEdgeWithoutPaddingMm, printerDpi, printTaskConfig);
+                    Directory.CreateDirectory(targetPath);
                 }
-                else
+
+                if (printTaskConfig.IsNeedLayout())
                 {
-                    throw new Exception("不存在需要排版的印花图");
-                }
-            }
-            else
-            {
-                // 不需要排版 复制原来的印花到打印目录 如果需要格式转换的情况 复制的时候再转换
-                //TODO 缺少格式转换
-                for (int i = 0; i < allFilesToCopy.Count; i++)
-                {
-                    var sourcePath = allFilesToCopy[i].SourceFile;
-                    var destinationPath = Path.Combine(targetPath, FileName.getLayoutTargetName(ProduceBatchNumbers, allFilesToCopy[i].UniFileName, Path.GetFileName(sourcePath)));
-                    
-                    // 如果格式为PNG，则直接复制
-                    if (printTaskConfig.OutputFormat == OutputFormat.Png)
+                    // 需要排版 就先读取原来的图片 然后排版 再进行格式转换
+                    if (allFilesToCopy.Count > 0)
                     {
-                        await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
+                        LayoutResult layoutResult = StripPackingLayout.SkylineLayout(
+                            allFilesToCopy.Select(item => item.SourceFile).ToList(),
+                            (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi),
+                            ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
+                        // 创建排版画布 将排版数据换成印花图排版到 画布上
+                        await ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResult,
+                            Path.Combine(targetPath,
+                                Path.GetFileName(FileName.getLayoutTargetName(ProduceBatchNumbers))),
+                            safeEdgeWithoutPaddingMm, printerDpi, printTaskConfig);
                     }
                     else
                     {
-                        // 否则，进行格式转换
-                        await ConvertImageAsync(sourcePath, destinationPath, printTaskConfig);
+                        throw new Exception("不存在需要排版的印花图");
                     }
-                    CopyProgress = (double)(i + 1) / allFilesToCopy.Count * 100;
                 }
-                
-                
-            }
-            // 自动排版 输入需要排版的图片 与 机器打印宽度  (实际都是毫米 但是计算库只支持 无符号整数 所以按照像素排版 然后再转成毫米)
+                else
+                {
+                    // 不需要排版 复制原来的印花到打印目录 如果需要格式转换的情况 复制的时候再转换
+                    //TODO 缺少格式转换
+                    for (int i = 0; i < allFilesToCopy.Count; i++)
+                    {
+                        var sourcePath = allFilesToCopy[i].SourceFile;
+                        var destinationPath = Path.Combine(targetPath,
+                            FileName.getLayoutTargetName(ProduceBatchNumbers, allFilesToCopy[i].UniFileName,
+                                Path.GetFileName(sourcePath)));
 
+                        // 如果格式为PNG，则直接复制
+                        if (printTaskConfig.OutputFormat == OutputFormat.Png)
+                        {
+                            await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
+                        }
+                        else
+                        {
+                            // 否则，进行格式转换
+                            await ConvertImageAsync(sourcePath, destinationPath, printTaskConfig);
+                        }
+
+                        CopyProgress = (double)(i + 1) / allFilesToCopy.Count * 100;
+                    }
+                }
+                // 自动排版 输入需要排版的图片 与 机器打印宽度  (实际都是毫米 但是计算库只支持 无符号整数 所以按照像素排版 然后再转成毫米)
+            });
 
             IsExecuting = false;
             IsPrintButtonEnabled = true;

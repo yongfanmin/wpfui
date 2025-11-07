@@ -11,6 +11,7 @@ using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.Machine;
 using Wpf.Ui.Gallery.Dto.Picking;
 using Wpf.Ui.Gallery.Utils;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Wpf.Ui.Gallery.LocalConfig;
 
@@ -136,12 +137,55 @@ public class AppSetting
     public PrintTaskConfig PrintTaskConfig { get; set; } = new();
 }
 
-public class PrintTaskConfig
+
+public class PrintTaskConfig : ObservableObject
 {
-    public OutputFormat OutputFormat { get; set; } = OutputFormat.Png;
+    private OutputFormat _outputFormat = OutputFormat.Png;
+    public OutputFormat OutputFormat
+    {
+        get => _outputFormat;
+        set => SetProperty(ref _outputFormat, value);
+    }
 
-    public LayoutOption LayoutOption { get; set; } = LayoutOption.Automatic;
+    private LayoutOption _layoutOption = LayoutOption.Automatic;
+    public LayoutOption LayoutOption
+    {
+        get => _layoutOption;
+        set => SetProperty(ref _layoutOption, value);
+    }
+    
+    // 打印机宽度 毫米
+    private int _machinePrintWidthMm = 600;
+    public int MachinePrintWidthMm
+    {
+        get => _machinePrintWidthMm;
+        set => SetProperty(ref _machinePrintWidthMm, value);
+    }
+    
+    // 打印机安全边缘 (左右各 ? 毫米)
+    private int _machinePrintSafeEdgeMm = 10;
+    public int MachinePrintSafeEdgeMm
+    {
+        get => _machinePrintSafeEdgeMm;
+        set => SetProperty(ref _machinePrintSafeEdgeMm, value);
+    }
 
+    // 印花图安全间距( ? 毫米) 用于裁剪
+    private int _printImgPaddingMm = 10;
+    public int PrintImgPaddingMm
+    {
+        get => _printImgPaddingMm;
+        set => SetProperty(ref _printImgPaddingMm, value);
+    }
+    
+    // 白墨烫画专色通道内缩量
+    private int _whiteInkBleedPx = 2;
+    public int WhiteInkBleedPx
+    {
+        get => _whiteInkBleedPx;
+        set => SetProperty(ref _whiteInkBleedPx, value);
+    }
+    
     public bool IsNeedLayout()
     {
         return this.LayoutOption == LayoutOption.Automatic;
