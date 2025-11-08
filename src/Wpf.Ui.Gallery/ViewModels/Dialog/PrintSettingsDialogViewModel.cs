@@ -28,4 +28,10 @@ public partial class PrintSettingsDialogViewModel : ObservableObject
         LocalAppConfig.Save(LocalAppConfig.AppSetting);
         CloseAction?.Invoke();
     }
+    
+    [RelayCommand]
+    private void Cancel()
+    {
+        CloseAction?.Invoke();
+    }
 }

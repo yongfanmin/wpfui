@@ -18,6 +18,14 @@
         <ui:TextBox Margin="0,0,0,16" Text="{Binding PrintTaskConfig.PrintImgPaddingMm, Mode=TwoWay}" />
         <TextBlock Margin="0,0,0,8" Text="白墨烫画专色通道内缩量 (像素)" />
         <ui:TextBox Margin="0,0,0,16" Text="{Binding PrintTaskConfig.WhiteInkBleedPx, Mode=TwoWay}" />
-        <Button Content="保存" Command="{Binding SaveCommand}" HorizontalAlignment="Right" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="1" Content="取消" Command="{Binding CancelCommand}" />
+            <Button Grid.Column="2" Margin="8,0,0,0" Content="保存" Command="{Binding SaveCommand}" />
+        </Grid>
     </StackPanel>
 </UserControl>

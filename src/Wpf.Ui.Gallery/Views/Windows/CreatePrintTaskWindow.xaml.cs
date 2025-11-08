@@ -5,7 +5,9 @@
 
 using System.Windows;
 using Wpf.Ui.Controls;
+using Wpf.Ui.Gallery.ViewModels.Dialog;
 using Wpf.Ui.Gallery.ViewModels.Windows;
+using Wpf.Ui.Gallery.Views.Dialog;
 
 namespace Wpf.Ui.Gallery.Views.Windows;
 
@@ -53,11 +55,32 @@ public partial class CreatePrintTaskWindow : FluentWindow
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (e.NewValue is CreatePrintTaskViewModel viewModel)
+        if (e.OldValue is CreatePrintTaskViewModel oldViewModel)
+        {
+            oldViewModel.ShowSettingsDialogRequested -= OnShowSettingsDialogRequested;
+        }
+
+        if (e.NewValue is CreatePrintTaskViewModel newViewModel)
         {
             RootGrid.Children.Clear();
-            RootGrid.Children.Add(new CreatePrintTaskDialog(viewModel));
-            DataContextChanged -= OnDataContextChanged;
+            RootGrid.Children.Add(new CreatePrintTaskDialog(newViewModel));
+            newViewModel.ShowSettingsDialogRequested += OnShowSettingsDialogRequested;
         }
+    }
+
+    private async Task OnShowSettingsDialogRequested()
+    {
+        var dialog = new ContentDialog(DialogPresenter)
+        {
+            Title = "打印设置"
+        };
+
+        var viewModel = new PrintSettingsDialogViewModel();
+        var content = new PrintSettingsDialog(viewModel);
+        
+        viewModel.CloseAction = () => dialog.Hide();
+        dialog.Content = content;
+        
+        await dialog.ShowAsync();
     }
 }

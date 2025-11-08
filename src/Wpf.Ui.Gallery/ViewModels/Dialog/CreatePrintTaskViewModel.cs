@@ -83,10 +83,14 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             }
         }
         
-        
+        public event Func<Task>? ShowSettingsDialogRequested;
         [RelayCommand]
         private async Task OpenSettingsDialog()
         {
+            if (ShowSettingsDialogRequested != null)
+            {
+                await ShowSettingsDialogRequested.Invoke();
+            }
             var dialog = new ContentDialog
             {
                 Title = "打印设置",
@@ -94,17 +98,14 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             };
 
             var viewModel = new PrintSettingsDialogViewModel();
-            dialog.Hide();
-
             var content = new PrintSettingsDialog(viewModel);
-
             dialog.Content = content;
-            await  dialog.ShowAsync();
+
+            await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
         }
 
         // 执行印花图归集 合批打印  执行转换格式 png->TIFF(CMYK)->移动文件到打印文件夹
         [RelayCommand]
-        
         private async Task OnConvertFormat2print()
         {
             if (string.IsNullOrEmpty(DestinationFolder) || !Directory.Exists(DestinationFolder))

@@ -26,5 +26,6 @@
             Icon="pack://application:,,,/Assets/applicationIcon-256.png"
         />
         <Grid x:Name="RootGrid" Grid.Row="1" Margin="20" />
+        <ContentPresenter x:Name="DialogPresenter" Grid.Row="0" Grid.RowSpan="2" />
     </Grid>
 </ui:FluentWindow>
