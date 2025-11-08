@@ -4,7 +4,8 @@
 // All Rights Reserved.
 
 using CommunityToolkit.Mvvm.ComponentModel;
-using System.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using System;
 using Wpf.Ui.Gallery.LocalConfig;
 
 namespace Wpf.Ui.Gallery.ViewModels.Dialog;
@@ -14,15 +15,17 @@ public partial class PrintSettingsDialogViewModel : ObservableObject
     [ObservableProperty]
     private PrintTaskConfig _printTaskConfig;
 
+    public Action? CloseAction { get; set; }
+
     public PrintSettingsDialogViewModel()
     {
         _printTaskConfig = LocalAppConfig.AppSetting.PrintTaskConfig;
-        _printTaskConfig.PropertyChanged += OnPrintTaskConfigPropertyChanged;
     }
 
-    private void OnPrintTaskConfigPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    [RelayCommand]
+    private void Save()
     {
-        // When a property changes, save the settings
         LocalAppConfig.Save(LocalAppConfig.AppSetting);
+        CloseAction?.Invoke();
     }
 }

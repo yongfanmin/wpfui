@@ -26,13 +26,5 @@
             Icon="pack://application:,,,/Assets/applicationIcon-256.png"
         />
         <Grid x:Name="RootGrid" Grid.Row="1" Margin="20" />
-        <Separator
-            Grid.Column="3"
-            Height="16"
-            Margin="4,0,4,0" />
-        <ui:Button
-            Command="{Binding ViewModel.OpenPrintSettingsDialogCommand}"
-            Icon="{ui:SymbolIcon Settings24}"
-            ToolTip="印刷设置" />
     </Grid>
 </ui:FluentWindow>

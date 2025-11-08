@@ -391,6 +391,7 @@ public static class ImageHelper
             // ... [资源释放逻辑保持不变] ...
         }
     }
+
     private static Mat GetThinningSkeleton(Mat binaryMat)
     {
         using (Mat skeleton = new Mat())
@@ -415,113 +416,116 @@ public static class ImageHelper
             {
                 Cv2.Dilate(distMat, dilatedDist, kernel);
             }
+
             Cv2.Compare(distMat, dilatedDist, skeleton, CmpType.EQ);
-        
+
             // 确保骨架不出界
             Cv2.BitwiseAnd(skeleton, binaryMat, skeleton);
-        
+
             return skeleton.Clone(); // 返回一个独立的克隆
         }
     }
-    
+
+    // TODO 着是将两个算法合并成一个函数, 可能可以 增加 Threshold 的色彩识别范围就行 而不用两种算法进行合并以保留细节 ， 但需要验证
     public static Image UnifiedSkeletonize(Image spotPlate, int targetThickness, bool invertFinalResult = true)
-{
-    if (spotPlate.Max() < 1) return spotPlate.Copy();
-
-    byte[] memoryBuffer = spotPlate.WriteToBuffer(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png));
-
-    Mat finalMat = null;
-    Mat resultToEncode = null;
-
-    try
     {
-        using (Mat inputMat = Mat.ImDecode(memoryBuffer, ImreadModes.Grayscale))
+        if (spotPlate.Max() < 1) return spotPlate.Copy();
+
+        byte[] memoryBuffer = spotPlate.WriteToBuffer(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png));
+
+        Mat finalMat = null;
+        Mat resultToEncode = null;
+
+        try
         {
-            if (inputMat == null || inputMat.Empty()) return spotPlate.Copy();
-
-            // --- 统一的预处理 ---
-            using (Mat invertedMat = new Mat())
-            using (Mat binaryMat = new Mat())
+            using (Mat inputMat = Mat.ImDecode(memoryBuffer, ImreadModes.Grayscale))
             {
-                Cv2.BitwiseNot(inputMat, invertedMat);
-                // 127 是 8位灰度 255的一半
-                // Cv2.Threshold(invertedMat, binaryMat, 127, 255, ThresholdTypes.Binary);
-                Cv2.Threshold(invertedMat, binaryMat, 24, 255, ThresholdTypes.Binary);
+                if (inputMat == null || inputMat.Empty()) return spotPlate.Copy();
 
-                if (binaryMat.Empty()) return spotPlate.Copy();
-
-                // =================================================================
-                // --- 核心逻辑: 独立计算 -> 合并 -> 统一厚度控制 ---
-                // =================================================================
-
-                // 步骤 1: 独立计算两种1像素骨架
-                using (Mat skeletonA = GetThinningSkeleton(binaryMat))
-                using (Mat skeletonB = GetMorphologicalSkeleton(binaryMat))
+                // --- 统一的预处理 ---
+                using (Mat invertedMat = new Mat())
+                using (Mat binaryMat = new Mat())
                 {
-                    // 步骤 2: 合并骨架，取并集
-                    using (Mat mergedSkeleton = new Mat())
-                    {
-                        Cv2.BitwiseOr(skeletonA, skeletonB, mergedSkeleton);
+                    Cv2.BitwiseNot(inputMat, invertedMat);
+                    // 127 是 8位灰度 255的一半
+                    // Cv2.Threshold(invertedMat, binaryMat, 127, 255, ThresholdTypes.Binary);
+                    Cv2.Threshold(invertedMat, binaryMat, 24, 255, ThresholdTypes.Binary);
 
-                        // 步骤 3: 统一厚度控制
-                        if (targetThickness <= 1)
+                    if (binaryMat.Empty()) return spotPlate.Copy();
+
+                    // =================================================================
+                    // --- 核心逻辑: 独立计算 -> 合并 -> 统一厚度控制 ---
+                    // =================================================================
+
+                    // 步骤 1: 独立计算两种1像素骨架
+                    using (Mat skeletonA = GetThinningSkeleton(binaryMat))
+                    using (Mat skeletonB = GetMorphologicalSkeleton(binaryMat))
+                    {
+                        // 步骤 2: 合并骨架，取并集
+                        using (Mat mergedSkeleton = new Mat())
                         {
-                            finalMat = mergedSkeleton.Clone();
-                        }
-                        else
-                        {
-                            // 计算需要扩张的像素量，以达到目标厚度
-                            // (targetThickness - 1) 是因为骨架本身已有1像素厚度
-                            int dilateAmount = (int)Math.Ceiling((targetThickness - 1) / 2.0);
-                            
-                            if (dilateAmount > 0)
+                            Cv2.BitwiseOr(skeletonA, skeletonB, mergedSkeleton);
+
+                            // 步骤 3: 统一厚度控制
+                            if (targetThickness <= 1)
                             {
-                                int kernelSize = dilateAmount * 2 + 1;
-                                using (Mat dilateKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(kernelSize, kernelSize)))
-                                {
-                                    finalMat = new Mat();
-                                    Cv2.Dilate(mergedSkeleton, finalMat, dilateKernel);
-                                }
+                                finalMat = mergedSkeleton.Clone();
                             }
                             else
                             {
-                                finalMat = mergedSkeleton.Clone();
+                                // 计算需要扩张的像素量，以达到目标厚度
+                                // (targetThickness - 1) 是因为骨架本身已有1像素厚度
+                                int dilateAmount = (int)Math.Ceiling((targetThickness - 1) / 2.0);
+
+                                if (dilateAmount > 0)
+                                {
+                                    int kernelSize = dilateAmount * 2 + 1;
+                                    using (Mat dilateKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse,
+                                               new Size(kernelSize, kernelSize)))
+                                    {
+                                        finalMat = new Mat();
+                                        Cv2.Dilate(mergedSkeleton, finalMat, dilateKernel);
+                                    }
+                                }
+                                else
+                                {
+                                    finalMat = mergedSkeleton.Clone();
+                                }
                             }
                         }
                     }
                 }
             }
-        }
-        
-        if (finalMat == null || finalMat.Empty())
-        {
-             return spotPlate.Copy();
-        }
 
-        // --- 最终颜色反转 ---
-        if (invertFinalResult)
-        {
-            resultToEncode = new Mat();
-            Cv2.BitwiseNot(finalMat, resultToEncode);
-        }
-        else
-        {
-            resultToEncode = finalMat;
-        }
+            if (finalMat == null || finalMat.Empty())
+            {
+                return spotPlate.Copy();
+            }
 
-        // --- OpenCvSharp Mat -> NetVips Image ---
-        byte[] outputMemory;
-        Cv2.ImEncode(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png), resultToEncode, out outputMemory);
-        
-        return Image.NewFromBuffer(outputMemory);
-    }
-    finally
-    {
-        finalMat?.Dispose();
-        if (resultToEncode != null && resultToEncode != finalMat)
+            // --- 最终颜色反转 ---
+            if (invertFinalResult)
+            {
+                resultToEncode = new Mat();
+                Cv2.BitwiseNot(finalMat, resultToEncode);
+            }
+            else
+            {
+                resultToEncode = finalMat;
+            }
+
+            // --- OpenCvSharp Mat -> NetVips Image ---
+            byte[] outputMemory;
+            Cv2.ImEncode(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png), resultToEncode, out outputMemory);
+
+            return Image.NewFromBuffer(outputMemory);
+        }
+        finally
         {
-            resultToEncode.Dispose();
+            finalMat?.Dispose();
+            if (resultToEncode != null && resultToEncode != finalMat)
+            {
+                resultToEncode.Dispose();
+            }
         }
     }
-}
 }

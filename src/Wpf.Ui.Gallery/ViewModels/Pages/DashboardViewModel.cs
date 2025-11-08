@@ -865,7 +865,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         }
 
         var viewModel =
-            new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum).ToList(), _databaseService);
+            new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum).ToList(), _databaseService,_contentDialogService);
         var window = _windowsProviderService.GetWindow<CreatePrintTaskWindow>();
         window.DataContext = viewModel;
         window.Show();

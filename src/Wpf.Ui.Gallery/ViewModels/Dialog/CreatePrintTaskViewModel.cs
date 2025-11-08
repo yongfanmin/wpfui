@@ -8,7 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.IO;
 using System.Text.Json;
-using NetVips;
+using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Converters;
@@ -20,6 +20,9 @@ using Wpf.Ui.Gallery.Services.Creator;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Table;
 using Wpf.Ui.Gallery.Utils;
+using Wpf.Ui.Gallery.ViewModels.Dialog;
+using Wpf.Ui.Gallery.Views.Dialog;
+using Image = NetVips.Image;
 
 namespace Wpf.Ui.Gallery.ViewModels.Windows
 {
@@ -27,6 +30,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
     {
         private readonly IDatabaseService _databaseService;
 
+        private readonly IContentDialogService _contentDialogService;
 
         [ObservableProperty] private ObservableCollection<string> _produceBatchNumbers = new();
 
@@ -52,10 +56,11 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         [ObservableProperty] private LayoutOption _layoutOptionOb = LayoutOption.Automatic;
 
 
-        public CreatePrintTaskViewModel(IEnumerable<string> produceBatchNumbers, IDatabaseService databaseService)
+        public CreatePrintTaskViewModel(IEnumerable<string> produceBatchNumbers, IDatabaseService databaseService, IContentDialogService contentDialogService)
         {
             ProduceBatchNumbers = new ObservableCollection<string>(produceBatchNumbers);
             _databaseService = databaseService;
+            _contentDialogService = contentDialogService;
             DestinationFolder = LocalAppConfig.AppSetting.PrintTaskDestinationFolder;
         }
 
@@ -76,6 +81,25 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 LocalAppConfig.AppSetting.PrintTaskDestinationFolder = DestinationFolder;
                 LocalAppConfig.Save(LocalAppConfig.AppSetting);
             }
+        }
+        
+        
+        [RelayCommand]
+        private async Task OpenSettingsDialog()
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "打印设置",
+                CloseButtonText = "关闭"
+            };
+
+            var viewModel = new PrintSettingsDialogViewModel();
+            dialog.Hide();
+
+            var content = new PrintSettingsDialog(viewModel);
+
+            dialog.Content = content;
+            await  dialog.ShowAsync();
         }
 
         // 执行印花图归集 合批打印  执行转换格式 png->TIFF(CMYK)->移动文件到打印文件夹

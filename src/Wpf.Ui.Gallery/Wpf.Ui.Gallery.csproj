@@ -30,13 +30,11 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.Http.Polly" />
     <PackageReference Include="Microsoft.Web.WebView2" />
-    <PackageReference Include="MScottFord.Forks.OpenCvSharp4.Extensions" />
     <PackageReference Include="NetTopologySuite" />
     <PackageReference Include="NetVips" />
     <PackageReference Include="NetVips.Native.win-x64" />
     <PackageReference Include="OpenCvSharp4.Extensions" />
     <PackageReference Include="OpenCvSharp4.Windows" />
-    <PackageReference Include="OpenCvSharp4.WpfExtensions" />
     <PackageReference Include="PdfiumPrinter" />
     <PackageReference Include="RectpackSharp" />
     <PackageReference Include="Refit" />
