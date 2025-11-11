@@ -48,6 +48,13 @@ public class PhotoshopService
             {
                 return (false, $"无法通过 ProgID '{progID}' 创建 Photoshop 实例。");
             }
+            // TODO PS未响应报错 (一直重复开关PS  内存耗尽?)
+            /*System.Runtime.InteropServices.COMException (0x80080005): Retrieving the COM class factory for component with CLSID {DD6CF2ED-4840-40A1-A393-B1F74F54D59A} failed due to the following error: 80080005 服务器运行失败 (0x80080005 (CO_E_SERVER_EXEC_FAILURE)).
+                at System.RuntimeTypeHandle.AllocateComObject(Void* pClassFactory)
+            at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+            at Wpf.Ui.Gallery.Component.PhotoshopService.<>c__DisplayClass0_0.<ProcessImageAsync>b__0() in D:\POD\exeSoftware\wpf-exe-master\src\Wpf.Ui.Gallery\Component\PhotoshopService.cs:line 51
+            at System.Threading.Tasks.Task`1.InnerInvoke()
+            at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)*/
             app = Activator.CreateInstance(psType);
             if (app is null)
             {

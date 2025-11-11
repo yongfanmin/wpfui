@@ -178,6 +178,14 @@ public class PrintTaskConfig : ObservableObject
         set => SetProperty(ref _printImgPaddingMm, value);
     }
     
+    // 打印机打印精度
+    private int _machineDpi = 300;
+    public int MachineDpi
+    {
+        get => _machineDpi;
+        set => SetProperty(ref _machineDpi, value);
+    }
+    
     // 白墨烫画专色通道内缩量
     private int _whiteInkBleedPx = 2;
     public int WhiteInkBleedPx
@@ -185,6 +193,40 @@ public class PrintTaskConfig : ObservableObject
         get => _whiteInkBleedPx;
         set => SetProperty(ref _whiteInkBleedPx, value);
     }
+    
+    // 喷涂白墨涂层的专色通道 边缘清晰度判定 需要高于此清晰度的边缘才喷涂白墨专色通道 [0-255]
+    private int _whiteInkEdgeStrength = 190;
+    public int WhiteInkEdgeStrength
+    {
+        get => _whiteInkEdgeStrength;
+        set => SetProperty(ref _whiteInkEdgeStrength, value);
+    }
+    
+    // 白墨烫画专色通道内缩量 安全像素 比这个安全像素还窄的图像不会被内缩
+    private int _whiteInkBleedSafePx = 2;
+    public int WhiteInkBleedSafePx
+    {
+        get => _whiteInkBleedSafePx;
+        set => SetProperty(ref _whiteInkBleedSafePx, value);
+    }
+    
+    // 打印跟踪信息 默认打印信息
+    private bool _isOrderTrack = true;
+    public bool IsOrderTrack
+    {
+        get => _isOrderTrack;
+        set => SetProperty(ref _isOrderTrack, value);
+    }
+    
+    // 跟踪单内容设置
+    private OrderTrackConfig _orderTrackConfig = new OrderTrackConfig();
+    public OrderTrackConfig OrderTrackConfig
+    {
+        get => _orderTrackConfig;
+        set => SetProperty(ref _orderTrackConfig, value);
+    }
+    
+    
     
     public bool IsNeedLayout()
     {
@@ -209,6 +251,17 @@ public enum LayoutOption
 {
     Automatic, // 自动排版
     Manual // 不排版(后续手动排版)
+}
+
+public class OrderTrackConfig
+{
+    //信息条 默认宽度自动 布局 [靠左 居中 靠右]
+    
+    // 信息条默认高度 39毫米
+    public decimal HeightMm { get; set; } = 39;
+    
+    // 二维码外框宽度 默认2毫米
+    public decimal QrCodeBorderMm { get; set; } = 2;
 }
 
 public class WindowSettings

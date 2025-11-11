@@ -46,4 +46,6 @@ public class ProduceItemEntity
     public string ProduceImgLocalPath { get; set; }
 
     public string ProduceImgName { get; set; }
+    
+    public int ViewId { get; set; }
 }

@@ -505,10 +505,13 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 saveLocalInfo.LocalPath = saveLocalInfo.LocalPath + saveLocalInfo.Name + Path.DirectorySeparatorChar;
                 foreach (ProductionTask productionTask in uniqueBatchItem.ProductionTasks)
                 {
-                    saveLocalInfo.Name = $"{productionTask.ViewId}-{productionTask.ViewName}";
-                    FileHelper.CopyFileAsync(productionTask.PatternPieceProduceLocalImgUrl,
-                        saveLocalInfo.LocalPath + saveLocalInfo.Name +
-                        ImgFormat2Extend.GetExtend(saveLocalInfo.ImgFormat));
+                    if (productionTask.ViewId == uniqueBatchItem.ViewId)
+                    {
+                        saveLocalInfo.Name = $"{productionTask.ViewId}-{productionTask.ViewName}";
+                        FileHelper.CopyFileAsync(productionTask.PatternPieceProduceLocalImgUrl,
+                            saveLocalInfo.LocalPath + saveLocalInfo.Name +
+                            ImgFormat2Extend.GetExtend(saveLocalInfo.ImgFormat));
+                    }
                 }
             }
         }
@@ -974,7 +977,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
                 // 叠加二维码
 
-                Image qrCode = GenerateQrCode2Image(produceImgInfo.QrCode.Content,
+                Image qrCode = ImageHelper.GenerateQrCode2Image(produceImgInfo.QrCode.Content,
                     ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.Width, produceImgInfo.MachineConfig.Dpi),
                     ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.Height, produceImgInfo.MachineConfig.Dpi));
                 Image whiteQrBackground = _imageCreator.CreateImageFromPhysicalSize(
@@ -1008,51 +1011,6 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     currentResult.Dispose();
                 }
             }
-        }
-    }
-
-    public static Image? GenerateQrCode2Image(string content, int width, int height, int margin = 1)
-    {
-        if (string.IsNullOrEmpty(content))
-        {
-            return null;
-        }
-
-        try
-        {
-            // 1. 配置二维码生成器
-            var qrCodeWriter = new BarcodeWriter<SvgRenderer.SvgImage>
-            {
-                Format = BarcodeFormat.QR_CODE,
-                Options = new QrCodeEncodingOptions
-                {
-                    Width = width,
-                    Height = height,
-                    Margin = margin,
-                    ErrorCorrection = ZXing.QrCode.Internal.ErrorCorrectionLevel.M, // 中等容错
-                },
-                Renderer = new SvgRenderer()
-            };
-            var svgImage = qrCodeWriter.Write(content);
-            string svgContent = svgImage.Content;
-
-            // --- [核心修复：从字符串到内存缓冲区的转换] ---
-
-            // 2. 将SVG字符串，使用UTF-8编码，转换为字节数组 (byte[])
-            byte[] svgBytes = Encoding.UTF8.GetBytes(svgContent);
-
-            // --- 3. [NetVips] 直接从内存缓冲区加载SVG ---
-            //    使用 Image.NewFromBuffer()
-            using (Image initialSvgLoad = Image.NewFromBuffer(svgBytes))
-            {
-                // 4. 使用 .ThumbnailImage() 精确地缩放到目标尺寸 (不变)
-                return initialSvgLoad.ThumbnailImage(width: width, height: height);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"生成二维码失败: {ex.Message}");
-            return null;
         }
     }
 
@@ -1281,7 +1239,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         string? cmykProfilePath = null)
     {
         // 根据 layoutResult.LayoutWidthPx  layoutResult.LayoutHeightPx 生成一张透明背景的画布,然后将layoutResult.LayoutImgList的图片根据X,Y的坐标信息排版再画布上， 然后将画布保存成tif格式
-        // --- 1. 创建一个单像素的透明图像 ---
+        // --- 1. 创建一个透明图像 ---
         using Image image = Image.Black((int)layoutResult.LayoutWidthPx, (int)layoutResult.LayoutHeightPx, bands: 4);
 
         // 将图像的色彩空间解释为 SRGB
@@ -1350,14 +1308,17 @@ public class ProduceImageProcessor : IProduceImageProcessor
             ? finalImage.ExtractBand(finalImage.Bands - 1).Invert()
             : Image.Black(finalImage.Width, finalImage.Height).Invert();
 
-        
-        using Image skeletonImg = ImageHelper.UnifiedSkeletonize(spotPlate,2);
-        
+        Stopwatch stopwatch = new Stopwatch();
+        stopwatch.Start();
+        using Image skeletonImg = ImageHelper.UnifiedSkeletonize(spotPlate,LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedSafePx);
+        stopwatch.Stop();
+        Console.WriteLine($"SkeletonizeWithOpenCvInvertLinePixelBest耗时:{stopwatch.ElapsedMilliseconds}ms");
         // 内缩两个像素
         // 创建一个 5x5 的方形结构元素 (核)，用于一次性腐蚀2个像素。 (n-1)/2  n为矩阵长度
         // 在 NetVips 中，结构元素本身就是一个 Image 对象。
         // 内缩两像素
-        using var mask = Image.NewFromArray(CreateImageMask(2));
+        using var mask = Image.NewFromArray(CreateImageMask(LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedPx));
+        
         // 使用创建的 5x5 核，对专色蒙版执行一次腐蚀操作。
         //using var spotPlateShrunk = spotPlate.Erode(mask);
         // 先对透明通道取反->外扩 = 非透明区域内缩

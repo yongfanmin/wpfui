@@ -72,7 +72,9 @@ public partial class CreatePrintTaskWindow : FluentWindow
     {
         var dialog = new ContentDialog(DialogPresenter)
         {
-            Title = "打印设置"
+            Title = "高级印刷设置",
+            // IsFooterVisible = false
+            CloseButtonText = "取消"
         };
 
         var viewModel = new PrintSettingsDialogViewModel();

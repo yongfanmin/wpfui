@@ -3,6 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Timers;
@@ -513,74 +514,85 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         ProduceBatchInfo produceBatchItem)
     {
         string token = _loginInfoService.getToken();
-        List<UniqueBatchItemNum> downloadDataList = new List<UniqueBatchItemNum>();
-        ProduceBatchInfoRequest produceBatchInfoRequest = new ProduceBatchInfoRequest();
-        // 这个批次有多少订单?
-        produceBatchInfoRequest.Num = produceBatchItem.ProduceBatchNumberTotal;
-        produceBatchInfoRequest.ProduceBatchNumber = produceBatchItem.ProduceBatchNumber;
-        // 获取项批号信息 (订单信息)
+        var downloadDataList = new ConcurrentBag<UniqueBatchItemNum>();
+        var produceBatchInfoRequest = new ProduceBatchInfoRequest
+        {
+            Num = produceBatchItem.ProduceBatchNumberTotal, ProduceBatchNumber = produceBatchItem.ProduceBatchNumber
+        };
+
         FactoryApiResponse<List<ProductBatchItemInfo>> produceBatchOrderList =
             await _produceBatchInfoApi.getProduceBatchInfo(produceBatchInfoRequest, token);
+
         if (produceBatchOrderList.Data.Count != produceBatchItem.ProduceBatchNumberTotal ||
             produceBatchItem.ProduceBatchNumberTotal != produceBatchItem.NumTotal)
         {
-            Console.WriteLine("批次号:" + produceBatchItem.ProduceBatchNumber + " 存在此账号为未被授权生产的产品");
+            Console.WriteLine($"批次号: {produceBatchItem.ProduceBatchNumber} 存在此账号为未被授权生产的产品");
         }
 
-        // 写入条目
         _databaseService.AddProduceBatchItemList(
             produceBatchItem.ProduceBatchNumber,
             produceBatchOrderList.Data);
-        Console.WriteLine("项批号" + produceBatchItem.ProduceBatchNumber + "详情抓取成功");
+        Console.WriteLine($"项批号 {produceBatchItem.ProduceBatchNumber} 详情抓取成功");
+
         var downloadTasks = new List<Task>();
+        // 1. 创建一个 SemaphoreSlim，初始计数为5，最大计数为5
+        var semaphore = new SemaphoreSlim(5, 5);
+
+        
         foreach (ProductBatchItemInfo produceBatchItemInfo in produceBatchOrderList.Data)
         {
-            // 需要限制线程池数量, 过多超过PHP的请求限制, 会导致大量请求超时进入重试 PHP支持并发数不多 多线程请求意义不大
-            ThreadPool5Config.EnqueueAsync(async () =>
+            // TODO 感觉没有多线程进行获取数据 难道是接口并发只能一秒一个请求?
+            // 2. 在任务开始时，异步等待信号量
+            await semaphore.WaitAsync();
+            downloadTasks.Add(Task.Run(async () =>
             {
-                int retryTotal = 3;
-                int retryCount = retryTotal;
-                while (retryCount > 0)
+                try
                 {
-                    --retryCount;
                     try
                     {
-                        ProduceBatchDetailRequest produceBatchDetailRequest = new ProduceBatchDetailRequest();
-                        produceBatchDetailRequest.BatchNo = produceBatchItemInfo.BatchNum;
+                        var produceBatchDetailRequest = new ProduceBatchDetailRequest
+                        {
+                            BatchNo = produceBatchItemInfo.BatchNum
+                        };
 
-                        // 获取项位批次详情 (订单详情) 同一个订单不同产品不同批次号
                         FactoryApiResponse<List<JsonNode?>> produceBatchOrderDetailObj =
                             await _produceBatchDetailApi.getProduceBatchDetailObjTest(
-                                produceBatchDetailRequest,
-                                token);
-                        Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "-项位批次" +
-                                          produceBatchItemInfo.BatchNum + "详情抓取成功");
+                                produceBatchDetailRequest, token);
+
+                        Console.WriteLine(
+                            $"批次 {produceBatchItem.ProduceBatchNumber} - 项位批次 {produceBatchItemInfo.BatchNum} 详情抓取成功");
+
                         List<ProduceBatchItemDetail> orderPrintBatchList =
                             ProduceBatchItemDetail.ConstructByArrayJson(produceBatchOrderDetailObj.Data);
                         var taskBuilder = new ProductionTaskBuilder();
-                        // 项批号详情对应子项列表 (一般只有一个子项  一个订单)
-                        Console.WriteLine("批次" + produceBatchItem.ProduceBatchNumber + "所有子项数据已加载");
+
                         UpdateProduceBatchStatus(produceBatchItem.ProduceBatchNumber, ProduceBatchStatus.处理中);
+
                         foreach (ProduceBatchItemDetail produceBatchItemDetail in orderPrintBatchList)
                         {
                             try
                             {
                                 AddProduceBatchNeedLayoutItemCount(produceBatchItem.ProduceBatchNumber,
                                     produceBatchItemDetail.IsMultiPiece);
-                                //订单生产信息 转换成本软件 用于制造生产的图最少信息 (可以写各种方法 用于兼容其他平台的生产数据 转换成我们生产软件专用的数据结构)
+
                                 List<ProductionTask> productionTasks =
                                     taskBuilder.BuildTasksFromItem(produceBatchItemDetail);
-                                //TODO 兼容: 理论上DPI应该设置在整个布料排版上与设备绑定, 但是现在DPI却设置在裁片上
-                                int targetDpi = Decimal.ToInt32(
-                                    produceBatchItemDetail.ProducePrintInfo
-                                        .FirstOrDefault().Value.TargetDpi);
-                                UniqueBatchItem uniqueBatchItem = new UniqueBatchItem()
+
+                                int targetDpi = (int)(produceBatchItemDetail.ProducePrintInfo
+                                    .FirstOrDefault().Value.TargetDpi);
+
+                                var uniqueBatchItem = new UniqueBatchItem
                                 {
+                                    SkuId = produceBatchItemDetail.SkuId,
+                                    ProductId = produceBatchItemDetail.ProductId,
+                                    BuyIndex = produceBatchItemDetail.BuyIndex,
+                                    ViewId = produceBatchItemDetail.ViewId,
                                     DesignProductId = produceBatchItemDetail.DesignProductId,
                                     BatchNum = produceBatchItemDetail.BatchNum,
                                     ProduceBatchNum = produceBatchItemDetail.ProduceBatchNumber,
                                     Size = produceBatchItemDetail.Attributes.SizeAlias,
                                     SizeId = produceBatchItemDetail.Attributes.SizeId,
+                                    ColorId = produceBatchItemDetail.Attributes.ColorId,
                                     Color = produceBatchItemDetail.Attributes.ColorAlias,
                                     ProductName = produceBatchItemDetail.DesignName,
                                     OrderNo = produceBatchItemDetail.OrderNo,
@@ -591,35 +603,38 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                                     TargetDpi = targetDpi,
                                     ProductionTasks = productionTasks
                                 };
+
                                 updateProduceBatchItemDetail(uniqueBatchItem, ProduceBatchItemProcess.数据已加载);
-                                downloadDataList.Add(new UniqueBatchItemNum()
+                                downloadDataList.Add(new UniqueBatchItemNum
                                 {
                                     ProduceBatchNum = uniqueBatchItem.ProduceBatchNum,
                                     BatchNum = uniqueBatchItem.BatchNum,
                                 });
                                 Console.WriteLine(
-                                    $"生产计划{uniqueBatchItem.ProduceBatchNum}的项批号{uniqueBatchItem.BatchNum}数据已写入数据库");
+                                    $"生产计划 {uniqueBatchItem.ProduceBatchNum} 的项批号 {uniqueBatchItem.BatchNum} 数据已写入数据库");
                             }
                             catch (Exception e)
                             {
                                 Console.WriteLine(e);
                             }
                         }
-
-                        retryCount = 0;
+                        // 成功，跳出重试循环
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine(
-                            $"请求生产计划项批号{produceBatchItemInfo.BatchNum}详情出错{ex}");
-                        Thread.Sleep(5000 * (retryTotal - retryCount + 1));
+                        Console.WriteLine($"请求生产计划项批号 {produceBatchItemInfo.BatchNum} 详情出错: {ex.Message}");
                     }
                 }
-            });
+                finally
+                {
+                    // 3. 任务结束时（无论成功或失败），释放信号量
+                    semaphore.Release();
+                }
+            }));
         }
 
         await Task.WhenAll(downloadTasks);
-        return downloadDataList;
+        return downloadDataList.ToList();
     }
 
 
@@ -865,7 +880,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         }
 
         var viewModel =
-            new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum).ToList(), _databaseService,_contentDialogService);
+            new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum).ToList(), _databaseService,
+                _contentDialogService);
         var window = _windowsProviderService.GetWindow<CreatePrintTaskWindow>();
         window.DataContext = viewModel;
         window.Show();

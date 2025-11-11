@@ -46,7 +46,24 @@ public class ProduceBatchItemDetail
     [JsonPropertyName("size")] public string Size { get; set; }
 
     [JsonPropertyName("design_name")] public string DesignName { get; set; }
-
+    
+    [JsonPropertyName("product_id")]
+    [JsonConverter(typeof(StringOrNumberToLongConverter))]
+    public long ProductId { get; set; }
+    
+    [JsonPropertyName("buy_index")]
+    [JsonConverter(typeof(StringOrNumberToLongConverter))]
+    public long BuyIndex { get; set; }
+    
+    [JsonPropertyName("view_id")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int ViewId { get; set; }
+    
+    [JsonPropertyName("goods_sku_id")]
+    [JsonConverter(typeof(StringOrNumberToLongConverter))]
+    public long SkuId { get; set; }
+    
+    [JsonPropertyName("sku")] public string Sku { get; set; }
     [JsonPropertyName("attrs")] public OrderAttributes Attributes { get; set; }
 
     // 设计器配置，Key是ViewId (string)
@@ -114,27 +131,36 @@ public class ProduceBatchItemDetail
 
                 foreach (string key in produceBatchItemDetail.ProducePrintInfo.Keys)
                 {
-                    PrintInfo printInfo = produceBatchItemDetail.ProducePrintInfo[key];
-                    printInfo.RealSizeWidthMm = printInfo.RealSizeWidthMm * printInfo.SizePrintRatio[sizeId] / 100;
-                    printInfo.HeightPx = printInfo.HeightPx * printInfo.SizePrintRatio[sizeId] / 100;
-                    printInfo.WidthPx = printInfo.WidthPx * printInfo.SizePrintRatio[sizeId] / 100;
-
-                    if (produceBatchItemDetail.ProductConfig.ContainsKey(key))
+                    try
                     {
-                        List<ProductConfigItem> productConfigItemList = produceBatchItemDetail.ProductConfig[key];
-                        foreach (ProductConfigItem productConfigItem in productConfigItemList)
+                        PrintInfo printInfo = produceBatchItemDetail.ProducePrintInfo[key];
+                        printInfo.RealSizeWidthMm = printInfo.RealSizeWidthMm * printInfo.SizePrintRatio[sizeId] / 100;
+                        printInfo.HeightPx = printInfo.HeightPx * printInfo.SizePrintRatio[sizeId] / 100;
+                        printInfo.WidthPx = printInfo.WidthPx * printInfo.SizePrintRatio[sizeId] / 100;
+
+                        if (produceBatchItemDetail.ProductConfig.ContainsKey(key))
                         {
-                            productConfigItem.Image.DimensionsMm.Width = productConfigItem.Image.DimensionsMm.Width *
-                                printInfo.SizePrintRatio[sizeId] / 100;
-                            productConfigItem.Image.DimensionsMm.Height = productConfigItem.Image.DimensionsMm.Height *
-                                printInfo.SizePrintRatio[sizeId] / 100;
-                            productConfigItem.Image.OffsetX = productConfigItem.Image.OffsetX *
-                                printInfo.SizePrintRatio[sizeId] / 100;
-                            productConfigItem.Image.OffsetY = productConfigItem.Image.OffsetY *
-                                printInfo.SizePrintRatio[sizeId] / 100;
-                            //TODO 平铺效果也需要放大平铺间距???
+                            List<ProductConfigItem> productConfigItemList = produceBatchItemDetail.ProductConfig[key];
+                            foreach (ProductConfigItem productConfigItem in productConfigItemList)
+                            {
+                                productConfigItem.Image.DimensionsMm.Width = productConfigItem.Image.DimensionsMm.Width *
+                                    printInfo.SizePrintRatio[sizeId] / 100;
+                                productConfigItem.Image.DimensionsMm.Height = productConfigItem.Image.DimensionsMm.Height *
+                                    printInfo.SizePrintRatio[sizeId] / 100;
+                                productConfigItem.Image.OffsetX = productConfigItem.Image.OffsetX *
+                                    printInfo.SizePrintRatio[sizeId] / 100;
+                                productConfigItem.Image.OffsetY = productConfigItem.Image.OffsetY *
+                                    printInfo.SizePrintRatio[sizeId] / 100;
+                                //TODO 平铺效果也需要放大平铺间距???
+                            }
                         }
                     }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                        throw;
+                    }
+                    
                 }
 
                 return produceBatchItemDetail;
@@ -187,6 +213,10 @@ public class ProduceBatchItemDetail
 
 public class OrderAttributes
 {
+    [JsonPropertyName("colour_id")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int ColorId { get; set; }
+    
     [JsonPropertyName("colour_alias")] public string ColorAlias { get; set; }
 
     [JsonPropertyName("model_alias")] public string SizeAlias { get; set; }

@@ -12,10 +12,23 @@ public class UniqueBatchItem
     public string ItemId { get; set; }
     public long BatchNum { get; set; }
     public string ProduceBatchNum { get; set; }
+    
+    public long SkuId { get; set; }
+    
+    // 成品id
+    public long ProductId { get; set; }
+
+    // 购物车的第几件  [订单号->多子订单->多件]
+    public long BuyIndex { get; set; }
+    
+    public int ViewId { get; set; }
+
     public string Size { get; set; }
     
     public int SizeId { get; set; }
     public string Color { get; set; }
+    
+    public int ColorId { get; set; }
     public string ProductName { get; set; }
     public string OrderNo { get; set; }
     public string OrderCode { get; set; }

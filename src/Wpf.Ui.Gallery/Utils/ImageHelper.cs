@@ -11,6 +11,11 @@ using OpenCvSharp;
 using OpenCvSharp.XImgProc;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Converters;
+using Wpf.Ui.Gallery.LocalConfig;
+using ZXing;
+using ZXing.QrCode;
+using ZXing.QrCode.Internal;
+using ZXing.Rendering;
 using Size = OpenCvSharp.Size;
 
 namespace Wpf.Ui.Gallery.Utils;
@@ -310,7 +315,9 @@ public static class ImageHelper
                 using (Mat binaryMat = new Mat())
                 {
                     Cv2.BitwiseNot(inputMat, invertedMat);
-                    Cv2.Threshold(invertedMat, binaryMat, 127, 255, ThresholdTypes.Binary);
+                    // 127 是 8位灰度 255的一半
+                    // Cv2.Threshold(invertedMat, binaryMat, 127, 255, ThresholdTypes.Binary);
+                    Cv2.Threshold(invertedMat, binaryMat, 5, 255, ThresholdTypes.Binary);
 
                     if (binaryMat.Empty()) return spotPlate.Copy();
 
@@ -369,7 +376,9 @@ public static class ImageHelper
                 return spotPlate.Copy();
             }
 
-            // --- 最终颜色反转 (与您原有的逻辑保持一致) ---
+            // =================================================================
+            // --- 核心修正点: 在返回前，进行最终的颜色反转 ---
+            // =================================================================
             if (invertFinalResult)
             {
                 resultToEncode = new Mat();
@@ -377,26 +386,227 @@ public static class ImageHelper
             }
             else
             {
+                // 如果不需要反转，直接使用finalMat
                 resultToEncode = finalMat;
             }
+            // =================================================================
 
             // --- OpenCvSharp Mat -> NetVips Image ---
             byte[] outputMemory;
             Cv2.ImEncode(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png), resultToEncode, out outputMemory);
+            /*using (Image bwImage = Image.NewFromBuffer(outputMemory))
+            {
+                // 步骤 2: 使用 Copy() 方法创建一个新的图像头，
+                // 并明确地将 Interpretation 设置为 sRGB。
+                // 像素数据本身没有改变，只是改变了NetVips“看待”它的方式。
+                Image srgbImage = bwImage.Copy(interpretation: Enums.Interpretation.Srgb);
 
+                return srgbImage;
+            }*/
             return Image.NewFromBuffer(outputMemory);
         }
         finally
         {
-            // ... [资源释放逻辑保持不变] ...
+            // 确保我们创建的所有Mat都被释放
+            finalMat?.Dispose();
+
+            // 如果resultToEncode是一个新创建的Mat(即反转过)，也需要释放
+            if (resultToEncode != null && resultToEncode != finalMat)
+            {
+                resultToEncode.Dispose();
+            }
         }
     }
 
+    // 山脊算法 快速 并且山脊线比较连续(可用)  效果接近可用 细条文字过粗 63秒运算时间
+    public static Image SkeletonizeWithOpenCvInvertFast(Image spotPlate, int targetThickness, bool invertFinalResult = true)
+{
+    if (spotPlate.Max() < 1) return spotPlate.Copy();
+
+    byte[] memoryBuffer = spotPlate.WriteToBuffer(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png));
+
+    Mat finalMat = null;
+    Mat resultToEncode = null;
+
+    try
+    {
+        using (Mat inputMat = Mat.ImDecode(memoryBuffer, ImreadModes.Grayscale))
+        {
+            if (inputMat == null || inputMat.Empty()) return spotPlate.Copy();
+
+            using (Mat invertedMat = new Mat())
+            using (Mat binaryMat = new Mat())
+            {
+                Cv2.BitwiseNot(inputMat, invertedMat);
+                Cv2.Threshold(invertedMat, binaryMat, 127, 255, ThresholdTypes.Binary);
+                if (binaryMat.Empty()) return spotPlate.Copy();
+
+                // =================================================================
+                // --- 核心算法: 双路径处理与合并 ---
+                // =================================================================
+
+                // --- 路径 A: 处理粗壮主体 ---
+                Mat skeletonThick;
+                using (Mat thickParts = new Mat())
+                {
+                    // A1. 使用开运算移除细线 (kernel size 3x3 会移除宽度<=2的线条)
+                    using (Mat openKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(3, 3)))
+                    {
+                        Cv2.MorphologyEx(binaryMat, thickParts, MorphTypes.Open, openKernel);
+                    }
+                    
+                    // A2. 对粗壮部分进行降采样加速的Thinning
+                    skeletonThick = GetAcceleratedSkeleton(thickParts);
+                }
+                
+                // --- 路径 B: 处理纤细细节 ---
+                Mat skeletonThin;
+                using (Mat thinParts = new Mat())
+                {
+                    // B1. 提取细线部分
+                    Cv2.Subtract(binaryMat, skeletonThick, thinParts); // 修正：应该从binaryMat减去thickParts
+                    
+                    // B2. 在全分辨率下对细线进行Thinning (速度很快)
+                    skeletonThin = GetFullResSkeleton(thinParts);
+                }
+
+                // --- 步骤 C: 合并骨架 ---
+                using (Mat mergedSkeleton = new Mat())
+                {
+                    Cv2.BitwiseOr(skeletonThick, skeletonThin, mergedSkeleton);
+                    
+                    // 统一厚度恢复
+                    if (targetThickness <= 1)
+                    {
+                        finalMat = mergedSkeleton.Clone();
+                    }
+                    else
+                    {
+                        int dilateAmount = (int)Math.Ceiling((targetThickness - 1) / 2.0);
+                        if (dilateAmount > 0)
+                        {
+                            int kernelSize = dilateAmount * 2 + 1;
+                            using (Mat dilateKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(kernelSize, kernelSize)))
+                            {
+                                finalMat = new Mat();
+                                Cv2.Dilate(mergedSkeleton, finalMat, dilateKernel);
+                            }
+                        }
+                        else
+                        {
+                            finalMat = mergedSkeleton.Clone();
+                        }
+                    }
+                }
+                
+                // 释放中间骨架
+                skeletonThick.Dispose();
+                skeletonThin.Dispose();
+                // =================================================================
+            }
+        }
+
+        if (finalMat == null || finalMat.Empty())
+        {
+            return spotPlate.Copy();
+        }
+
+        // =================================================================
+        // --- 核心修正点: 在返回前，进行最终的颜色反转 ---
+        // =================================================================
+        if (invertFinalResult)
+        {
+            resultToEncode = new Mat();
+            Cv2.BitwiseNot(finalMat, resultToEncode);
+        }
+        else
+        {
+            // 如果不需要反转，直接使用finalMat
+            resultToEncode = finalMat;
+        }
+        // =================================================================
+
+        // --- OpenCvSharp Mat -> NetVips Image ---
+        byte[] outputMemory;
+        Cv2.ImEncode(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png), resultToEncode, out outputMemory);
+        /*using (Image bwImage = Image.NewFromBuffer(outputMemory))
+        {
+            // 步骤 2: 使用 Copy() 方法创建一个新的图像头，
+            // 并明确地将 Interpretation 设置为 sRGB。
+            // 像素数据本身没有改变，只是改变了NetVips“看待”它的方式。
+            Image srgbImage = bwImage.Copy(interpretation: Enums.Interpretation.Srgb);
+
+            return srgbImage;
+        }*/
+        return Image.NewFromBuffer(outputMemory);
+    }
+    finally
+    {
+        // 确保我们创建的所有Mat都被释放
+        finalMat?.Dispose();
+
+        // 如果resultToEncode是一个新创建的Mat(即反转过)，也需要释放
+        if (resultToEncode != null && resultToEncode != finalMat)
+        {
+            resultToEncode.Dispose();
+        }
+    }
+}
+
+// --- 辅助函数 ---
+
+/// <summary>
+/// 【辅助】对图像进行降采样加速的Thinning
+/// </summary>
+private static Mat GetAcceleratedSkeleton(Mat input)
+{
+    if (input.Empty()) return new Mat();
+
+    double scale = 2.0;
+    using (Mat smallMat = new Mat())
+    {
+        Cv2.Resize(input, smallMat, new Size(input.Width / scale, input.Height / scale));
+        using (Mat smallSkeleton = new Mat())
+        {
+            CvXImgProc.Thinning(smallMat, smallSkeleton, ThinningTypes.ZHANGSUEN);
+            using (Mat largeSkeleton = new Mat())
+            {
+                Cv2.Resize(smallSkeleton, largeSkeleton, input.Size());
+                using (Mat cleanSkeleton = new Mat())
+                {
+                    Cv2.Threshold(largeSkeleton, cleanSkeleton, 127, 255, ThresholdTypes.Binary);
+                    return cleanSkeleton.Clone();
+                }
+            }
+        }
+    }
+}
+
+/// <summary>
+/// 【辅助】在全分辨率下对稀疏图像进行Thinning
+/// </summary>
+private static Mat GetFullResSkeleton(Mat input)
+{
+    if (input.Empty()) return new Mat();
+    
+    using (Mat skeleton = new Mat())
+    {
+        CvXImgProc.Thinning(input, skeleton, ThinningTypes.ZHANGSUEN);
+        return skeleton.Clone();
+    }
+}
+
+    // 此算法 消耗大量时间 性能极差
     private static Mat GetThinningSkeleton(Mat binaryMat)
     {
         using (Mat skeleton = new Mat())
         {
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
             CvXImgProc.Thinning(binaryMat, skeleton, ThinningTypes.ZHANGSUEN);
+            
+            watch.Stop();
+            Console.WriteLine($"GetThinningSkeleton耗时{watch.ElapsedMilliseconds}");
             return skeleton.Clone(); // 返回一个独立的克隆
         }
     }
@@ -407,6 +617,9 @@ public static class ImageHelper
     /// <returns>一个1像素的骨架Mat对象（白底黑字）。</returns>
     private static Mat GetMorphologicalSkeleton(Mat binaryMat)
     {
+        Stopwatch watch = new Stopwatch();
+        watch.Start();
+
         using (Mat distMat = new Mat())
         using (Mat dilatedDist = new Mat())
         using (Mat skeleton = new Mat())
@@ -421,12 +634,13 @@ public static class ImageHelper
 
             // 确保骨架不出界
             Cv2.BitwiseAnd(skeleton, binaryMat, skeleton);
-
+            watch.Stop();
+            Console.WriteLine($"GetMorphologicalSkeleton耗时{watch.ElapsedMilliseconds}");
             return skeleton.Clone(); // 返回一个独立的克隆
         }
     }
-
-    // TODO 着是将两个算法合并成一个函数, 可能可以 增加 Threshold 的色彩识别范围就行 而不用两种算法进行合并以保留细节 ， 但需要验证
+    
+    // TODO 着是将两个算法合并成一个函数, 可能可以 增加 Threshold 的色彩识别范围就行 而不用两种算法进行合并以保留细节 ， 但需要验证  效果接近完美 耗时70秒
     public static Image UnifiedSkeletonize(Image spotPlate, int targetThickness, bool invertFinalResult = true)
     {
         if (spotPlate.Max() < 1) return spotPlate.Copy();
@@ -449,7 +663,8 @@ public static class ImageHelper
                     Cv2.BitwiseNot(inputMat, invertedMat);
                     // 127 是 8位灰度 255的一半
                     // Cv2.Threshold(invertedMat, binaryMat, 127, 255, ThresholdTypes.Binary);
-                    Cv2.Threshold(invertedMat, binaryMat, 24, 255, ThresholdTypes.Binary);
+                    // 第一个数字 thresh 值 越大,则只有在越清晰的像素部分才会打印白墨专色通道
+                    Cv2.Threshold(invertedMat, binaryMat, LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkEdgeStrength, 255, ThresholdTypes.Binary);
 
                     if (binaryMat.Empty()) return spotPlate.Copy();
 
@@ -526,6 +741,134 @@ public static class ImageHelper
             {
                 resultToEncode.Dispose();
             }
+        }
+    }
+    
+    public static Image? GenerateQrCode2Image(string content, int width, int height, int margin = 1)
+    {
+        if (string.IsNullOrEmpty(content))
+        {
+            return null;
+        }
+
+        try
+        {
+            // 1. 配置二维码生成器
+            var qrCodeWriter = new BarcodeWriter<SvgRenderer.SvgImage>
+            {
+                Format = BarcodeFormat.QR_CODE,
+                Options = new QrCodeEncodingOptions
+                {
+                    Width = width,
+                    Height = height,
+                    Margin = margin,
+                    ErrorCorrection = ZXing.QrCode.Internal.ErrorCorrectionLevel.M, // 中等容错
+                },
+                Renderer = new SvgRenderer()
+            };
+            var svgImage = qrCodeWriter.Write(content);
+            string svgContent = svgImage.Content;
+
+            // --- [核心修复：从字符串到内存缓冲区的转换] ---
+
+            // 2. 将SVG字符串，使用UTF-8编码，转换为字节数组 (byte[])
+            byte[] svgBytes = Encoding.UTF8.GetBytes(svgContent);
+
+            // --- 3. [NetVips] 直接从内存缓冲区加载SVG ---
+            //    使用 Image.NewFromBuffer()
+            using (Image initialSvgLoad = Image.NewFromBuffer(svgBytes))
+            {
+                // 4. 使用 .ThumbnailImage() 精确地缩放到目标尺寸 (不变)
+                return initialSvgLoad.ThumbnailImage(width: width, height: height);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"生成二维码失败: {ex.Message}");
+            return null;
+        }
+    }
+    
+    /** 生成带有自定义颜色边框和背景的二维码。
+    * </summary>
+    * <param name="content">二维码内容</param>
+    * <param name="width">最终图像的总宽度</param>
+    * <param name="height">最终图像的总高度</param>
+    * <param name="margin">红色边框的宽度</param>
+    * <returns>一个包含二维码的 NetVips.Image 对象，如果失败则返回 null</returns>*/
+    public static Image? GenerateQrCodeWithBorder(string content, int width, int height, int margin = 1)
+    {
+        if (string.IsNullOrEmpty(content))
+        {
+            return null;
+        }
+
+        if (margin < 0)
+        {
+            margin = 0;
+        }
+
+        int borderSize = margin;
+        int innerWidth = width - (2 * borderSize);
+        int innerHeight = height - (2 * borderSize);
+
+        if (innerWidth <= 0 || innerHeight <= 0)
+        {
+            Console.WriteLine("错误：边距过大，导致二维码内容区域尺寸无效。");
+            return null;
+        }
+
+        try
+        {
+            // --- 步骤 1: 生成核心二维码 (无边距) ---
+            var qrCodeWriter = new BarcodeWriter<SvgRenderer.SvgImage>
+            {
+                Format = BarcodeFormat.QR_CODE,
+                Options = new QrCodeEncodingOptions
+                {
+                    Width = innerWidth,
+                    Height = innerHeight,
+                    Margin = 0, // 关键：生成一个没有白色边距的纯二维码
+                    ErrorCorrection = ErrorCorrectionLevel.M,
+                },
+                Renderer = new SvgRenderer()
+            };
+            var svgImage = qrCodeWriter.Write(content);
+            byte[] svgBytes = Encoding.UTF8.GetBytes(svgImage.Content);
+
+            // 从SVG加载的图像通常是 RGBA (4通道)
+            using var qrCodeOnlyImage = Image.NewFromBuffer(svgBytes)
+                .ThumbnailImage(innerWidth, height: innerHeight);
+
+            // --- 步骤 2: 创建白色背景并叠加上二维码 ---
+
+            // **【正确方法】** 使用 Black + Linear 创建一个纯白色的背景
+            using var whiteBackground = Image.Black(innerWidth, innerHeight, bands: 3)
+                .Linear(new double[] { 1, 1, 1 }, new double[] { 255, 255, 255 });
+
+            // 为白色背景添加一个Alpha通道，使其与二维码的4通道匹配 (RGBA)
+            using var whiteBackgroundWithAlpha = whiteBackground.Bandjoin(255).Copy(interpretation: Enums.Interpretation.Srgb);
+
+            // 将二维码覆盖在白色背景上
+            using var qrWithWhiteBg = whiteBackgroundWithAlpha.Composite(qrCodeOnlyImage, Enums.BlendMode.Over, 0, 0);
+
+
+            // --- 步骤 3: 创建红色边框并合成最终图像 ---
+
+            // **【正确方法】** 使用 Black + Linear 创建一个纯红色的底图作为边框
+            using var redBorder = Image.Black(width, height, bands: 3)
+                .Linear(new double[] { 1, 1, 1 } , new double[] { 255, 0, 0 });
+
+            // 为红色边框添加一个Alpha通道
+            using var redBorderWithAlpha = redBorder.Bandjoin(255).Copy(interpretation: Enums.Interpretation.Srgb);
+
+            // 将带有白色背景的二维码，放置在红色底图的中心位置
+            return redBorderWithAlpha.Composite(qrWithWhiteBg, Enums.BlendMode.Over, borderSize, borderSize);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"生成二维码失败: {ex.Message}");
+            return null;
         }
     }
 }

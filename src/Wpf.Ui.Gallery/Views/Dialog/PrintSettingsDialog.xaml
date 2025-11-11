@@ -10,9 +10,11 @@
     mc:Ignorable="d"
     d:DataContext="{d:DesignInstance viewmodels:PrintSettingsDialogViewModel, IsDesignTimeCreatable=False}">
     <StackPanel Width="300">
-        <TextBlock Margin="0,0,0,8" Text="打印机宽度 (毫米)" />
+        <TextBlock Margin="0,0,0,8" Text="打印机DPI(印刷精度)" />
+        <ui:TextBox Margin="0,0,0,16" Text="{Binding PrintTaskConfig.MachineDpi, Mode=TwoWay}" />
+        <TextBlock Margin="0,0,0,8" Text="打印机出料宽度 (毫米)" />
         <ui:TextBox Margin="0,0,0,16" Text="{Binding PrintTaskConfig.MachinePrintWidthMm, Mode=TwoWay}" />
-        <TextBlock Margin="0,0,0,8" Text="印刷左右安全边距 (毫米)" />
+        <TextBlock Margin="0,0,0,8" Text="印刷两侧安全边距 (毫米)" />
         <ui:TextBox Margin="0,0,0,16" Text="{Binding PrintTaskConfig.MachinePrintSafeEdgeMm, Mode=TwoWay}" />
         <TextBlock Margin="0,0,0,8" Text="印花排版间距 (毫米)" />
         <ui:TextBox Margin="0,0,0,16" Text="{Binding PrintTaskConfig.PrintImgPaddingMm, Mode=TwoWay}" />
@@ -24,7 +26,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <Button Grid.Column="1" Content="取消" Command="{Binding CancelCommand}" />
+            <!--<Button Grid.Column="1" Content="取消" Command="{Binding CancelCommand}" />-->
             <Button Grid.Column="2" Margin="8,0,0,0" Content="保存" Command="{Binding SaveCommand}" />
         </Grid>
     </StackPanel>

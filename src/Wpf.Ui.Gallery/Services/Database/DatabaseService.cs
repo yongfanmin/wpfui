@@ -44,6 +44,42 @@ public class DatabaseService : IDatabaseService
         var connection = new SQLiteConnection(options);
         return connection;
     }
+    
+    /*public void Initialize()
+    {
+        // 步骤1: 创建内存数据库连接并打开
+        _inMemoryConnection = new SQLiteConnection("Data Source=:memory:;Version=3;");
+        _inMemoryConnection.Open();
+
+        // 可选：如果磁盘上已有数据库，可以加载到内存中
+        // LoadDiskDbToMemory();
+
+        // 创建表结构
+        var cmd = _inMemoryConnection.CreateCommand();
+        cmd.CommandText = "CREATE TABLE IF NOT EXISTS YourTable (Column1 TEXT, Column2 INTEGER);";
+        cmd.ExecuteNonQuery();
+    }
+
+    public SQLiteConnection GetConnection()
+    {
+        return _inMemoryConnection; // 所有操作使用此连接
+    }
+
+    // 步骤3: 将内存数据库备份到磁盘
+    public void BackupToDisk()
+    {
+        using (var diskConnection = new SQLiteConnection($"Data Source={_diskDbFilePath};Version=3;"))
+        {
+            diskConnection.Open();
+            // 使用 SQLite的 backup API
+            _inMemoryConnection.BackupDatabase(diskConnection, "main", "main", -1, null, 0);
+        }
+    }
+
+    public void Close()
+    {
+        _inMemoryConnection.Close();
+    }*/
 
     public void InitializeDatabase()
     {
@@ -416,6 +452,7 @@ public class DatabaseService : IDatabaseService
         string productBatchNum = "";
         foreach (ProductBatchItemInfo productBatchOrderInfo in productBatchOrderInfoList)
         {
+            // TODO 需要改成批量写入 节约写入时间
             //productBatchNum = productBatchOrderInfo.ProduceBatchNumber;
             AddProduceBatchItem(productBatchOrderInfo);
         }
@@ -443,6 +480,7 @@ public class DatabaseService : IDatabaseService
                     planToUpdate.ItemId = uniqueBatchItem.ItemId;
                     planToUpdate.OrderNo = uniqueBatchItem.OrderNo;
                     planToUpdate.OrderDetailId = uniqueBatchItem.OrderDetailId;
+                    planToUpdate.ViewId = uniqueBatchItem.ViewId;
                     planToUpdate.UpdateTime = DateTime.Now;
                     planToUpdate.ProduceBatchItemProcess = ProduceBatchItemProcess.数据已加载;
                     // 4. 调用 Update 方法将更改保存回数据库

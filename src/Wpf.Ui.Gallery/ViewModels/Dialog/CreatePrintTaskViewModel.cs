@@ -8,6 +8,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.IO;
 using System.Text.Json;
+using DataJuggler.RealESRGAN;
+using DataJuggler.RealESRGAN.Enumerations;
+using NetVips;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
@@ -42,7 +45,8 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
 
         [ObservableProperty] private bool _isExecuting = false;
 
-        [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(StartBatchPrintCommand))]
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(StartBatchPrintCommand))]
         private bool _isPrintButtonEnabled = false;
 
         // 转成CYMK
@@ -56,7 +60,8 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         [ObservableProperty] private LayoutOption _layoutOptionOb = LayoutOption.Automatic;
 
 
-        public CreatePrintTaskViewModel(IEnumerable<string> produceBatchNumbers, IDatabaseService databaseService, IContentDialogService contentDialogService)
+        public CreatePrintTaskViewModel(IEnumerable<string> produceBatchNumbers, IDatabaseService databaseService,
+            IContentDialogService contentDialogService)
         {
             ProduceBatchNumbers = new ObservableCollection<string>(produceBatchNumbers);
             _databaseService = databaseService;
@@ -67,6 +72,10 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
 
         public class CopyFile
         {
+            public string OrderNo { get; set; }
+            public int OrderDetailId { get; set; }
+            public long ProductId { get; set; }
+            public long BuyIndex { get; set; }
             public string SourceFile { get; set; }
             public string UniFileName { get; set; }
         }
@@ -82,8 +91,9 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 LocalAppConfig.Save(LocalAppConfig.AppSetting);
             }
         }
-        
+
         public event Func<Task>? ShowSettingsDialogRequested;
+
         [RelayCommand]
         private async Task OpenSettingsDialog()
         {
@@ -91,17 +101,6 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             {
                 await ShowSettingsDialogRequested.Invoke();
             }
-            var dialog = new ContentDialog
-            {
-                Title = "打印设置",
-                CloseButtonText = "关闭"
-            };
-
-            var viewModel = new PrintSettingsDialogViewModel();
-            var content = new PrintSettingsDialog(viewModel);
-            dialog.Content = content;
-
-            await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
         }
 
         // 执行印花图归集 合批打印  执行转换格式 png->TIFF(CMYK)->移动文件到打印文件夹
@@ -143,44 +142,60 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             {
                                 UniqueBatchItem uniqueBatchItem =
                                     JsonSerializer.Deserialize<UniqueBatchItem>(produceItemEntity.ProduceBatchDetail);
-                                if (uniqueBatchItem.ProductionTasks.Count == 1)
+                                // 多任务 (代表着 多印花面)
+                                /*foreach (ProductionTask productionTask in uniqueBatchItem.ProductionTasks)
                                 {
                                     allFilesToCopy.Add(new CopyFile()
                                     {
                                         SourceFile =
                                             produceItemEntity.ProduceImgLocalPath +
-                                            produceItemEntity.ProduceImgName,
+                                            $"{productionTask.ViewId}-{productionTask.ViewName}{ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)}",
                                         UniFileName =
                                             $"{produceItemEntity.ProduceBatchNum}-{produceItemEntity.Color}-{produceItemEntity.Size}-{produceItemEntity.SkuAlias}-{produceItemEntity.OrderDetailId}"
                                     });
-                                }
-                                else
+                                }*/
+                                allFilesToCopy.Add(new CopyFile()
                                 {
-                                    // 多任务 (代表着 多印花面)
-                                    foreach (ProductionTask productionTask in uniqueBatchItem.ProductionTasks)
-                                    {
-                                        allFilesToCopy.Add(new CopyFile()
-                                        {
-                                            SourceFile =
-                                                produceItemEntity.ProduceImgLocalPath +
-                                                $"{productionTask.ViewId}-{productionTask.ViewName}{ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)}",
-                                            UniFileName =
-                                                $"{produceItemEntity.ProduceBatchNum}-{produceItemEntity.Color}-{produceItemEntity.Size}-{produceItemEntity.SkuAlias}-{produceItemEntity.OrderDetailId}"
-                                        });
-                                    }
-                                }
+                                    OrderNo = produceItemEntity.OrderNo,
+                                    OrderDetailId = uniqueBatchItem.OrderDetailId,
+                                    ProductId = uniqueBatchItem.ProductId,
+                                    BuyIndex = uniqueBatchItem.BuyIndex,
+                                    SourceFile =
+                                        produceItemEntity.ProduceImgLocalPath +
+                                        produceItemEntity.ProduceImgName,
+                                    UniFileName =
+                                        $"{produceItemEntity.ProduceBatchNum}-{produceItemEntity.Color}-{produceItemEntity.Size}-{produceItemEntity.SkuAlias}-{produceItemEntity.OrderDetailId}"
+                                });
                             }
                         }
                     }
                 }
 
+                // 使用 GroupBy 和 ToDictionary 进行分组  按照ProductId(成品id进行分组)
+                /*Dictionary<long, List<CopyFile>> result = allFilesToCopy
+                    .GroupBy(file => file.ProductId)
+                    .ToDictionary(group => group.Key, group => group.ToList());*/
 
-                int machinePrintWidthMm = 600;
+                // 先按照成品id分类 再按照 单件分类(同件印花图归类)
+                Dictionary<long, Dictionary<long, List<CopyFile>>> groupByProductIdAndBuyIndex = allFilesToCopy
+                    .GroupBy(file => file.ProductId) // 第一级分组：按照 ProductId
+                    .ToDictionary(
+                        outerGroup => outerGroup.Key, // 外层字典的键：ProductId
+                        outerGroup => outerGroup
+                            .GroupBy(file => file.BuyIndex) // 第二级分组：对第一级分组内的元素，按照 BuyIndex
+                            .ToDictionary(
+                                innerGroup => innerGroup.Key, // 内层字典的键：BuyIndex
+                                innerGroup => innerGroup.ToList() // 内层字典的值：该 BuyIndex 下的 CopyFile 列表
+                            )
+                    );
+
+                int machinePrintWidthMm = LocalAppConfig.AppSetting.PrintTaskConfig.MachinePrintWidthMm;
                 // 打印机安全边缘 (左右各 ? 毫米)
-                int machinePrintSafeEdgeMm = 10;
-                int printerDpi = 300;
+                int machinePrintSafeEdgeMm = LocalAppConfig.AppSetting.PrintTaskConfig.MachinePrintSafeEdgeMm;
+                // 打印机打印精度
+                int printerDpi = LocalAppConfig.AppSetting.PrintTaskConfig.MachineDpi;
                 // 印花图安全间距( ? 毫米) 用于裁剪
-                int printImgPaddingMm = 10;
+                int printImgPaddingMm = LocalAppConfig.AppSetting.PrintTaskConfig.PrintImgPaddingMm;
 
                 // 可安全排版的宽度
                 int machineLayoutSafeWidthMm =
@@ -188,10 +203,137 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 // 出血位 (印刷机器 左右两侧夹具占用空间 无法印刷的宽度)
                 int safeEdgeWithoutPaddingMm = machinePrintSafeEdgeMm - printImgPaddingMm;
 
-               
+
                 if (!Directory.Exists(targetPath))
                 {
                     Directory.CreateDirectory(targetPath);
+                }
+
+
+                List<LayoutImg> printImgList = new List<LayoutImg>();
+                int id = 0;
+                foreach (CopyFile copyFile in allFilesToCopy)
+                {
+                    using Image image = Image.NewFromFile(copyFile.SourceFile);
+                    if (image.HasAlpha())
+                    {
+                        // TODO 只裁切出不透明部分 默认不开启 [不方便因为在衣服上对位 ] 只有小作坊不怎么考虑人力的情况下才可能启用? 或者有先进的解决方案, 比如投影对位?
+                        if (true)
+                        {
+                            printImgList.Add(new LayoutImg()
+                            {
+                                WidthPx = (uint)image.Width,
+                                HeightPx = (uint)image.Height,
+                                Id = id++,
+                                ImgPath = copyFile.SourceFile,
+                                LayoutCropImg = image.Copy(),
+                                OrderTrackInfo = new OrderTrackInfo() { OrderNo = copyFile.OrderNo, }
+                            });
+                        }
+                        else
+                        {
+                            object[] trimResult = image.FindTrim();
+
+                            // FindTrim 返回一个 object[] { left, top, width, height }
+                            // 我们需要将它们转换为正确的类型 (通常是 int 或 long)
+                            int left = Convert.ToInt32(trimResult[0]);
+                            int top = Convert.ToInt32(trimResult[1]);
+                            int width = Convert.ToInt32(trimResult[2]);
+                            int height = Convert.ToInt32(trimResult[3]);
+
+                            if (width == 0 || height == 0)
+                            {
+                                Console.WriteLine("图片内容为空（完全透明）。");
+                            }
+
+                            Console.WriteLine($"内容边界框: X={left}, Y={top}, 宽度={width}, 高度={height}");
+                            // --- 第二步: Crop ---
+                            Image croppedImage = image.Crop(left, top, width, height);
+                            printImgList.Add(new LayoutImg()
+                            {
+                                WidthPx = (uint)croppedImage.Width,
+                                HeightPx = (uint)croppedImage.Height,
+                                Id = id++,
+                                ImgPath = copyFile.SourceFile,
+                                LayoutCropImg = croppedImage,
+                                OrderTrackInfo = new OrderTrackInfo() { OrderNo = copyFile.OrderNo, }
+                            });
+                        }
+                    }
+                    else
+                    {
+                        printImgList.Add(new LayoutImg()
+                        {
+                            WidthPx = (uint)image.Width,
+                            HeightPx = (uint)image.Height,
+                            Id = id++,
+                            ImgPath = copyFile.SourceFile,
+                            LayoutCropImg = image.Copy(),
+                            OrderTrackInfo = new OrderTrackInfo() { OrderNo = copyFile.OrderNo, }
+                        });
+                    }
+                }
+
+                foreach (LayoutImg layoutImg in printImgList)
+                {
+                    // 加入 跟踪码信息 默认加入跟踪码
+                    if (LocalAppConfig.AppSetting.PrintTaskConfig.IsOrderTrack && false)
+                    {
+                        OrderTrackConfig orderTrackConfig = LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig;
+                        // 写入单号
+                        Image qrCode = ImageHelper.GenerateQrCodeWithBorder(
+                            layoutImg.OrderTrackInfo.OrderNo, 
+                            ImageHelper.ConvertMmToPixels(
+                                orderTrackConfig.HeightMm, printerDpi),
+                            ImageHelper.ConvertMmToPixels(
+                                orderTrackConfig.HeightMm, printerDpi
+                            ),
+                            ImageHelper.ConvertMmToPixels(
+                                orderTrackConfig.QrCodeBorderMm, printerDpi
+                            ));
+                        // 2. 创建一个不透明的黑色Banner
+// 首先创建一个3通道 (RGB) 的黑色图像
+                        using Image blackBannerRgb = Image.Black(
+                            layoutImg.LayoutCropImg.Width,
+                            ImageHelper.ConvertMmToPixels(orderTrackConfig.HeightMm, printerDpi),
+                            bands: 3 // <-- 明确指定3个通道
+                        );
+// 然后附加一个值为255的常量波段作为Alpha通道，使其变为不透明
+                        using Image orderTrackBannerOpaque = blackBannerRgb.Bandjoin(255);
+// 确保色彩空间解释正确
+                        using Image orderTrackBanner = orderTrackBannerOpaque.Copy(interpretation: Enums.Interpretation.Srgb);
+
+// 3. 将二维码叠加在不透明的Banner上
+// 计算x坐标以实现右对齐
+                        int qrCodeX = orderTrackBanner.Width - qrCode.Width;
+                        using var orderTrackBannerWithQr = orderTrackBanner.Composite(
+                            qrCode, 
+                            Enums.BlendMode.Over, 
+                            x: qrCodeX, 
+                            y: 0
+                        );
+
+// 4. 将最终的Banner拼接到印花图底部
+// (您的原始代码，保持不变, 但请注意使用using管理内存)
+// 假设 layoutImg.LayoutCropImg 是需要被替换的
+                        using var originalImg = layoutImg.LayoutCropImg;
+                        layoutImg.LayoutCropImg = originalImg.Join(
+                            orderTrackBannerWithQr, 
+                            Enums.Direction.Vertical,
+                            expand: true,
+                            align: Enums.Align.Centre
+                        );
+                    }
+
+                    if (printImgPaddingMm > 0)
+                    {
+                        // 给图片一个空白的边距框
+                        Image croppedPaddingImage = ImageHelper.AddTransparentPadding(layoutImg.LayoutCropImg,
+                            ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
+                        layoutImg.LayoutCropImg = croppedPaddingImage;
+                        layoutImg.WidthPx = (uint)croppedPaddingImage.Width;
+                        layoutImg.HeightPx = (uint)croppedPaddingImage.Height;
+                    }
                 }
 
                 if (printTaskConfig.IsNeedLayout())
@@ -200,9 +342,8 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                     if (allFilesToCopy.Count > 0)
                     {
                         LayoutResult layoutResult = StripPackingLayout.SkylineLayout(
-                            allFilesToCopy.Select(item => item.SourceFile).ToList(),
-                            (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi),
-                            ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
+                            printImgList,
+                            (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi));
                         // 创建排版画布 将排版数据换成印花图排版到 画布上
                         await ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResult,
                             Path.Combine(targetPath,
@@ -265,7 +406,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         {
             return IsPrintButtonEnabled;
         }
-        
+
         public async Task ConvertImageAsync(string sourcePath, string destinationPath, PrintTaskConfig printTaskConfig)
         {
             await Task.Run(async () =>

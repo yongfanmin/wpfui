@@ -21,4 +21,7 @@ public class LayoutImg
     public string ImgPath { get; set; }
 
     public Image LayoutCropImg { get; set; }
+    
+    public OrderTrackInfo OrderTrackInfo { get; set; }
+    
 }

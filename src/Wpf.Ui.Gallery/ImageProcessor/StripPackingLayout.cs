@@ -6,6 +6,7 @@
 using NetVips;
 using RectpackSharp;
 using Wpf.Ui.Gallery.Dto.PrintTask;
+using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Utils;
 
 namespace Wpf.Ui.Gallery.ImageProcessor;
@@ -67,50 +68,11 @@ public class StripPackingLayout
     }*/
 
     // 使用skyline算法进行矩形图片排版 支持旋转正负90度排版  自动排版
-    public static LayoutResult SkylineLayout(List<string> printImgPathList, uint machinePrintWidthPx , int printImgPaddingPx)
+    public static LayoutResult SkylineLayout(List<LayoutImg> printImgList, uint machinePrintWidthPx )
     {
-        List<LayoutImg> printImgList = new List<LayoutImg>();
-        int id = 0;
-        foreach (string imgPath in printImgPathList)
-        {
-            using Image image = Image.NewFromFile(imgPath);
-            if (image.HasAlpha())
-            {
-                object[] trimResult = image.FindTrim();
-
-                // FindTrim 返回一个 object[] { left, top, width, height }
-                // 我们需要将它们转换为正确的类型 (通常是 int 或 long)
-                int left = Convert.ToInt32(trimResult[0]);
-                int top = Convert.ToInt32(trimResult[1]);
-                int width = Convert.ToInt32(trimResult[2]);
-                int height = Convert.ToInt32(trimResult[3]);
-
-                if (width == 0 || height == 0)
-                {
-                    Console.WriteLine("图片内容为空（完全透明）。");
-                }
-
-                Console.WriteLine($"内容边界框: X={left}, Y={top}, 宽度={width}, 高度={height}");
-                // --- 第二步: Crop ---
-                Image croppedImage = ImageHelper.AddTransparentPadding(image.Crop(left, top, width, height), printImgPaddingPx);
-                
-                printImgList.Add(new LayoutImg()
-                {
-                    WidthPx = (uint)croppedImage.Width,
-                    HeightPx = (uint)croppedImage.Height,
-                    Id = id++,
-                    ImgPath = imgPath,
-                    LayoutCropImg = croppedImage,
-                });
-            }
-            else
-            {
-                printImgList.Add(new LayoutImg()
-                {
-                    WidthPx = (uint)image.Width, HeightPx = (uint)image.Height, Id = id++, ImgPath = imgPath
-                });
-            }
-        }
+        
+        
+        
 
         var rectanglesToPack = new PackingRectangle[printImgList.Count];
         for (int i = 0; i < rectanglesToPack.Length; i++)
@@ -176,4 +138,12 @@ public class StripPackingLayout
             LayoutWidthPx = bounds.Width, LayoutHeightPx = bounds.Height, LayoutImgList = layoutImgList,
         };
     }
+
+    // 一件多印花图 必须相邻排版
+    // 1.计算出单件衣服内 面积最大的印花图 的 短边 能被打印机出料宽度整除几次(n次), 然后循环排版n件到1件 ,算出 1->n 和 2n 每种排版方式 单件衣服占用面积|长度最小的情况, 再算出 1->和2n 能否被m件衣服整除, 能整除 则按照平均单件占用面积最小执行重复排版, 如果不整除 则再算出取余部分占用空间平摊到单件面积占用
+    /*public static LayoutResult SkylineLayoutByOneProduct(List<string> printImgPathList, uint machinePrintWidthPx,
+        int printImgPaddingPx)
+    {
+        
+    }*/
 }
