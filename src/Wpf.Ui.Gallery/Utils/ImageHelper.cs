@@ -182,7 +182,7 @@ public static class ImageHelper
             extend: Enums.Extend.Background,
             background: new double[] { 0, 0, 0, 0 }
         );
-
+        imageWithAlpha.Dispose();
         return paddedImage;
     }
 
@@ -538,7 +538,10 @@ public static class ImageHelper
 
             return srgbImage;
         }*/
-        return Image.NewFromBuffer(outputMemory);
+        using(var image = Image.NewFromBuffer(outputMemory))
+        {
+            return image.Copy();
+        }
     }
     finally
     {
@@ -732,7 +735,10 @@ private static Mat GetFullResSkeleton(Mat input)
             byte[] outputMemory;
             Cv2.ImEncode(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png), resultToEncode, out outputMemory);
 
-            return Image.NewFromBuffer(outputMemory);
+        using(var image = Image.NewFromBuffer(outputMemory))
+        {
+            return image.Copy();
+        }
         }
         finally
         {
@@ -797,78 +803,71 @@ private static Mat GetFullResSkeleton(Mat input)
     * <param name="margin">红色边框的宽度</param>
     * <returns>一个包含二维码的 NetVips.Image 对象，如果失败则返回 null</returns>*/
     public static Image? GenerateQrCodeWithBorder(string content, int width, int height, int margin = 1)
+{
+    if (string.IsNullOrEmpty(content))
     {
-        if (string.IsNullOrEmpty(content))
-        {
-            return null;
-        }
-
-        if (margin < 0)
-        {
-            margin = 0;
-        }
-
-        int borderSize = margin;
-        int innerWidth = width - (2 * borderSize);
-        int innerHeight = height - (2 * borderSize);
-
-        if (innerWidth <= 0 || innerHeight <= 0)
-        {
-            Console.WriteLine("错误：边距过大，导致二维码内容区域尺寸无效。");
-            return null;
-        }
-
-        try
-        {
-            // --- 步骤 1: 生成核心二维码 (无边距) ---
-            var qrCodeWriter = new BarcodeWriter<SvgRenderer.SvgImage>
-            {
-                Format = BarcodeFormat.QR_CODE,
-                Options = new QrCodeEncodingOptions
-                {
-                    Width = innerWidth,
-                    Height = innerHeight,
-                    Margin = 0, // 关键：生成一个没有白色边距的纯二维码
-                    ErrorCorrection = ErrorCorrectionLevel.M,
-                },
-                Renderer = new SvgRenderer()
-            };
-            var svgImage = qrCodeWriter.Write(content);
-            byte[] svgBytes = Encoding.UTF8.GetBytes(svgImage.Content);
-
-            // 从SVG加载的图像通常是 RGBA (4通道)
-            using var qrCodeOnlyImage = Image.NewFromBuffer(svgBytes)
-                .ThumbnailImage(innerWidth, height: innerHeight);
-
-            // --- 步骤 2: 创建白色背景并叠加上二维码 ---
-
-            // **【正确方法】** 使用 Black + Linear 创建一个纯白色的背景
-            using var whiteBackground = Image.Black(innerWidth, innerHeight, bands: 3)
-                .Linear(new double[] { 1, 1, 1 }, new double[] { 255, 255, 255 });
-
-            // 为白色背景添加一个Alpha通道，使其与二维码的4通道匹配 (RGBA)
-            using var whiteBackgroundWithAlpha = whiteBackground.Bandjoin(255).Copy(interpretation: Enums.Interpretation.Srgb);
-
-            // 将二维码覆盖在白色背景上
-            using var qrWithWhiteBg = whiteBackgroundWithAlpha.Composite(qrCodeOnlyImage, Enums.BlendMode.Over, 0, 0);
-
-
-            // --- 步骤 3: 创建红色边框并合成最终图像 ---
-
-            // **【正确方法】** 使用 Black + Linear 创建一个纯红色的底图作为边框
-            using var redBorder = Image.Black(width, height, bands: 3)
-                .Linear(new double[] { 1, 1, 1 } , new double[] { 255, 0, 0 });
-
-            // 为红色边框添加一个Alpha通道
-            using var redBorderWithAlpha = redBorder.Bandjoin(255).Copy(interpretation: Enums.Interpretation.Srgb);
-
-            // 将带有白色背景的二维码，放置在红色底图的中心位置
-            return redBorderWithAlpha.Composite(qrWithWhiteBg, Enums.BlendMode.Over, borderSize, borderSize);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"生成二维码失败: {ex.Message}");
-            return null;
-        }
+        return null;
     }
+
+    if (margin < 0)
+    {
+        margin = 0;
+    }
+
+    int borderSize = margin;
+    int innerWidth = width - (2 * borderSize);
+    int innerHeight = height - (2 * borderSize);
+
+    if (innerWidth <= 0 || innerHeight <= 0)
+    {
+        Console.WriteLine("错误：边距过大，导致二维码内容区域尺寸无效。");
+        return null;
+    }
+
+    try
+    {
+        // --- 步骤 1: 生成黑底透明背景的二维码核心 ---
+        var qrCodeWriter = new BarcodeWriter<SvgRenderer.SvgImage>
+        {
+            Format = BarcodeFormat.QR_CODE,
+            Options = new QrCodeEncodingOptions
+            {
+                Width = innerWidth,
+                Height = innerHeight,
+                Margin = 0,
+                ErrorCorrection = ErrorCorrectionLevel.M,
+            },
+            Renderer = new SvgRenderer()
+        };
+        var svgImage = qrCodeWriter.Write(content);
+        byte[] svgBytes = Encoding.UTF8.GetBytes(svgImage.Content);
+
+        // 从SVG加载图像，得到一个黑底透明背景的4通道RGBA图像
+        using var qrCodeTransparentBg = Image.NewFromBuffer(svgBytes)
+            .ThumbnailImage(innerWidth, height: innerHeight);
+
+        // --- 步骤 2: 将透明背景替换为白色背景 ---
+        // 使用 Flatten 将透明部分替换为纯白色。
+        // Flatten 会移除Alpha通道，结果是一个3通道的RGB图像。
+        using var qrWithWhiteBg = qrCodeTransparentBg.Flatten(background: new double[] { 255, 255, 255 });
+
+        // --- 步骤 3: 创建红色底图并插入二维码 ---
+        // 直接创建一个3通道的红色背景
+        using var redBackground = Image.Black(width, height, bands: 3)
+            .Linear(new double[] { 0, 0, 0 }, new double[] { 255, 0, 0 });
+            // 注意: Linear的更简洁写法是 (a * input + b)。要得到纯色，a=0, b=颜色值。
+
+        // 使用 Insert 将黑白的二维码图像插入到红色背景的中心。Insert效率高于Composite。
+        using var finalRgbImage = redBackground.Insert(qrWithWhiteBg, borderSize, borderSize);
+        
+        // --- 步骤 4: 为最终图像添加一个完全不透明的Alpha通道 ---
+        // 这样可以确保返回的图像一定是4通道RGBA，方便后续统一处理
+        return finalRgbImage.Bandjoin(255).Copy(interpretation: Enums.Interpretation.Srgb);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"生成二维码失败: {ex.Message}");
+        return null;
+    }
+}
 }

@@ -77,9 +77,9 @@ public class ImageCreator : IImageCreator
             //Image newImage = pixel.Embed(0, 0, widthInPixels, heightInPixels, extend: Enums.Extend.Copy);
 
             // --- 5. 设置DPI元数据 ---
-            double pixelsPerInch = dpi / ImageHelper.MillimetersPerInch;
+            double pixelsPerMm =  dpi / ImageHelper.MillimetersPerInch;
             // Copy 会创建一个新的 Image 实例，这是最终要返回的对象
-            var finalImage = newImage.Copy(xres: pixelsPerInch, yres: pixelsPerInch);
+            var finalImage = newImage.Copy(xres: pixelsPerMm, yres: pixelsPerMm);
             return finalImage;
         }
     

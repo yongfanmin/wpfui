@@ -277,11 +277,11 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 foreach (LayoutImg layoutImg in printImgList)
                 {
                     // 加入 跟踪码信息 默认加入跟踪码
-                    if (LocalAppConfig.AppSetting.PrintTaskConfig.IsOrderTrack && false)
+                    if (LocalAppConfig.AppSetting.PrintTaskConfig.IsOrderTrack)
                     {
                         OrderTrackConfig orderTrackConfig = LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig;
                         // 写入单号
-                        Image qrCode = ImageHelper.GenerateQrCodeWithBorder(
+                        using(Image qrCode = ImageHelper.GenerateQrCodeWithBorder(
                             layoutImg.OrderTrackInfo.OrderNo, 
                             ImageHelper.ConvertMmToPixels(
                                 orderTrackConfig.HeightMm, printerDpi),
@@ -290,49 +290,52 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             ),
                             ImageHelper.ConvertMmToPixels(
                                 orderTrackConfig.QrCodeBorderMm, printerDpi
-                            ));
+                            )))
                         // 2. 创建一个不透明的黑色Banner
-// 首先创建一个3通道 (RGB) 的黑色图像
-                        using Image blackBannerRgb = Image.Black(
+                        using(Image orderTrackBannerTransparent = Image.Black(
                             layoutImg.LayoutCropImg.Width,
                             ImageHelper.ConvertMmToPixels(orderTrackConfig.HeightMm, printerDpi),
-                            bands: 3 // <-- 明确指定3个通道
-                        );
-// 然后附加一个值为255的常量波段作为Alpha通道，使其变为不透明
-                        using Image orderTrackBannerOpaque = blackBannerRgb.Bandjoin(255);
-// 确保色彩空间解释正确
-                        using Image orderTrackBanner = orderTrackBannerOpaque.Copy(interpretation: Enums.Interpretation.Srgb);
+                            bands: 4 // <-- 关键：直接请求4个通道
+                        ))
+                        // 然后附加一个值为255的常量波段作为Alpha通道，使其变为不透明
+                        using (Image orderTrackBannerOpaque = orderTrackBannerTransparent.Copy(interpretation: Enums.Interpretation.Srgb))
+                        // 确保色彩空间解释正确
+                        using (Image orderTrackBanner =
+                               orderTrackBannerOpaque.Copy(interpretation: Enums.Interpretation.Srgb))
+                        {
+                                // 3. 将二维码叠加在不透明的Banner上
+                                // 计算x坐标以实现右对齐
+                            int qrCodeX = orderTrackBanner.Width - qrCode.Width;
+                            using var orderTrackBannerWithQr = orderTrackBanner.Composite(
+                                qrCode,
+                                Enums.BlendMode.Over,
+                                x: qrCodeX,
+                                y: 0
+                            );
 
-// 3. 将二维码叠加在不透明的Banner上
-// 计算x坐标以实现右对齐
-                        int qrCodeX = orderTrackBanner.Width - qrCode.Width;
-                        using var orderTrackBannerWithQr = orderTrackBanner.Composite(
-                            qrCode, 
-                            Enums.BlendMode.Over, 
-                            x: qrCodeX, 
-                            y: 0
-                        );
-
-// 4. 将最终的Banner拼接到印花图底部
-// (您的原始代码，保持不变, 但请注意使用using管理内存)
-// 假设 layoutImg.LayoutCropImg 是需要被替换的
-                        using var originalImg = layoutImg.LayoutCropImg;
-                        layoutImg.LayoutCropImg = originalImg.Join(
-                            orderTrackBannerWithQr, 
-                            Enums.Direction.Vertical,
-                            expand: true,
-                            align: Enums.Align.Centre
-                        );
+                            // 4. 将最终的Banner拼接到印花图底部
+                            // (您的原始代码，保持不变, 但请注意使用using管理内存)
+                            // 假设 layoutImg.LayoutCropImg 是需要被替换的
+                            using var originalImg = layoutImg.LayoutCropImg;
+                            // JOIN会让 alpha通道 发生一个叫 "通道预乘" 的优化, 导致这时把透明通道输出成png查看 会偏黑
+                            layoutImg.LayoutCropImg = originalImg.Join(
+                                orderTrackBannerWithQr,
+                                Enums.Direction.Vertical,
+                                expand: true,
+                                align: Enums.Align.Centre
+                            );
+                        }
                     }
 
                     if (printImgPaddingMm > 0)
                     {
                         // 给图片一个空白的边距框
-                        Image croppedPaddingImage = ImageHelper.AddTransparentPadding(layoutImg.LayoutCropImg,
+                        var oldImage = layoutImg.LayoutCropImg;
+                        layoutImg.LayoutCropImg = ImageHelper.AddTransparentPadding(layoutImg.LayoutCropImg,
                             ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
-                        layoutImg.LayoutCropImg = croppedPaddingImage;
-                        layoutImg.WidthPx = (uint)croppedPaddingImage.Width;
-                        layoutImg.HeightPx = (uint)croppedPaddingImage.Height;
+                        oldImage.Dispose();
+                        layoutImg.WidthPx = (uint)layoutImg.LayoutCropImg.Width;
+                        layoutImg.HeightPx = (uint)layoutImg.LayoutCropImg.Height;
                     }
                 }
 

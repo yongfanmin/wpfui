@@ -436,6 +436,10 @@ public class ProduceImageProcessor : IProduceImageProcessor
                         {
                             Console.WriteLine($"裁片印花无法正常合成{ex}");
                         }
+                        finally
+                        {
+                            cropImg.Dispose();
+                        }
                     }
                 }
 
@@ -976,23 +980,26 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 }
 
                 // 叠加二维码
-
-                Image qrCode = ImageHelper.GenerateQrCode2Image(produceImgInfo.QrCode.Content,
+                using(Image qrCode = ImageHelper.GenerateQrCode2Image(produceImgInfo.QrCode.Content,
                     ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.Width, produceImgInfo.MachineConfig.Dpi),
-                    ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.Height, produceImgInfo.MachineConfig.Dpi));
-                Image whiteQrBackground = _imageCreator.CreateImageFromPhysicalSize(
+                    ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.Height, produceImgInfo.MachineConfig.Dpi)))
+                using(Image whiteQrBackground = _imageCreator.CreateImageFromPhysicalSize(
                     decimal.ToDouble(produceImgInfo.QrCode.Width),
                     decimal.ToDouble(produceImgInfo.QrCode.Height),
                     produceImgInfo.MachineConfig.Dpi,
                     ImgSupportFormat.Png,
-                    backgroundColor: new double[] { 255, 255, 255, 255 });
-                qrCode = whiteQrBackground.Composite(qrCode, Enums.BlendMode.Over);
-                currentResult = currentResult.Composite(
-                    qrCode,
-                    Enums.BlendMode.Over, // Over 是标准的Alpha叠加，Atop可能不是您想要的
-                    x: ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.OffsetX, produceImgInfo.MachineConfig.Dpi),
-                    y: ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.OffsetY, produceImgInfo.MachineConfig.Dpi)
-                );
+                    backgroundColor: new double[] { 255, 255, 255, 255 }))
+                using (var qrCodeWithBg = whiteQrBackground.Composite(qrCode, Enums.BlendMode.Over))
+                {
+                    currentResult = currentResult.Composite(
+                        qrCodeWithBg,
+                        Enums.BlendMode.Over, // Over 是标准的Alpha叠加，Atop可能不是您想要的
+                        x: ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.OffsetX,
+                            produceImgInfo.MachineConfig.Dpi),
+                        y: ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.OffsetY,
+                            produceImgInfo.MachineConfig.Dpi)
+                    );
+                }
 
                 // --- 步骤 3: 保存最终结果 ---
                 // 此时，currentResult 就是包含了所有叠加裁片的最终图像
@@ -1083,6 +1090,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         using var spotPlateShrunk = spotPlate.Dilate(mask);
         
         using var imageWithoutAlpha = image.HasAlpha() ? image.Copy() : image;
+        // using var imageWithoutAlpha = image.HasAlpha() ? image.ExtractBand(0, n: image.Bands - 1) : image.Copy();
 
         using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
 
@@ -1295,6 +1303,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
             ? finalImage.Copy() // 如果已经有 alpha，直接使用
             : finalImage.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
         using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.Copy() : finalImage;
+        // using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.ExtractBand(0, n: finalImage.Bands - 1) : finalImage.Copy();
 
         using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
         
@@ -1326,21 +1335,25 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
         Image spotComplete = spotPlateShrunk.Composite2(skeletonImg, Enums.BlendMode.Darken);
         
-        using var cmykWithSpot = cmykImage.Bandjoin(spotComplete[0]);
-        // --- 通道合并 ---
+        using (var spotBand = spotComplete.ExtractBand(0))
+        {
+            using var cmykWithSpot = cmykImage.Bandjoin(spotBand);
+            // --- 通道合并 ---
 
-        // 步骤 3: 保存这个 5 通道的图像。
-        // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
-        // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
-        cmykWithSpot.Tiffsave(finalPath,
-            compression: Enums.ForeignTiffCompression.Lzw,
-            profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
-            tile: true,
-            pyramid: false,
-            resunit: Enums.ForeignTiffResunit.Inch,
-            xres: xresInPpm,
-            yres: yresInPpm
-        );
+            // 步骤 3: 保存这个 5 通道的图像。
+            // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
+            // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
+            cmykWithSpot.Tiffsave(finalPath,
+                compression: Enums.ForeignTiffCompression.Lzw,
+                profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
+                tile: true,
+                pyramid: false,
+                resunit: Enums.ForeignTiffResunit.Inch,
+                xres: xresInPpm,
+                yres: yresInPpm
+            );
+        }
+        
         bool success = await ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalPath});
         if (success)
         {
