@@ -12,4 +12,12 @@ public class OrderTrackInfo
     public string ProductImg { get; set; }
         
     public string ProductName { get; set; }
+    
+    public int OrderDetailId { get; set; }
+    public long ProductId { get; set; }
+    public long BuyIndex { get; set; }
+    
+    public string? SkuAlias { get; set; }
+    
+    public string? SkuInfo { get; set; }
 }

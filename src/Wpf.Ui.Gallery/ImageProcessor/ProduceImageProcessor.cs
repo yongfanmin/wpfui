@@ -840,7 +840,6 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 // --- 步骤 5: 裁剪到最终需要的精确尺寸 ---
                 var finalImage = finalTiledImage.Crop(0, 0, (int)backgroundWidth, (int)backgroundHeight);
                 // 返回最终图像和单元格尺寸
-                finalImage.WriteToFile("zzzzzzbackground.png");
                 return (finalImage, cellWidth, cellHeight);
             }
         }
@@ -1275,94 +1274,123 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 Console.WriteLine($"图像通道不符(不是CMYK+专色通道):{imgInfo.ImgPath}");
             }
         }
-
-        // --- 3. 设置DPI并返回最终图像 ---
-        double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
-        var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
-
-        if (currentResult != layoutCanvas)
+        if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Jpg)
         {
-            currentResult.Dispose();
-        }
-        var iccProfileToUse = cmykProfilePath;
-        if (string.IsNullOrEmpty(iccProfileToUse) || !File.Exists(iccProfileToUse))
-        {
-            iccProfileToUse = FindDefaultCmykProfile();
-        }
-
-        string finalPath = Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Tiff));
-        // --- DPI 准备 ---
-        var xresInPpm = finalImage.Xres;
-        var yresInPpm = finalImage.Yres;
-
-        // --- [最终核心修复：重构整个图像处理流程] ---
-
-        // 步骤 1: 确保我们有一个带 Alpha 通道的源图像。
-        // Alpha 通道将作为我们的专色通道。
-        using var imageWithAlpha = finalImage.HasAlpha()
-            ? finalImage.Copy() // 如果已经有 alpha，直接使用
-            : finalImage.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
-        using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.Copy() : finalImage;
-        // using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.ExtractBand(0, n: finalImage.Bands - 1) : finalImage.Copy();
-
-        using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
-        
-        // 步骤 2: 将这个 4 通道的 RGBA 图像转换到目标 CMYK 色彩空间。
-        // libvips 会智能地将 RGB -> CMYK (4 个通道)，并将原始的 Alpha 通道作为第 5 个通道附加。
-        // 这一步的结果是一个 5 通道的图像，其 interpretation 为 Multiband。
-        //using var cmykWithSpot = imageWithAlpha.Colourspace(Enums.Interpretation.Cmyk, sourceSpace: Enums.Interpretation.Srgb);
-
-        // --- 专色层和 CMYK 图像准备 ---
-        using Image spotPlate = finalImage.HasAlpha()
-            ? finalImage.ExtractBand(finalImage.Bands - 1).Invert()
-            : Image.Black(finalImage.Width, finalImage.Height).Invert();
-
-        Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();
-        using Image skeletonImg = ImageHelper.UnifiedSkeletonize(spotPlate,LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedSafePx);
-        stopwatch.Stop();
-        Console.WriteLine($"SkeletonizeWithOpenCvInvertLinePixelBest耗时:{stopwatch.ElapsedMilliseconds}ms");
-        // 内缩两个像素
-        // 创建一个 5x5 的方形结构元素 (核)，用于一次性腐蚀2个像素。 (n-1)/2  n为矩阵长度
-        // 在 NetVips 中，结构元素本身就是一个 Image 对象。
-        // 内缩两像素
-        using var mask = Image.NewFromArray(CreateImageMask(LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedPx));
-        
-        // 使用创建的 5x5 核，对专色蒙版执行一次腐蚀操作。
-        //using var spotPlateShrunk = spotPlate.Erode(mask);
-        // 先对透明通道取反->外扩 = 非透明区域内缩
-        using var spotPlateShrunk = spotPlate.Dilate(mask);
-
-        Image spotComplete = spotPlateShrunk.Composite2(skeletonImg, Enums.BlendMode.Darken);
-        
-        using (var spotBand = spotComplete.ExtractBand(0))
-        {
-            using var cmykWithSpot = cmykImage.Bandjoin(spotBand);
-            // --- 通道合并 ---
-
-            // 步骤 3: 保存这个 5 通道的图像。
-            // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
-            // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
-            cmykWithSpot.Tiffsave(finalPath,
-                compression: Enums.ForeignTiffCompression.Lzw,
-                profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
-                tile: true,
-                pyramid: false,
-                resunit: Enums.ForeignTiffResunit.Inch,
-                xres: xresInPpm,
-                yres: yresInPpm
-            );
-        }
-        
-        bool success = await ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalPath});
-        if (success)
-        {
-            // 成功
+            currentResult.Jpegsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Jpeg)));
             return true;
+        }
+        else if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Png)
+        {
+            currentResult.Pngsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)));
+            return true;
+        }
+        else if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifCymk || LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifWithSpotColor )
+        {
+            // --- 3. 设置DPI并返回最终图像 ---
+            double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
+            var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
+
+            if (currentResult != layoutCanvas)
+            {
+                currentResult.Dispose();
+            }
+            var iccProfileToUse = cmykProfilePath;
+            if (string.IsNullOrEmpty(iccProfileToUse) || !File.Exists(iccProfileToUse))
+            {
+                iccProfileToUse = FindDefaultCmykProfile();
+            }
+
+            string finalPath = Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Tiff));
+            // --- DPI 准备 ---
+            var xresInPpm = finalImage.Xres;
+            var yresInPpm = finalImage.Yres;
+
+            
+
+            // 步骤 1: 确保我们有一个带 Alpha 通道的源图像。
+            // Alpha 通道将作为我们的专色通道。
+            using var imageWithAlpha = finalImage.HasAlpha()
+                ? finalImage.Copy() // 如果已经有 alpha，直接使用
+                : finalImage.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
+            using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.Copy() : finalImage;
+            // using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.ExtractBand(0, n: finalImage.Bands - 1) : finalImage.Copy();
+
+            
+            using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
+            if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifCymk)
+            {
+                cmykImage.Tiffsave(finalPath,
+                    compression: Enums.ForeignTiffCompression.Lzw,
+                    profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
+                    tile: true,
+                    pyramid: false,
+                    resunit: Enums.ForeignTiffResunit.Inch,
+                    xres: xresInPpm,
+                    yres: yresInPpm
+                );
+                return true;
+            }
+            
+            // 步骤 2: 将这个 4 通道的 RGBA 图像转换到目标 CMYK 色彩空间。
+            // libvips 会智能地将 RGB -> CMYK (4 个通道)，并将原始的 Alpha 通道作为第 5 个通道附加。
+            // 这一步的结果是一个 5 通道的图像，其 interpretation 为 Multiband。
+            //using var cmykWithSpot = imageWithAlpha.Colourspace(Enums.Interpretation.Cmyk, sourceSpace: Enums.Interpretation.Srgb);
+
+            // --- 专色层和 CMYK 图像准备 ---
+            using Image spotPlate = finalImage.HasAlpha()
+                ? finalImage.ExtractBand(finalImage.Bands - 1).Invert()
+                : Image.Black(finalImage.Width, finalImage.Height).Invert();
+
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            using Image skeletonImg = ImageHelper.UnifiedSkeletonize(spotPlate,LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedSafePx);
+            stopwatch.Stop();
+            Console.WriteLine($"SkeletonizeWithOpenCvInvertLinePixelBest耗时:{stopwatch.ElapsedMilliseconds}ms");
+            // 内缩两个像素
+            // 创建一个 5x5 的方形结构元素 (核)，用于一次性腐蚀2个像素。 (n-1)/2  n为矩阵长度
+            // 在 NetVips 中，结构元素本身就是一个 Image 对象。
+            // 内缩两像素
+            using var mask = Image.NewFromArray(CreateImageMask(LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedPx));
+            // 使用创建的 5x5 核，对专色蒙版执行一次腐蚀操作。
+            //using var spotPlateShrunk = spotPlate.Erode(mask);
+            // 先对透明通道取反->外扩 = 非透明区域内缩
+            using var spotPlateShrunk = spotPlate.Dilate(mask);
+
+            Image spotComplete = spotPlateShrunk.Composite2(skeletonImg, Enums.BlendMode.Darken);
+            
+            using (var spotBand = spotComplete.ExtractBand(0))
+            {
+                using var cmykWithSpot = cmykImage.Bandjoin(spotBand);
+                // --- 通道合并 ---
+
+                // 步骤 3: 保存这个 5 通道的图像。
+                // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
+                // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
+                cmykWithSpot.Tiffsave(finalPath,
+                    compression: Enums.ForeignTiffCompression.Lzw,
+                    profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
+                    tile: true,
+                    pyramid: false,
+                    resunit: Enums.ForeignTiffResunit.Inch,
+                    xres: xresInPpm,
+                    yres: yresInPpm
+                );
+            }
+            
+            bool success = await ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalPath});
+            if (success)
+            {
+                // 成功
+                return true;
+            }
+            else
+            {
+                throw new Exception("PS转换专色通道出错");
+            }
         }
         else
         {
-            throw new Exception("PS转换专色通道出错");
+            throw new Exception($"不支持打印任务输出格式: {LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat}");
         }
     }
     

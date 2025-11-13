@@ -89,6 +89,12 @@ public class FileName
     {
         return produceBatchNumberList.Count > 1 ? $"{uniFileName}_{sourceName}" : sourceName;
     }
+
+
+    public static string getPrintImgTargetArrow()
+    {
+        return AppContext.BaseDirectory + "/Assets/Icon/arrow_up.webp";
+    }
     
     public static readonly string ProduceImgLayoutName = "ProduceImgLayout";
 

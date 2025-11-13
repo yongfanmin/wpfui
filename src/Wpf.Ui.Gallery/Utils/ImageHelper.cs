@@ -92,6 +92,31 @@ public static class ImageHelper
         //    因为像素不能是小数
         return (int)Math.Round(pixels);
     }
+    
+    /// <summary>
+    /// 将像素 (pixels) 转换为毫米 (mm)。
+    /// </summary>
+    /// <param name="pixels">要转换的像素值。</param>
+    /// <param name="dpi">每英寸点数 (DPI)，定义了转换的分辨率。</param>
+    /// <returns>对应的毫米值 (使用decimal以保持精度)。</returns>
+    public static int ConvertPixelsToMm(int pixels, int dpi)
+    {
+        // 1. 参数校验
+        if (dpi <= 0)
+        {
+            throw new ArgumentException("DPI值必须为正数。", nameof(dpi));
+        }
+        // 像素值可以为负数，表示相对位移，所以不校验pixels的正负
+
+        // 2. 核心计算公式（逆向）：
+        //    a. (像素 / DPI) -> 转换为英寸
+        //    b. (英寸 * 25.4) -> 转换为毫米
+        double millimeters = ((double)pixels / dpi) * MillimetersPerInch;
+
+        // 3. 将结果转换为decimal类型并返回
+        //    使用decimal可以更好地表示物理尺寸，避免浮点数精度问题
+        return Convert.ToInt32(millimeters);
+    }
 
     // 计算矩形的外接圆的外接矩形的宽高 (用于平铺渲染 预先渲染一个最大图 避免平铺图进行旋转的时候部分底版缺少印花图虚渲染)
     public static (double Width, double Height) getTileSafeBackgroundSize(
@@ -419,185 +444,187 @@ public static class ImageHelper
     }
 
     // 山脊算法 快速 并且山脊线比较连续(可用)  效果接近可用 细条文字过粗 63秒运算时间
-    public static Image SkeletonizeWithOpenCvInvertFast(Image spotPlate, int targetThickness, bool invertFinalResult = true)
-{
-    if (spotPlate.Max() < 1) return spotPlate.Copy();
-
-    byte[] memoryBuffer = spotPlate.WriteToBuffer(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png));
-
-    Mat finalMat = null;
-    Mat resultToEncode = null;
-
-    try
+    public static Image SkeletonizeWithOpenCvInvertFast(Image spotPlate, int targetThickness,
+        bool invertFinalResult = true)
     {
-        using (Mat inputMat = Mat.ImDecode(memoryBuffer, ImreadModes.Grayscale))
+        if (spotPlate.Max() < 1) return spotPlate.Copy();
+
+        byte[] memoryBuffer = spotPlate.WriteToBuffer(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png));
+
+        Mat finalMat = null;
+        Mat resultToEncode = null;
+
+        try
         {
-            if (inputMat == null || inputMat.Empty()) return spotPlate.Copy();
-
-            using (Mat invertedMat = new Mat())
-            using (Mat binaryMat = new Mat())
+            using (Mat inputMat = Mat.ImDecode(memoryBuffer, ImreadModes.Grayscale))
             {
-                Cv2.BitwiseNot(inputMat, invertedMat);
-                Cv2.Threshold(invertedMat, binaryMat, 127, 255, ThresholdTypes.Binary);
-                if (binaryMat.Empty()) return spotPlate.Copy();
+                if (inputMat == null || inputMat.Empty()) return spotPlate.Copy();
 
-                // =================================================================
-                // --- 核心算法: 双路径处理与合并 ---
-                // =================================================================
+                using (Mat invertedMat = new Mat())
+                using (Mat binaryMat = new Mat())
+                {
+                    Cv2.BitwiseNot(inputMat, invertedMat);
+                    Cv2.Threshold(invertedMat, binaryMat, 127, 255, ThresholdTypes.Binary);
+                    if (binaryMat.Empty()) return spotPlate.Copy();
 
-                // --- 路径 A: 处理粗壮主体 ---
-                Mat skeletonThick;
-                using (Mat thickParts = new Mat())
-                {
-                    // A1. 使用开运算移除细线 (kernel size 3x3 会移除宽度<=2的线条)
-                    using (Mat openKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(3, 3)))
-                    {
-                        Cv2.MorphologyEx(binaryMat, thickParts, MorphTypes.Open, openKernel);
-                    }
-                    
-                    // A2. 对粗壮部分进行降采样加速的Thinning
-                    skeletonThick = GetAcceleratedSkeleton(thickParts);
-                }
-                
-                // --- 路径 B: 处理纤细细节 ---
-                Mat skeletonThin;
-                using (Mat thinParts = new Mat())
-                {
-                    // B1. 提取细线部分
-                    Cv2.Subtract(binaryMat, skeletonThick, thinParts); // 修正：应该从binaryMat减去thickParts
-                    
-                    // B2. 在全分辨率下对细线进行Thinning (速度很快)
-                    skeletonThin = GetFullResSkeleton(thinParts);
-                }
+                    // =================================================================
+                    // --- 核心算法: 双路径处理与合并 ---
+                    // =================================================================
 
-                // --- 步骤 C: 合并骨架 ---
-                using (Mat mergedSkeleton = new Mat())
-                {
-                    Cv2.BitwiseOr(skeletonThick, skeletonThin, mergedSkeleton);
-                    
-                    // 统一厚度恢复
-                    if (targetThickness <= 1)
+                    // --- 路径 A: 处理粗壮主体 ---
+                    Mat skeletonThick;
+                    using (Mat thickParts = new Mat())
                     {
-                        finalMat = mergedSkeleton.Clone();
-                    }
-                    else
-                    {
-                        int dilateAmount = (int)Math.Ceiling((targetThickness - 1) / 2.0);
-                        if (dilateAmount > 0)
+                        // A1. 使用开运算移除细线 (kernel size 3x3 会移除宽度<=2的线条)
+                        using (Mat openKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(3, 3)))
                         {
-                            int kernelSize = dilateAmount * 2 + 1;
-                            using (Mat dilateKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(kernelSize, kernelSize)))
-                            {
-                                finalMat = new Mat();
-                                Cv2.Dilate(mergedSkeleton, finalMat, dilateKernel);
-                            }
+                            Cv2.MorphologyEx(binaryMat, thickParts, MorphTypes.Open, openKernel);
                         }
-                        else
+
+                        // A2. 对粗壮部分进行降采样加速的Thinning
+                        skeletonThick = GetAcceleratedSkeleton(thickParts);
+                    }
+
+                    // --- 路径 B: 处理纤细细节 ---
+                    Mat skeletonThin;
+                    using (Mat thinParts = new Mat())
+                    {
+                        // B1. 提取细线部分
+                        Cv2.Subtract(binaryMat, skeletonThick, thinParts); // 修正：应该从binaryMat减去thickParts
+
+                        // B2. 在全分辨率下对细线进行Thinning (速度很快)
+                        skeletonThin = GetFullResSkeleton(thinParts);
+                    }
+
+                    // --- 步骤 C: 合并骨架 ---
+                    using (Mat mergedSkeleton = new Mat())
+                    {
+                        Cv2.BitwiseOr(skeletonThick, skeletonThin, mergedSkeleton);
+
+                        // 统一厚度恢复
+                        if (targetThickness <= 1)
                         {
                             finalMat = mergedSkeleton.Clone();
                         }
+                        else
+                        {
+                            int dilateAmount = (int)Math.Ceiling((targetThickness - 1) / 2.0);
+                            if (dilateAmount > 0)
+                            {
+                                int kernelSize = dilateAmount * 2 + 1;
+                                using (Mat dilateKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse,
+                                           new Size(kernelSize, kernelSize)))
+                                {
+                                    finalMat = new Mat();
+                                    Cv2.Dilate(mergedSkeleton, finalMat, dilateKernel);
+                                }
+                            }
+                            else
+                            {
+                                finalMat = mergedSkeleton.Clone();
+                            }
+                        }
                     }
+
+                    // 释放中间骨架
+                    skeletonThick.Dispose();
+                    skeletonThin.Dispose();
+                    // =================================================================
                 }
-                
-                // 释放中间骨架
-                skeletonThick.Dispose();
-                skeletonThin.Dispose();
-                // =================================================================
+            }
+
+            if (finalMat == null || finalMat.Empty())
+            {
+                return spotPlate.Copy();
+            }
+
+            // =================================================================
+            // --- 核心修正点: 在返回前，进行最终的颜色反转 ---
+            // =================================================================
+            if (invertFinalResult)
+            {
+                resultToEncode = new Mat();
+                Cv2.BitwiseNot(finalMat, resultToEncode);
+            }
+            else
+            {
+                // 如果不需要反转，直接使用finalMat
+                resultToEncode = finalMat;
+            }
+            // =================================================================
+
+            // --- OpenCvSharp Mat -> NetVips Image ---
+            byte[] outputMemory;
+            Cv2.ImEncode(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png), resultToEncode, out outputMemory);
+            /*using (Image bwImage = Image.NewFromBuffer(outputMemory))
+            {
+                // 步骤 2: 使用 Copy() 方法创建一个新的图像头，
+                // 并明确地将 Interpretation 设置为 sRGB。
+                // 像素数据本身没有改变，只是改变了NetVips“看待”它的方式。
+                Image srgbImage = bwImage.Copy(interpretation: Enums.Interpretation.Srgb);
+
+                return srgbImage;
+            }*/
+            using (var image = Image.NewFromBuffer(outputMemory))
+            {
+                return image.Copy();
             }
         }
+        finally
+        {
+            // 确保我们创建的所有Mat都被释放
+            finalMat?.Dispose();
 
-        if (finalMat == null || finalMat.Empty())
-        {
-            return spotPlate.Copy();
-        }
-
-        // =================================================================
-        // --- 核心修正点: 在返回前，进行最终的颜色反转 ---
-        // =================================================================
-        if (invertFinalResult)
-        {
-            resultToEncode = new Mat();
-            Cv2.BitwiseNot(finalMat, resultToEncode);
-        }
-        else
-        {
-            // 如果不需要反转，直接使用finalMat
-            resultToEncode = finalMat;
-        }
-        // =================================================================
-
-        // --- OpenCvSharp Mat -> NetVips Image ---
-        byte[] outputMemory;
-        Cv2.ImEncode(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png), resultToEncode, out outputMemory);
-        /*using (Image bwImage = Image.NewFromBuffer(outputMemory))
-        {
-            // 步骤 2: 使用 Copy() 方法创建一个新的图像头，
-            // 并明确地将 Interpretation 设置为 sRGB。
-            // 像素数据本身没有改变，只是改变了NetVips“看待”它的方式。
-            Image srgbImage = bwImage.Copy(interpretation: Enums.Interpretation.Srgb);
-
-            return srgbImage;
-        }*/
-        using(var image = Image.NewFromBuffer(outputMemory))
-        {
-            return image.Copy();
+            // 如果resultToEncode是一个新创建的Mat(即反转过)，也需要释放
+            if (resultToEncode != null && resultToEncode != finalMat)
+            {
+                resultToEncode.Dispose();
+            }
         }
     }
-    finally
-    {
-        // 确保我们创建的所有Mat都被释放
-        finalMat?.Dispose();
-
-        // 如果resultToEncode是一个新创建的Mat(即反转过)，也需要释放
-        if (resultToEncode != null && resultToEncode != finalMat)
-        {
-            resultToEncode.Dispose();
-        }
-    }
-}
 
 // --- 辅助函数 ---
 
-/// <summary>
-/// 【辅助】对图像进行降采样加速的Thinning
-/// </summary>
-private static Mat GetAcceleratedSkeleton(Mat input)
-{
-    if (input.Empty()) return new Mat();
-
-    double scale = 2.0;
-    using (Mat smallMat = new Mat())
+    /// <summary>
+    /// 【辅助】对图像进行降采样加速的Thinning
+    /// </summary>
+    private static Mat GetAcceleratedSkeleton(Mat input)
     {
-        Cv2.Resize(input, smallMat, new Size(input.Width / scale, input.Height / scale));
-        using (Mat smallSkeleton = new Mat())
+        if (input.Empty()) return new Mat();
+
+        double scale = 2.0;
+        using (Mat smallMat = new Mat())
         {
-            CvXImgProc.Thinning(smallMat, smallSkeleton, ThinningTypes.ZHANGSUEN);
-            using (Mat largeSkeleton = new Mat())
+            Cv2.Resize(input, smallMat, new Size(input.Width / scale, input.Height / scale));
+            using (Mat smallSkeleton = new Mat())
             {
-                Cv2.Resize(smallSkeleton, largeSkeleton, input.Size());
-                using (Mat cleanSkeleton = new Mat())
+                CvXImgProc.Thinning(smallMat, smallSkeleton, ThinningTypes.ZHANGSUEN);
+                using (Mat largeSkeleton = new Mat())
                 {
-                    Cv2.Threshold(largeSkeleton, cleanSkeleton, 127, 255, ThresholdTypes.Binary);
-                    return cleanSkeleton.Clone();
+                    Cv2.Resize(smallSkeleton, largeSkeleton, input.Size());
+                    using (Mat cleanSkeleton = new Mat())
+                    {
+                        Cv2.Threshold(largeSkeleton, cleanSkeleton, 127, 255, ThresholdTypes.Binary);
+                        return cleanSkeleton.Clone();
+                    }
                 }
             }
         }
     }
-}
 
-/// <summary>
-/// 【辅助】在全分辨率下对稀疏图像进行Thinning
-/// </summary>
-private static Mat GetFullResSkeleton(Mat input)
-{
-    if (input.Empty()) return new Mat();
-    
-    using (Mat skeleton = new Mat())
+    /// <summary>
+    /// 【辅助】在全分辨率下对稀疏图像进行Thinning
+    /// </summary>
+    private static Mat GetFullResSkeleton(Mat input)
     {
-        CvXImgProc.Thinning(input, skeleton, ThinningTypes.ZHANGSUEN);
-        return skeleton.Clone();
+        if (input.Empty()) return new Mat();
+
+        using (Mat skeleton = new Mat())
+        {
+            CvXImgProc.Thinning(input, skeleton, ThinningTypes.ZHANGSUEN);
+            return skeleton.Clone();
+        }
     }
-}
 
     // 此算法 消耗大量时间 性能极差
     private static Mat GetThinningSkeleton(Mat binaryMat)
@@ -607,7 +634,7 @@ private static Mat GetFullResSkeleton(Mat input)
             Stopwatch watch = new Stopwatch();
             watch.Start();
             CvXImgProc.Thinning(binaryMat, skeleton, ThinningTypes.ZHANGSUEN);
-            
+
             watch.Stop();
             Console.WriteLine($"GetThinningSkeleton耗时{watch.ElapsedMilliseconds}");
             return skeleton.Clone(); // 返回一个独立的克隆
@@ -642,7 +669,7 @@ private static Mat GetFullResSkeleton(Mat input)
             return skeleton.Clone(); // 返回一个独立的克隆
         }
     }
-    
+
     // TODO 着是将两个算法合并成一个函数, 可能可以 增加 Threshold 的色彩识别范围就行 而不用两种算法进行合并以保留细节 ， 但需要验证  效果接近完美 耗时70秒
     public static Image UnifiedSkeletonize(Image spotPlate, int targetThickness, bool invertFinalResult = true)
     {
@@ -667,7 +694,8 @@ private static Mat GetFullResSkeleton(Mat input)
                     // 127 是 8位灰度 255的一半
                     // Cv2.Threshold(invertedMat, binaryMat, 127, 255, ThresholdTypes.Binary);
                     // 第一个数字 thresh 值 越大,则只有在越清晰的像素部分才会打印白墨专色通道
-                    Cv2.Threshold(invertedMat, binaryMat, LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkEdgeStrength, 255, ThresholdTypes.Binary);
+                    Cv2.Threshold(invertedMat, binaryMat,
+                        LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkEdgeStrength, 255, ThresholdTypes.Binary);
 
                     if (binaryMat.Empty()) return spotPlate.Copy();
 
@@ -735,10 +763,10 @@ private static Mat GetFullResSkeleton(Mat input)
             byte[] outputMemory;
             Cv2.ImEncode(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png), resultToEncode, out outputMemory);
 
-        using(var image = Image.NewFromBuffer(outputMemory))
-        {
-            return image.Copy();
-        }
+            using (var image = Image.NewFromBuffer(outputMemory))
+            {
+                return image.Copy();
+            }
         }
         finally
         {
@@ -749,7 +777,7 @@ private static Mat GetFullResSkeleton(Mat input)
             }
         }
     }
-    
+
     public static Image? GenerateQrCode2Image(string content, int width, int height, int margin = 1)
     {
         if (string.IsNullOrEmpty(content))
@@ -794,7 +822,7 @@ private static Mat GetFullResSkeleton(Mat input)
             return null;
         }
     }
-    
+
     /** 生成带有自定义颜色边框和背景的二维码。
     * </summary>
     * <param name="content">二维码内容</param>
@@ -803,71 +831,275 @@ private static Mat GetFullResSkeleton(Mat input)
     * <param name="margin">红色边框的宽度</param>
     * <returns>一个包含二维码的 NetVips.Image 对象，如果失败则返回 null</returns>*/
     public static Image? GenerateQrCodeWithBorder(string content, int width, int height, int margin = 1)
-{
-    if (string.IsNullOrEmpty(content))
     {
-        return null;
-    }
-
-    if (margin < 0)
-    {
-        margin = 0;
-    }
-
-    int borderSize = margin;
-    int innerWidth = width - (2 * borderSize);
-    int innerHeight = height - (2 * borderSize);
-
-    if (innerWidth <= 0 || innerHeight <= 0)
-    {
-        Console.WriteLine("错误：边距过大，导致二维码内容区域尺寸无效。");
-        return null;
-    }
-
-    try
-    {
-        // --- 步骤 1: 生成黑底透明背景的二维码核心 ---
-        var qrCodeWriter = new BarcodeWriter<SvgRenderer.SvgImage>
+        if (string.IsNullOrEmpty(content))
         {
-            Format = BarcodeFormat.QR_CODE,
-            Options = new QrCodeEncodingOptions
+            return null;
+        }
+
+        if (margin < 0)
+        {
+            margin = 0;
+        }
+        
+        try
+        {
+            // --- 步骤 1: 生成黑底透明背景的二维码核心 ---
+            var qrCodeWriter = new BarcodeWriter<SvgRenderer.SvgImage>
             {
-                Width = innerWidth,
-                Height = innerHeight,
-                Margin = 0,
-                ErrorCorrection = ErrorCorrectionLevel.M,
-            },
-            Renderer = new SvgRenderer()
-        };
-        var svgImage = qrCodeWriter.Write(content);
-        byte[] svgBytes = Encoding.UTF8.GetBytes(svgImage.Content);
+                Format = BarcodeFormat.QR_CODE,
+                Options = new QrCodeEncodingOptions
+                {
+                    Width = width, Height = height, Margin = 0, ErrorCorrection = ErrorCorrectionLevel.M,
+                },
+                Renderer = new SvgRenderer()
+            };
+            var svgImage = qrCodeWriter.Write(content);
+            byte[] svgBytes = Encoding.UTF8.GetBytes(svgImage.Content);
 
-        // 从SVG加载图像，得到一个黑底透明背景的4通道RGBA图像
-        using var qrCodeTransparentBg = Image.NewFromBuffer(svgBytes)
-            .ThumbnailImage(innerWidth, height: innerHeight);
+            // 从SVG加载图像，得到一个黑底透明背景的4通道RGBA图像
+            using var qrCodeTransparentBg = Image.NewFromBuffer(svgBytes)
+                .ThumbnailImage(width, height: height);
 
-        // --- 步骤 2: 将透明背景替换为白色背景 ---
-        // 使用 Flatten 将透明部分替换为纯白色。
-        // Flatten 会移除Alpha通道，结果是一个3通道的RGB图像。
-        using var qrWithWhiteBg = qrCodeTransparentBg.Flatten(background: new double[] { 255, 255, 255 });
+            // --- 步骤 2: 将透明背景替换为白色背景 ---
+            // 使用 Flatten 将透明部分替换为纯白色。
+            // Flatten 会移除Alpha通道，结果是一个3通道的RGB图像。
+            using var qrWithWhiteBg = qrCodeTransparentBg.Flatten(background: new double[] { 255, 255, 255 });
 
-        // --- 步骤 3: 创建红色底图并插入二维码 ---
-        // 直接创建一个3通道的红色背景
-        using var redBackground = Image.Black(width, height, bands: 3)
-            .Linear(new double[] { 0, 0, 0 }, new double[] { 255, 0, 0 });
+            // --- 步骤 3: 创建红色底图并插入二维码 ---
+            // 直接创建一个3通道的红色背景
+            using var redBackground = Image.Black(width + margin*2, height + margin*2, bands: 3)
+                .Linear(new double[] { 0, 0, 0 }, new double[] { 255, 0, 0 });
             // 注意: Linear的更简洁写法是 (a * input + b)。要得到纯色，a=0, b=颜色值。
 
-        // 使用 Insert 将黑白的二维码图像插入到红色背景的中心。Insert效率高于Composite。
-        using var finalRgbImage = redBackground.Insert(qrWithWhiteBg, borderSize, borderSize);
-        
-        // --- 步骤 4: 为最终图像添加一个完全不透明的Alpha通道 ---
-        // 这样可以确保返回的图像一定是4通道RGBA，方便后续统一处理
-        return finalRgbImage.Bandjoin(255).Copy(interpretation: Enums.Interpretation.Srgb);
+            // 使用 Insert 将黑白的二维码图像插入到红色背景的中心。Insert效率高于Composite。
+            using var finalRgbImage = redBackground.Insert(qrWithWhiteBg, margin, margin);
+
+            // --- 步骤 4: 为最终图像添加一个完全不透明的Alpha通道 ---
+            // 这样可以确保返回的图像一定是4通道RGBA，方便后续统一处理
+            return finalRgbImage.Bandjoin(255).Copy(interpretation: Enums.Interpretation.Srgb);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"生成二维码失败: {ex.Message}");
+            return null;
+        }
     }
-    catch (Exception ex)
+    
+     // 根据最大画布宽高自适应文字大小 创建一个纯文字画布
+     // 健壮性判断 不传字体 "Arial"字体也不存在. 会尽量找到一个字体进行打印 完全没字体才会报错 
+       public static Image? CreateTextImage(
+        string textToPrint,
+        int? maxWidthMm = null,
+        int? maxHeightMm = null,
+        int heightMm = 20,
+        int dpi = 300,
+        string fontName = "Arial",
+        decimal paddingMm = 1.0m)
     {
-        Console.WriteLine($"生成二维码失败: {ex.Message}");
+        if (string.IsNullOrEmpty(textToPrint))
+        {
+            return null;
+        }
+
+        try
+        {
+            int paddingInPixels = paddingMm > 0 ? ConvertMmToPixels(paddingMm, dpi) : 0;
+            Image? textImage = null;
+            int finalWidthInPixels = ConvertMmToPixels(maxWidthMm.Value, dpi);
+            int finalHeightInPixels = ConvertMmToPixels(maxHeightMm.Value, dpi);
+
+            int textRenderMaxWidth = finalWidthInPixels - (2 * paddingInPixels);
+            int textRenderMaxHeight = finalHeightInPixels - (2 * paddingInPixels);
+            if (maxWidthMm.HasValue && maxWidthMm.Value > 0 && maxHeightMm.HasValue && maxHeightMm.Value > 0)
+            {
+                // **【自适应字体和缩放逻辑】**
+               
+
+                if (textRenderMaxWidth <= 0 || textRenderMaxHeight <= 0) return null;
+
+                // 步骤A: 使用二分查找找到一个“接近最佳”的字体大小
+                int minFontSize = 1, maxFontSize = textRenderMaxHeight, optimalFontSize = 0;
+                while (minFontSize <= maxFontSize)
+                {
+                    int currentFontSize = minFontSize + (maxFontSize - minFontSize) / 2;
+                    if (currentFontSize == 0) break;
+
+                    using (var tempMask = TryCreateTextMask(textToPrint, fontName, currentFontSize, textRenderMaxWidth, dpi))
+                    {
+                        if (tempMask == null) throw new Exception("系统中未找到任何可用的字体进行渲染。");
+                        
+                        // 检查是否超出边界
+                        if (tempMask.Width <= textRenderMaxWidth && tempMask.Height <= textRenderMaxHeight)
+                        {
+                            optimalFontSize = currentFontSize;
+                            minFontSize = currentFontSize + 1; // 尝试更大
+                        }
+                        else
+                        {
+                            maxFontSize = currentFontSize - 1; // 太大了，尝试更小
+                        }
+                    }
+                }
+
+                if (optimalFontSize == 0)
+                {
+                    Console.WriteLine("错误：即使使用最小字体，文本也无法在指定尺寸内容纳。");
+                    return null;
+                }
+
+                // 步骤B: 【修复关键】使用找到的最佳字体进行一次高质量渲染
+                using (var rawTextImage = CreateBlackOnWhiteTextImage(textToPrint, fontName, optimalFontSize, textRenderMaxWidth, dpi))
+                {
+                    if (rawTextImage == null) return null; // 字体渲染失败
+                    
+                    // 步骤C: 计算精确的缩放比例以适应边界
+                    double hScale = (double)textRenderMaxWidth / rawTextImage.Width;
+                    double vScale = (double)textRenderMaxHeight / rawTextImage.Height;
+                    double scale = Math.Min(hScale, vScale); // 取较小的比例以确保等比缩放后能完全放入
+
+                    // 如果需要缩小，则执行Resize操作
+                    if (scale < 1.0)
+                    {
+                        textImage = rawTextImage.Resize(scale, kernel: Enums.Kernel.Lanczos3);
+                    }
+                    else
+                    {
+                        textImage = rawTextImage.Copy();
+                    }
+                }
+
+                // 步骤D: 将最终的文字图像居中放置在固定大小的画布上
+                var whitePixel = new double[] { 255, 255, 255 };
+                int leftOffset = (finalWidthInPixels - textImage.Width) / 2;
+                int topOffset = (finalHeightInPixels - textImage.Height) / 2;
+
+                return textImage.Embed(leftOffset, topOffset,
+                                       finalWidthInPixels,
+                                       finalHeightInPixels,
+                                       extend: Enums.Extend.Background,
+                                       background: whitePixel);
+            }
+            else
+            {
+                // **【固定高度逻辑】** (保持不变)
+                int textRenderHeight = ConvertMmToPixels(heightMm, dpi);
+                if (maxWidthMm.HasValue && maxWidthMm.Value > 0)
+                {
+                    textRenderMaxWidth = ConvertMmToPixels(maxWidthMm.Value, dpi) - (2 * paddingInPixels);
+                }
+                textImage = CreateBlackOnWhiteTextImage(textToPrint, fontName, textRenderHeight, textRenderMaxWidth, dpi);
+                
+                if (textImage == null) return null;
+
+                var whitePixel = new double[] { 255, 255, 255 };
+                return textImage.Embed(paddingInPixels, paddingInPixels,
+                                       textImage.Width + (2 * paddingInPixels),
+                                       textImage.Height + (2 * paddingInPixels),
+                                       extend: Enums.Extend.Background,
+                                       background: whitePixel);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"生成文字图像失败: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 【新】辅助方法：从文本直接创建黑字白底的RGB图像
+    /// </summary>
+    private static Image? CreateBlackOnWhiteTextImage(string text, string preferredFont, int fontSize, int? maxWidth, int dpi)
+    {
+        using (var textMask = TryCreateTextMask(text, preferredFont, fontSize, maxWidth, dpi))
+        {
+            if (textMask == null) return null;
+            return textMask.Ifthenelse(new double[] { 0, 0, 0 }, new double[] { 255, 255, 255 });
+        }
+    }
+    
+    /// <summary>
+    /// 辅助方法：尝试使用一个字体列表来创建文字遮罩，并优化了换行模式。
+    /// </summary>
+    private static Image? TryCreateTextMask(string text, string preferredFont, int fontSize, int? maxWidth, int dpi)
+    {
+        var fontFallbacks = new List<string> { "Microsoft YaHei", "PingFang SC", "WenQuanYi Micro Hei", "Arial", "Helvetica", "DejaVu Sans", "Noto Sans", "Verdana", "Calibri", "sans-serif" };
+        var fontsToTry = new List<string> { preferredFont };
+        fontsToTry.AddRange(fontFallbacks);
+        fontsToTry = fontsToTry.Distinct().ToList();
+
+        foreach (var font in fontsToTry)
+        {
+            try
+            {
+                return Image.Text(
+                    text,
+                    font: $"{font} {fontSize}px",
+                    width: maxWidth,
+                    // 【修复】对于混合文本，Char换行通常比Word更可靠
+                    wrap: maxWidth.HasValue ? Enums.TextWrap.Char : null,
+                    align: maxWidth.HasValue ? Enums.Align.Low : Enums.Align.Centre,
+                    dpi: dpi
+                );
+            }
+            catch (VipsException ex)
+            {
+                if (ex.Message.Contains("font", StringComparison.OrdinalIgnoreCase) && ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 忽略字体未找到的异常，继续尝试下一个
+                }
+                else { throw; }
+            }
+        }
         return null;
     }
-}
+
+    // 将图片等比放大到目标高度
+    public static Image ScaleImageToHeight(
+        Image sourceImage, 
+        decimal targetHeightMm, 
+        int dpi = 300,
+        Enums.Kernel kernel = Enums.Kernel.Lanczos3)
+    {
+        if (sourceImage == null)
+        {
+            throw new ArgumentNullException(nameof(sourceImage), "源图像不能为空。");
+        }
+        if (targetHeightMm <= 0)
+        {
+            throw new ArgumentException("目标高度必须为正数。", nameof(targetHeightMm));
+        }
+        if (dpi <= 0)
+        {
+            throw new ArgumentException("DPI值必须为正数。", nameof(dpi));
+        }
+
+        try
+        {
+            // 步骤 1: 将目标高度从毫米转换为像素
+            int targetHeightInPixels = ConvertMmToPixels(targetHeightMm, dpi);
+
+            // 如果目标像素高度已经和当前高度相同，则无需缩放，直接返回副本
+            if (targetHeightInPixels == sourceImage.Height)
+            {
+                return sourceImage.Copy();
+            }
+
+            // 步骤 2: 计算等比缩放因子
+            // scale = 目标尺寸 / 原始尺寸
+            double scaleFactor = (double)targetHeightInPixels / sourceImage.Height;
+
+            // 步骤 3: 使用 Resize 方法执行等比缩放
+            // Resize 方法接受一个统一的缩放因子，会自动应用于宽度和高度
+            // kernel 参数指定了插值算法，Lanczos3 在放大时能提供高质量的结果
+            return sourceImage.Resize(scaleFactor, kernel: kernel);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"图像缩放失败: {ex.Message}");
+            // 在失败时抛出异常，以便调用者可以处理
+            throw;
+        }
+    }
 }

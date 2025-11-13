@@ -59,6 +59,11 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
 
         [ObservableProperty] private LayoutOption _layoutOptionOb = LayoutOption.Automatic;
 
+        partial void OnOutputFormatObChanged(OutputFormat value)
+        {
+            LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat = value;
+            LocalAppConfig.Save(LocalAppConfig.AppSetting);
+        }
 
         public CreatePrintTaskViewModel(IEnumerable<string> produceBatchNumbers, IDatabaseService databaseService,
             IContentDialogService contentDialogService)
@@ -67,17 +72,16 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             _databaseService = databaseService;
             _contentDialogService = contentDialogService;
             DestinationFolder = LocalAppConfig.AppSetting.PrintTaskDestinationFolder;
+            OutputFormatOb = LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat;
         }
 
 
         public class CopyFile
         {
-            public string OrderNo { get; set; }
-            public int OrderDetailId { get; set; }
-            public long ProductId { get; set; }
-            public long BuyIndex { get; set; }
             public string SourceFile { get; set; }
             public string UniFileName { get; set; }
+            
+            public OrderTrackInfo OrderTrackInfo { get; set; }
         }
 
         [RelayCommand]
@@ -103,6 +107,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             }
         }
 
+        // 无法正确处理模式为索引的图 只能处理RGB图  (CMYK模式也不兼容)
         // 执行印花图归集 合批打印  执行转换格式 png->TIFF(CMYK)->移动文件到打印文件夹
         [RelayCommand]
         private async Task OnConvertFormat2print()
@@ -128,6 +133,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             IsExecuting = true;
             CopyProgress = 0;
             string targetPath = Path.Combine(DestinationFolder, string.Join("--", ProduceBatchNumbers));
+            // 异步运行 防止UI线程卡死
             await Task.Run(async () =>
             {
                 var allFilesToCopy = new List<CopyFile>();
@@ -156,10 +162,16 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                 }*/
                                 allFilesToCopy.Add(new CopyFile()
                                 {
-                                    OrderNo = produceItemEntity.OrderNo,
-                                    OrderDetailId = uniqueBatchItem.OrderDetailId,
-                                    ProductId = uniqueBatchItem.ProductId,
-                                    BuyIndex = uniqueBatchItem.BuyIndex,
+                                    OrderTrackInfo = new OrderTrackInfo()
+                                    {
+                                        OrderNo = produceItemEntity.OrderNo,
+                                        OrderDetailId = produceItemEntity.OrderDetailId,
+                                        ProductId = uniqueBatchItem.ProductId,
+                                        BuyIndex = uniqueBatchItem.BuyIndex,
+                                        ProductName = uniqueBatchItem.ProductName,
+                                        SkuAlias = produceItemEntity.SkuAlias,
+                                        SkuInfo = $"{produceItemEntity.Size} - {produceItemEntity.Color}"
+                                    },
                                     SourceFile =
                                         produceItemEntity.ProduceImgLocalPath +
                                         produceItemEntity.ProduceImgName,
@@ -178,11 +190,11 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
 
                 // 先按照成品id分类 再按照 单件分类(同件印花图归类)
                 Dictionary<long, Dictionary<long, List<CopyFile>>> groupByProductIdAndBuyIndex = allFilesToCopy
-                    .GroupBy(file => file.ProductId) // 第一级分组：按照 ProductId
+                    .GroupBy(file => file.OrderTrackInfo.ProductId) // 第一级分组：按照 ProductId
                     .ToDictionary(
                         outerGroup => outerGroup.Key, // 外层字典的键：ProductId
                         outerGroup => outerGroup
-                            .GroupBy(file => file.BuyIndex) // 第二级分组：对第一级分组内的元素，按照 BuyIndex
+                            .GroupBy(file => file.OrderTrackInfo.BuyIndex) // 第二级分组：对第一级分组内的元素，按照 BuyIndex
                             .ToDictionary(
                                 innerGroup => innerGroup.Key, // 内层字典的键：BuyIndex
                                 innerGroup => innerGroup.ToList() // 内层字典的值：该 BuyIndex 下的 CopyFile 列表
@@ -217,8 +229,8 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                     using Image image = Image.NewFromFile(copyFile.SourceFile);
                     if (image.HasAlpha())
                     {
-                        // TODO 只裁切出不透明部分 默认不开启 [不方便因为在衣服上对位 ] 只有小作坊不怎么考虑人力的情况下才可能启用? 或者有先进的解决方案, 比如投影对位?
-                        if (true)
+                        //只裁切出不透明部分 默认不开启 [不方便因为在衣服上对位 ] 只有小作坊不怎么考虑人力的情况下才可能启用? 或者有先进的解决方案, 比如投影对位?
+                        if (!LocalAppConfig.AppSetting.PrintTaskConfig.IsWhiteInkCropTransparent)
                         {
                             printImgList.Add(new LayoutImg()
                             {
@@ -227,7 +239,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                 Id = id++,
                                 ImgPath = copyFile.SourceFile,
                                 LayoutCropImg = image.Copy(),
-                                OrderTrackInfo = new OrderTrackInfo() { OrderNo = copyFile.OrderNo, }
+                                OrderTrackInfo = copyFile.OrderTrackInfo
                             });
                         }
                         else
@@ -256,7 +268,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                 Id = id++,
                                 ImgPath = copyFile.SourceFile,
                                 LayoutCropImg = croppedImage,
-                                OrderTrackInfo = new OrderTrackInfo() { OrderNo = copyFile.OrderNo, }
+                                OrderTrackInfo = copyFile.OrderTrackInfo
                             });
                         }
                     }
@@ -269,7 +281,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             Id = id++,
                             ImgPath = copyFile.SourceFile,
                             LayoutCropImg = image.Copy(),
-                            OrderTrackInfo = new OrderTrackInfo() { OrderNo = copyFile.OrderNo, }
+                            OrderTrackInfo = copyFile.OrderTrackInfo
                         });
                     }
                 }
@@ -280,7 +292,15 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                     if (LocalAppConfig.AppSetting.PrintTaskConfig.IsOrderTrack)
                     {
                         OrderTrackConfig orderTrackConfig = LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig;
-                        // 写入单号
+                        
+                        // 2. 创建一个不透明的黑色Banner
+                        using(Image orderTrackBannerTransparent = Image.Black(
+                                  layoutImg.LayoutCropImg.Width,
+                                  ImageHelper.ConvertMmToPixels(orderTrackConfig.HeightMm + orderTrackConfig.QrCodeBorderMm * 2, printerDpi),
+                                  bands: 4 // <-- 关键：直接请求4个通道
+                              ))
+                            
+                        // 创建二维码写入单号
                         using(Image qrCode = ImageHelper.GenerateQrCodeWithBorder(
                             layoutImg.OrderTrackInfo.OrderNo, 
                             ImageHelper.ConvertMmToPixels(
@@ -291,27 +311,101 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             ImageHelper.ConvertMmToPixels(
                                 orderTrackConfig.QrCodeBorderMm, printerDpi
                             )))
-                        // 2. 创建一个不透明的黑色Banner
-                        using(Image orderTrackBannerTransparent = Image.Black(
-                            layoutImg.LayoutCropImg.Width,
-                            ImageHelper.ConvertMmToPixels(orderTrackConfig.HeightMm, printerDpi),
-                            bands: 4 // <-- 关键：直接请求4个通道
-                        ))
                         // 然后附加一个值为255的常量波段作为Alpha通道，使其变为不透明
                         using (Image orderTrackBannerOpaque = orderTrackBannerTransparent.Copy(interpretation: Enums.Interpretation.Srgb))
                         // 确保色彩空间解释正确
                         using (Image orderTrackBanner =
                                orderTrackBannerOpaque.Copy(interpretation: Enums.Interpretation.Srgb))
                         {
-                                // 3. 将二维码叠加在不透明的Banner上
-                                // 计算x坐标以实现右对齐
+                            // 是空白区域的最左边坐标
+                            int emptyPositionX = 0;
+                            // 将二维码叠加在不透明的Banner上
+                            // 计算x坐标以实现右对齐
                             int qrCodeX = orderTrackBanner.Width - qrCode.Width;
-                            using var orderTrackBannerWithQr = orderTrackBanner.Composite(
+                            var orderTrackBannerWithInfo = orderTrackBanner.Composite(
                                 qrCode,
                                 Enums.BlendMode.Over,
                                 x: qrCodeX,
                                 y: 0
                             );
+                            
+                            // 创建左边块 (商品名称 大写)
+                            using (Image productNameImg = ImageHelper.CreateTextImage(
+                                       layoutImg.OrderTrackInfo.ProductName,
+                                       ImageHelper.ConvertPixelsToMm(
+                                           Convert.ToInt32(orderTrackBanner.Width * LocalAppConfig.AppSetting
+                                               .PrintTaskConfig.OrderTrackConfig.ProductNameInBannerWidthRatio),
+                                           printerDpi),
+                                       Convert.ToInt32(
+                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
+                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
+                                           2)))
+                            {
+                                
+                                orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(productNameImg,
+                                    Enums.BlendMode.Over,
+                                    x: 0,
+                                    y: 0
+                                );
+                                emptyPositionX += productNameImg.Width;
+                            }
+                            // 创建印花位置指示箭头
+                            using (Image arrowImg = ImageHelper.ScaleImageToHeight(
+                                       Image.NewFromFile(FileName.getPrintImgTargetArrow()),
+                                       LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm + LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm * 2,
+                                       printerDpi))
+                            {
+                                orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(arrowImg,
+                                    Enums.BlendMode.Over,
+                                    x: emptyPositionX,
+                                    y: 0
+                                );
+                                emptyPositionX += arrowImg.Width;
+                            }
+                            //创建 左2块 (商品成品图)
+
+                            // 创建 跟踪条 中间模块 (单号 + 仓位 + SKU + 此单总件数)
+                            using (Image orderNo = ImageHelper.CreateTextImage(
+                                       layoutImg.OrderTrackInfo.OrderNo,
+                                       ImageHelper.ConvertPixelsToMm(
+                                           Convert.ToInt32(orderTrackBanner.Width * LocalAppConfig.AppSetting
+                                               .PrintTaskConfig.OrderTrackConfig.ProductInfoInBannerWidthRatio),
+                                           printerDpi),
+                                       Convert.ToInt32(
+                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
+                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
+                                           2)/2))
+                            {
+                                using (Image skuImg = ImageHelper.CreateTextImage(
+                                           layoutImg.OrderTrackInfo.SkuInfo,
+                                           ImageHelper.ConvertPixelsToMm(
+                                               Convert.ToInt32(orderTrackBanner.Width * LocalAppConfig.AppSetting
+                                                   .PrintTaskConfig.OrderTrackConfig.ProductInfoInBannerWidthRatio),
+                                               printerDpi),
+                                           Convert.ToInt32(
+                                               LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
+                                               LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
+                                               2)/2))
+                                {
+                                    using (Image orderNoWithSku = orderNo.Join(
+                                               skuImg,
+                                               Enums.Direction.Vertical,
+                                               expand: true,
+                                               align: Enums.Align.Centre
+                                               // shim: ImageHelper.ConvertMmToPixels(2, printerDpi),
+                                               // background: new double[] { 255, 255, 255 }
+                                           ))
+                                    {
+                                        orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(orderNoWithSku,
+                                            Enums.BlendMode.Over,
+                                            x: emptyPositionX,
+                                            y: 0
+                                        );
+                                        emptyPositionX += orderNoWithSku.Width;
+                                    }
+                                }
+                            }
+                            
 
                             // 4. 将最终的Banner拼接到印花图底部
                             // (您的原始代码，保持不变, 但请注意使用using管理内存)
@@ -319,11 +413,14 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             using var originalImg = layoutImg.LayoutCropImg;
                             // JOIN会让 alpha通道 发生一个叫 "通道预乘" 的优化, 导致这时把透明通道输出成png查看 会偏黑
                             layoutImg.LayoutCropImg = originalImg.Join(
-                                orderTrackBannerWithQr,
+                                orderTrackBannerWithInfo,
                                 Enums.Direction.Vertical,
                                 expand: true,
-                                align: Enums.Align.Centre
+                                align: Enums.Align.Centre,
+                                shim: ImageHelper.ConvertMmToPixels(LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.PrintPaddingMm,printerDpi)
                             );
+                            // 不清楚怎么将 通道预乘 转成正常的alpha通道, 又不想写入磁盘再读取回来浪费磁盘IO， 先这样写入缓存再从缓存读取回来 也能实现通道预乘转成正常的alpha通道
+                            layoutImg.LayoutCropImg = Image.NewFromBuffer(layoutImg.LayoutCropImg.WriteToBuffer(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)));
                         }
                     }
 

@@ -584,6 +584,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                                 var uniqueBatchItem = new UniqueBatchItem
                                 {
                                     SkuId = produceBatchItemDetail.SkuId,
+                                    SkuAlias = produceBatchItemDetail.Sku,
                                     ProductId = produceBatchItemDetail.ProductId,
                                     BuyIndex = produceBatchItemDetail.BuyIndex,
                                     ViewId = produceBatchItemDetail.ViewId,

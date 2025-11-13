@@ -210,6 +210,14 @@ public class PrintTaskConfig : ObservableObject
         set => SetProperty(ref _whiteInkBleedSafePx, value);
     }
     
+    // 白墨烫画 裁剪印花图透明部分 以节约薄膜
+    private bool _isWhiteInkCropTransparent = true;
+    public bool IsWhiteInkCropTransparent
+    {
+        get => _isWhiteInkCropTransparent;
+        set => SetProperty(ref _isWhiteInkCropTransparent, value);
+    }
+    
     // 打印跟踪信息 默认打印信息
     private bool _isOrderTrack = true;
     public bool IsOrderTrack
@@ -225,8 +233,6 @@ public class PrintTaskConfig : ObservableObject
         get => _orderTrackConfig;
         set => SetProperty(ref _orderTrackConfig, value);
     }
-    
-    
     
     public bool IsNeedLayout()
     {
@@ -262,6 +268,15 @@ public class OrderTrackConfig
     
     // 二维码外框宽度 默认2毫米
     public decimal QrCodeBorderMm { get; set; } = 2;
+
+    // 产品名称占跟踪条的宽度比例
+    public double ProductNameInBannerWidthRatio { get; set; } = 0.3;
+    
+    // 产品信息占跟踪条的宽度比例
+    public double ProductInfoInBannerWidthRatio { get; set; } = 0.3;
+    
+    // 与印花图的距离 默认一厘米
+    public decimal PrintPaddingMm { get; set; } = 10;
 }
 
 public class WindowSettings

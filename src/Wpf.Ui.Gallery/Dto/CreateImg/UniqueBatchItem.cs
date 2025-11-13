@@ -23,6 +23,8 @@ public class UniqueBatchItem
     
     public int ViewId { get; set; }
 
+    public string SkuAlias { get; set; }
+
     public string Size { get; set; }
     
     public int SizeId { get; set; }
