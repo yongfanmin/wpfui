@@ -168,6 +168,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                         OrderDetailId = produceItemEntity.OrderDetailId,
                                         ProductId = uniqueBatchItem.ProductId,
                                         BuyIndex = uniqueBatchItem.BuyIndex,
+                                        BuyNumber = uniqueBatchItem.BuyNumber,
                                         ProductName = uniqueBatchItem.ProductName,
                                         SkuAlias = produceItemEntity.SkuAlias,
                                         SkuInfo = $"{produceItemEntity.Size} - {produceItemEntity.Color}"
@@ -374,7 +375,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                        Convert.ToInt32(
                                            LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
                                            LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
-                                           2)/2))
+                                           2)/3))
                             {
                                 using (Image skuImg = ImageHelper.CreateTextImage(
                                            layoutImg.OrderTrackInfo.SkuInfo,
@@ -385,7 +386,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                            Convert.ToInt32(
                                                LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
                                                LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
-                                               2)/2))
+                                               2)/3))
                                 {
                                     using (Image orderNoWithSku = orderNo.Join(
                                                skuImg,
@@ -396,11 +397,35 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                                // background: new double[] { 255, 255, 255 }
                                            ))
                                     {
-                                        orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(orderNoWithSku,
-                                            Enums.BlendMode.Over,
-                                            x: emptyPositionX,
-                                            y: 0
-                                        );
+                                        
+                                        using (Image buyCountImg = ImageHelper.CreateTextImage(
+                                                   $"本单共 {layoutImg.OrderTrackInfo.BuyNumber} 件",
+                                                   ImageHelper.ConvertPixelsToMm(
+                                                       Convert.ToInt32(orderTrackBanner.Width * LocalAppConfig.AppSetting
+                                                           .PrintTaskConfig.OrderTrackConfig.ProductInfoInBannerWidthRatio),
+                                                       printerDpi),
+                                                   Convert.ToInt32(
+                                                       LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
+                                                       LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig
+                                                           .QrCodeBorderMm *
+                                                       2) / 3))
+                                        {
+                                            using (Image orderNoWithSkuAndBuy = orderNoWithSku.Join(
+                                                       buyCountImg,
+                                                       Enums.Direction.Vertical,
+                                                       expand: true,
+                                                       align: Enums.Align.Centre
+                                                       // shim: ImageHelper.ConvertMmToPixels(2, printerDpi),
+                                                       // background: new double[] { 255, 255, 255 }
+                                                   ))
+                                            {
+                                                orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(orderNoWithSkuAndBuy,
+                                                    Enums.BlendMode.Over,
+                                                    x: emptyPositionX,
+                                                    y: 0
+                                                );
+                                            }
+                                        }
                                         emptyPositionX += orderNoWithSku.Width;
                                     }
                                 }

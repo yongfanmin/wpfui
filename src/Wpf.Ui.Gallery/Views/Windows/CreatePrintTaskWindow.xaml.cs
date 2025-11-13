@@ -35,9 +35,9 @@ public partial class CreatePrintTaskWindow : FluentWindow
 
         var messageBox = new Wpf.Ui.Controls.MessageBox
         {
-            Title = "打印任务进行中",
+            Title = "打印任务进行中,请勿关闭",
             Content = "关闭窗口任务会在后台继续运行",
-            PrimaryButtonText = "确认",
+            PrimaryButtonText = "强行关闭",
             CloseButtonText = "取消"
         };
 
@@ -48,7 +48,7 @@ public partial class CreatePrintTaskWindow : FluentWindow
             // The user confirmed they want to close the window.
             // Unsubscribe from the Closing event to prevent re-entry and close the window.
             Closing -= OnClosing;
-            Close();
+            Dispatcher.InvokeAsync(Close);
         }
     }
 

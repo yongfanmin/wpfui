@@ -17,6 +17,8 @@ public class OrderTrackInfo
     public long ProductId { get; set; }
     public long BuyIndex { get; set; }
     
+    public long BuyNumber { get; set; }
+    
     public string? SkuAlias { get; set; }
     
     public string? SkuInfo { get; set; }

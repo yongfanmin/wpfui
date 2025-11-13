@@ -14,6 +14,7 @@
     <UserControl.Resources>
         <converters:InvertBooleanConverter x:Key="InvertBooleanConverter" />
         <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </UserControl.Resources>
     <Grid>
     <StackPanel>
@@ -67,5 +68,10 @@
             Command="{Binding OpenSettingsDialogCommand}">
             <ui:SymbolIcon Symbol="Settings24" />
         </Button>
+        <ui:ProgressRing
+            IsIndeterminate="True"
+            Visibility="{Binding IsExecuting, Converter={StaticResource BoolToVisibilityConverter}}"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center" />
     </Grid>
 </UserControl>

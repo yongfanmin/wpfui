@@ -55,6 +55,11 @@ public class ProduceBatchItemDetail
     [JsonConverter(typeof(StringOrNumberToLongConverter))]
     public long BuyIndex { get; set; }
     
+    // 购买件数
+    [JsonPropertyName("buy_number")]
+    [JsonConverter(typeof(StringOrNumberToLongConverter))]
+    public long BuyNumber { get; set; }
+    
     [JsonPropertyName("view_id")]
     [JsonConverter(typeof(StringOrNumberToIntConverter))]
     public int ViewId { get; set; }

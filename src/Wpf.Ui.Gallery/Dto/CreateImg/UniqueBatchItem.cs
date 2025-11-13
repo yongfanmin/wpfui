@@ -21,6 +21,9 @@ public class UniqueBatchItem
     // 购物车的第几件  [订单号->多子订单->多件]
     public long BuyIndex { get; set; }
     
+    // 购买几件
+    public long BuyNumber { get; set; }
+    
     public int ViewId { get; set; }
 
     public string SkuAlias { get; set; }

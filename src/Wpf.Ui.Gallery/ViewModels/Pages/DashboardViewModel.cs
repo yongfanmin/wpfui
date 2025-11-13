@@ -587,6 +587,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                                     SkuAlias = produceBatchItemDetail.Sku,
                                     ProductId = produceBatchItemDetail.ProductId,
                                     BuyIndex = produceBatchItemDetail.BuyIndex,
+                                    BuyNumber = produceBatchItemDetail.BuyNumber,
                                     ViewId = produceBatchItemDetail.ViewId,
                                     DesignProductId = produceBatchItemDetail.DesignProductId,
                                     BatchNum = produceBatchItemDetail.BatchNum,
