@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.IO;
 using System.Text.Json;
+using CommunityToolkit.Mvvm.Messaging;
 using DataJuggler.RealESRGAN;
 using DataJuggler.RealESRGAN.Enumerations;
 using NetVips;
@@ -19,6 +20,7 @@ using Wpf.Ui.Gallery.Dto.CreateImg;
 using Wpf.Ui.Gallery.Dto.PrintTask;
 using Wpf.Ui.Gallery.ImageProcessor;
 using Wpf.Ui.Gallery.LocalConfig;
+using Wpf.Ui.Gallery.Message;
 using Wpf.Ui.Gallery.Services.Creator;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Table;
@@ -290,7 +292,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 foreach (LayoutImg layoutImg in printImgList)
                 {
                     // 加入 跟踪码信息 默认加入跟踪码
-                    if (LocalAppConfig.AppSetting.PrintTaskConfig.IsOrderTrack)
+                    if (LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.OrderTrackType != OrderTrackType.不打印跟踪条)
                     {
                         OrderTrackConfig orderTrackConfig = LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig;
                         
@@ -507,6 +509,10 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 }
                 // 自动排版 输入需要排版的图片 与 机器打印宽度  (实际都是毫米 但是计算库只支持 无符号整数 所以按照像素排版 然后再转成毫米)
             });
+
+            // 更改数据库内的生产计划状态
+            _databaseService.UpdateProduceBatchStatus(ProduceBatchNumbers, ProduceBatchStatus.打印任务已创建);
+            WeakReferenceMessenger.Default.Send(new ProductionPlanChangedMessage(true));
 
             IsExecuting = false;
             IsPrintButtonEnabled = true;

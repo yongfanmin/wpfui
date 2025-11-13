@@ -218,14 +218,6 @@ public class PrintTaskConfig : ObservableObject
         set => SetProperty(ref _isWhiteInkCropTransparent, value);
     }
     
-    // 打印跟踪信息 默认打印信息
-    private bool _isOrderTrack = true;
-    public bool IsOrderTrack
-    {
-        get => _isOrderTrack;
-        set => SetProperty(ref _isOrderTrack, value);
-    }
-    
     // 跟踪单内容设置
     private OrderTrackConfig _orderTrackConfig = new OrderTrackConfig();
     public OrderTrackConfig OrderTrackConfig
@@ -259,8 +251,12 @@ public enum LayoutOption
     Manual // 不排版(后续手动排版)
 }
 
+
 public class OrderTrackConfig
 {
+    
+    public OrderTrackType OrderTrackType { get; set; } = OrderTrackType.打印详细跟踪条;
+    
     //信息条 默认宽度自动 布局 [靠左 居中 靠右]
     
     // 信息条默认高度 39毫米

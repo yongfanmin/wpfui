@@ -35,7 +35,7 @@ using Wpf.Ui.Gallery.Vo;
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
 
 //public partial class DashboardViewModel(INavigationService navigationService) : ViewModel
-public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkActivityChangedMessage>
+public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkActivityChangedMessage>, IRecipient<ProductionPlanChangedMessage>
 {
     private readonly IProduceBatchApi _produceBatchApi;
 
@@ -125,8 +125,18 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         _pollingTimer.AutoReset = true;
 
         // 5. 在构造函数中，将自己注册为消息的接收者
-        WeakReferenceMessenger.Default.Register(this);
+        WeakReferenceMessenger.Default.Register<ProductionPlanChangedMessage>(this);
+        // WeakReferenceMessenger.Default.Register(this);
         GenerateDateFilterButtons();
+    }
+    
+    public void Receive(ProductionPlanChangedMessage message)
+    {
+        if (message.Value)
+        {
+            DateFilterButton dateFilterButton = GetSelectedDateFilterButton();
+            SearchBatchDataAsync(dateFilterButton.Value);
+        }
     }
 
     private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)

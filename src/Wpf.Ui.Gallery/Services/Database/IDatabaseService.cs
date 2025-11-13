@@ -21,7 +21,8 @@ public interface IDatabaseService
     public void AddProduceBatchNeedLayoutItemCount(string produceBatchNum);
     public void UpdateProduceBatchStatus(string produceBatchNum, ProduceBatchStatus produceBatchStatus);
     public void AddProduceBatchItem(ProductBatchItemInfo productBatchItemInfo);
-    
+    public void UpdateProduceBatchStatus(IEnumerable<string> produceBatchNumbers, ProduceBatchStatus produceBatchStatus);
+
     public void AddProduceBatchItemList(string produceBatchNumber, List<ProductBatchItemInfo> productBatchOrderInfoList);
 
     public List<ProducePlanEntity> GetProduceBatchList(string createTimeValue);

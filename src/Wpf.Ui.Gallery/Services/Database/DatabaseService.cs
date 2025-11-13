@@ -143,6 +143,34 @@ public class DatabaseService : IDatabaseService
         }
     }
 
+    public void UpdateProduceBatchStatus(IEnumerable<string> produceBatchNumbers, ProduceBatchStatus produceBatchStatus)
+    {
+        _dbWriteLock.Wait();
+        try
+        {
+            using (var db = GetConnection())
+            {
+                var batchNumbers = produceBatchNumbers.ToList();
+                if (!batchNumbers.Any())
+                {
+                    return;
+                }
+
+                var placeholders = string.Join(",", Enumerable.Repeat("?", batchNumbers.Count));
+                var query = $"UPDATE ProducePlanEntity SET ProduceBatchStatus = ? WHERE ProduceBatchNum IN ({placeholders})";
+
+                var args = new List<object> { produceBatchStatus };
+                args.AddRange(batchNumbers);
+
+                db.Execute(query, args.ToArray());
+            }
+        }
+        finally
+        {
+            _dbWriteLock.Release();
+        }
+    }
+    
     public void AddProduceBatchNeedLayoutItemCount(string produceBatchNum)
     {
         _dbWriteLock.Wait();
