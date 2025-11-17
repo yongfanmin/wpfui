@@ -3,13 +3,29 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using System.ComponentModel;
+
 namespace Wpf.Ui.Gallery.Constant;
 
 public enum OrderPickStatus
 {
-    未使用 = 0,
-    分拣中 = 1,
-    分拣完成 = 2,
-    部分发货 = 3,
-    全部发货 = 4
+    [Description("空篮")]
+    空篮,
+    
+    [Description("未发货")]
+    未发货,
+    
+    [Description("分拣中")]
+    分拣中,
+    
+    [Description("分拣完成")]
+    分拣完成,
+    [Description("已打发货单")]
+    已打发货单,
+    
+    [Description("部分发货")]
+    部分发货,
+    
+    [Description("全部发货")]
+    全部发货
 }

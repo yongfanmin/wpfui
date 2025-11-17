@@ -37,21 +37,15 @@
                     <ui:Button Command="{Binding ViewModel.ConfirmPickCommand}" Content="拣货" />
                 </StackPanel>
                 <StackPanel Margin="0,12,0,0" Orientation="Horizontal">
+                    <CheckBox
+                    Content="全选"
+                    Command="{Binding ViewModel.ToggleSelectAllCommand}"
+                    CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}" />
                     <Button
                         Margin="0,0,8,0"
                         Command="{Binding ViewModel.ClearBasketCommand}"
                         CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}"
                         Content="清空分拣篮" />
-                    <Button
-                        Margin="0,0,8,0"
-                        Command="{Binding ViewModel.AdjustSortQuantityCommand}"
-                        CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}"
-                        Content="调整分拣数" />
-                    <Button
-                        Margin="0,0,8,0"
-                        Command="{Binding ViewModel.PrintDeliveryBillCommand}"
-                        CommandParameter="{Binding ElementName=PickingListView, Path=SelectedItems}"
-                        Content="打印发货单" />
                     <Button
                         Margin="0,0,8,0"
                         Command="{Binding ViewModel.SetStartDeliveryCommand}"
@@ -77,10 +71,11 @@
             SelectionMode="Multiple">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
+                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
                     <Setter Property="ContextMenu">
                         <Setter.Value>
                             <ContextMenu>
-                                <MenuItem Header="换其他空蓝" Command="{Binding Data.ReplaceBasketCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="换其他空篮" Command="{Binding Data.ReplaceBasketCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                 <MenuItem Header="清空分拣篮" Command="{Binding Data.ClearSingleBasketCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                 <MenuItem Header="打印发货单" Command="{Binding Data.PrintSingleDeliveryBillCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                 <MenuItem Header="上移位置" Command="{Binding Data.MoveUpCommand, Source={StaticResource Proxy}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
@@ -125,9 +120,32 @@
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
-                    <GridViewColumn Header="已分拣"  Width="120" DisplayMemberBinding="{Binding PickCount}" />
-                    <GridViewColumn Header="总数"  Width="120" DisplayMemberBinding="{Binding ItemCount}" />
+                    <GridViewColumn Header="已分拣"  Width="80" DisplayMemberBinding="{Binding PickCount}" />
+                    <GridViewColumn Header="总件数"  Width="80" DisplayMemberBinding="{Binding ItemCount}" />
                     <GridViewColumn Header="当前状态"  Width="120" DisplayMemberBinding="{Binding Status}" />
+                    <GridViewColumn Header="操作" Width="320">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button
+                                        Margin="0,0,8,0"
+                                        Command="{Binding DataContext.ViewModel.PrintSingleDeliveryBillCommand, RelativeSource={RelativeSource AncestorType=local:PickingPage}}"
+                                        CommandParameter="{Binding}"
+                                        Content="打印发货单" />
+                                    <Button
+                                        Margin="0,0,8,0"
+                                        Command="{Binding DataContext.ViewModel.AdjustSingleSortQuantityCommand, RelativeSource={RelativeSource AncestorType=local:PickingPage}}"
+                                        CommandParameter="{Binding}"
+                                        Content="调整分拣数" />
+                                    <Button
+                                        Margin="0,0,8,0"
+                                        Command="{Binding DataContext.ViewModel.ConfirmSingleShipmentCommand, RelativeSource={RelativeSource AncestorType=local:PickingPage}}"
+                                        CommandParameter="{Binding}"
+                                        Content="确认发货" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                 </GridView>
             </ListView.View>
         </ListView>

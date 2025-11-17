@@ -372,10 +372,11 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                 );
                                 emptyPositionX += arrowImg.Width;
                             }
-                            
+
+                            string orderNoShow = StringUtil.EasyWatchNo(layoutImg.OrderTrackInfo.OrderNo);
                             // 创建 跟踪条 中间模块 (单号 + 仓位 + SKU + 此单总件数)
-                            using (Image orderNo = ImageHelper.CreateTextImage(
-                                       layoutImg.OrderTrackInfo.OrderNo,
+                            using (Image orderNoImg = ImageHelper.CreateTextImage(
+                                       orderNoShow,
                                        ImageHelper.ConvertPixelsToMm(
                                            Convert.ToInt32(leftWidthPx * LocalAppConfig.AppSetting
                                                .PrintTaskConfig.OrderTrackConfig.ProductInfoInBannerWidthRatio),
@@ -396,7 +397,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                                LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
                                                2)/3))
                                 {
-                                    using (Image orderNoWithSku = orderNo.Join(
+                                    using (Image orderNoWithSku = orderNoImg.Join(
                                                skuImg,
                                                Enums.Direction.Vertical,
                                                expand: true,

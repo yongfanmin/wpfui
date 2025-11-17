@@ -9,16 +9,22 @@ namespace Wpf.Ui.Gallery.Dto.Picking;
 
 public partial class OrderPick : ObservableObject
 {
-    [ObservableProperty] public int _basketNumber;
-    [ObservableProperty] public string _orderNo;
+    [ObservableProperty] private int _basketNumber; // 篮子编号
 
-    public string OrderCode { get; set; }
-    [ObservableProperty] public int _pickCount;
-    [ObservableProperty] public int _itemCount;
-    [ObservableProperty] private bool _isPicked;
+    [ObservableProperty] private string _orderNo = string.Empty; // 订单号
+
+    [ObservableProperty] private string _orderCode = string.Empty; // 订单编码
+
+    [ObservableProperty] private int _itemCount; // 总数
+
+    [ObservableProperty] private int _pickCount; // 已拣
+
+    [ObservableProperty] private OrderPickStatus _status = OrderPickStatus.空篮; // 状态
+
+    [ObservableProperty] private bool _isPicked; // 是否已经完成拣货
     
-    [ObservableProperty] private OrderPickStatus _status;
-    
+    [ObservableProperty] private bool _isSelected; // 是否选中
+
     public WaybillInfo WaybillInfo { get; set; }
 
     public static OrderPick Init(int basketNumber)

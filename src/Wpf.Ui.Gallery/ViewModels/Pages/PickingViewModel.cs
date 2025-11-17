@@ -6,12 +6,14 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Windows.Controls;
+using CommunityToolkit.Mvvm.Messaging;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.Picking;
 using Wpf.Ui.Gallery.LocalConfig;
+using Wpf.Ui.Gallery.Message;
 using Wpf.Ui.Gallery.Models;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Database;
@@ -52,6 +54,7 @@ public partial class PickingViewModel : ObservableObject
         LoginInfoService loginInfoService,
         WindowsProviderService windowsProviderService,
         PrintDialogViewModel printDialogViewModel,
+        IMessenger messenger,
         IDatabaseService databaseService
     )
     {
@@ -62,6 +65,16 @@ public partial class PickingViewModel : ObservableObject
         _windowsProviderService = windowsProviderService;
         _printDialogViewModel = printDialogViewModel;
         _databaseService = databaseService;
+        messenger.Register<PrintSuccessMessage>(this, (recipient, message) =>
+        {
+            // Handle the message here
+            var orderPick = message.Value;
+            var targetOrderPick = OrderPickBasketList.FirstOrDefault(o => o.OrderCode == orderPick.OrderCode);
+            if (targetOrderPick != null)
+            {
+                targetOrderPick.Status = OrderPickStatus.已打发货单;
+            }
+        });
         LoadBasketSortHistory();
         UpdateBasketList();
     }
@@ -193,6 +206,7 @@ public partial class PickingViewModel : ObservableObject
                             if (thisOrderPick.IsPicked)
                             {
                                 // 分拣完成
+                                thisOrderPick.Status = OrderPickStatus.分拣完成;
                                 AudioPlayer.PlayCompleteAudio();
                                 if (LocalAppConfig.AppSetting.AutoPrintAfterPicking)
                                 {
@@ -201,6 +215,7 @@ public partial class PickingViewModel : ObservableObject
                             }
                             else
                             {
+                                thisOrderPick.Status = OrderPickStatus.分拣中;
                                 AudioPlayer.PlaySuccessAudio();
                             }
                         }
@@ -232,6 +247,7 @@ public partial class PickingViewModel : ObservableObject
                         // TODO 需要语音播报几号篮
                         // 开头第一个固定分拣数量为1
                         thisOrderPick.PickCount = 1;
+                        thisOrderPick.Status = OrderPickStatus.分拣中;
                         thisOrderPick.OrderCode = orderPick.OrderCode;
                         thisOrderPick.OrderNo = orderPick.OrderNo;
                         thisOrderPick.ItemCount = orderPick.ItemCount;
@@ -246,6 +262,7 @@ public partial class PickingViewModel : ObservableObject
                                                      thisOrderPick.PickCount >= thisOrderPick.ItemCount;
                             if (thisOrderPick.IsPicked)
                             {
+                                thisOrderPick.Status = OrderPickStatus.分拣完成;
                                 //分拣完成
                                 AudioPlayer.PlayCompleteAudio();
                                 if (LocalAppConfig.AppSetting.AutoPrintAfterPicking)
@@ -255,6 +272,7 @@ public partial class PickingViewModel : ObservableObject
                             }
                             else
                             {
+                                thisOrderPick.Status = OrderPickStatus.分拣中;
                                 AudioPlayer.PlaySuccessAudio();
                             }
                         }
@@ -408,9 +426,21 @@ public partial class PickingViewModel : ObservableObject
         {
             var selectedOrders = selectedItems.Cast<OrderPick>().ToList();
             var selectedOrderPick = selectedItems.Cast<OrderPick>().Single();
-            var printDialog = _windowsProviderService.GetWindow<Views.Windows.PrintDialog>();
-            printDialog.ViewModel.FetchAndDownloadWaybill(selectedOrderPick);
-            printDialog.Show();
+            
+            if (selectedOrderPick.PickCount == 0)
+            {
+                var messageBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "警告", Content = $"无法操作空篮子", CloseButtonText = "好的 (Esc)"
+                };
+                _ = messageBox.ShowDialogAsync();
+            }
+            else
+            {
+                var printDialog = _windowsProviderService.GetWindow<Views.Windows.PrintDialog>();
+                printDialog.ViewModel.FetchAndDownloadWaybill(selectedOrderPick);
+                printDialog.Show();
+            }
         }
         else
         {
@@ -528,7 +558,7 @@ public partial class PickingViewModel : ObservableObject
         {
             Children =
             {
-                new TextBlock { Text = "输入当前分拣篮总数量:" },
+                new TextBlock { Text = "输入当前分拣篮子数量:" },
                 numberBox,
                 new TextBlock { Text = "选择默认打印机:", Margin = new Thickness(0, 10, 0, 0) },
                 printerComboBox,
@@ -681,7 +711,18 @@ public partial class PickingViewModel : ObservableObject
     {
         if (parameter is OrderPick orderPick)
         {
-            PrintDeliveryBill(new List<object> { orderPick });
+            if (orderPick.PickCount == 0)
+            {
+                var messageBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "警告", Content = $"无法操作空篮子", CloseButtonText = "好的 (Esc)"
+                };
+                _ = messageBox.ShowDialogAsync();
+            }
+            else
+            {
+                PrintDeliveryBill(new List<object> { orderPick });
+            }
         }
     }
 
@@ -709,6 +750,58 @@ public partial class PickingViewModel : ObservableObject
             {
                 OrderPickBasketList.Move(oldIndex, oldIndex + 1);
                 SaveBasketSort();
+            }
+        }
+    }
+    
+    [RelayCommand]
+    private void AdjustSingleSortQuantity(object parameter)
+    {
+        if (parameter is OrderPick orderPick)
+        {
+            if (orderPick.PickCount == 0)
+            {
+                var messageBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "警告", Content = $"无法操作空篮子", CloseButtonText = "好的 (Esc)"
+                };
+                _ = messageBox.ShowDialogAsync();
+            }
+            else
+            {
+                AdjustSortQuantity(new List<object> { orderPick });
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void ConfirmSingleShipment(object parameter)
+    {
+        if (parameter is OrderPick orderPick)
+        {
+            if (orderPick.PickCount == 0)
+            {
+                var messageBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "警告", Content = $"无法操作空篮子", CloseButtonText = "好的 (Esc)"
+                };
+                _ = messageBox.ShowDialogAsync();
+            }
+            else
+            {
+                SetStartDelivery(new List<object> { orderPick });
+            }
+        }
+    }
+    
+    [RelayCommand]
+    private void ToggleSelectAll(object parameter)
+    {
+        if (parameter is bool isChecked)
+        {
+            foreach (var item in OrderPickBasketList)
+            {
+                item.IsSelected = isChecked;
             }
         }
     }

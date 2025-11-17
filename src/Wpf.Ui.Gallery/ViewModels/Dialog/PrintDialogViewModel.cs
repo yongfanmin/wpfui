@@ -10,12 +10,14 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using CommunityToolkit.Mvvm.Messaging;
 using PdfiumPrinter;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.Picking;
+using Wpf.Ui.Gallery.Message;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Downloader;
 using Wpf.Ui.Gallery.Utils;
@@ -29,9 +31,10 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         private readonly LoginInfoService _loginInfoService;
         private readonly ISnackbarService _snackbarService;
         private readonly HttpClient _httpClient;
+        private readonly IMessenger _messenger;
         public Action CloseWindow { get; set; }
 
-
+        private OrderPick _currentOrderPick;
         [ObservableProperty]
         private ObservableCollection<string> _printers = new();
 
@@ -50,12 +53,14 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             IOrderApi orderApi, 
             LoginInfoService loginInfoService,
             ISnackbarService snackbarService,
+            IMessenger messenger,
             HttpClient httpClient
             )
         {
             _orderApi = orderApi;
             _loginInfoService = loginInfoService;
             _snackbarService = snackbarService;
+            _messenger = messenger;
             _httpClient = httpClient;
             LoadPrinters();
         }
@@ -123,12 +128,14 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                         new SymbolIcon(SymbolRegular.Print24),
                         TimeSpan.FromSeconds(5)
                     );
+                    _messenger.Send(new PrintSuccessMessage(_currentOrderPick));
                 }
                 else if (extension == ".pdf")
                 {
                     var printer = new PdfPrinter(SelectedPrinter);
                     printer.Print(_waybillInfo.LocalUrl);
                     StatusMessage = "PDF 打印任务已发送.";
+                    _messenger.Send(new PrintSuccessMessage(_currentOrderPick));
                 }
                 else
                 {
@@ -152,6 +159,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         {
             try
             {
+                _currentOrderPick = orderPick;
                 string token = _loginInfoService.getToken();
                 FactoryApiResponse<Object> response = await _orderApi.getOrderExpressInfoByOrderCode(new OrderCodeRequest() { OrderCode = orderPick.OrderCode }, token);
 

@@ -3,6 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using CommunityToolkit.Mvvm.Messaging;
 using Lepo.i18n.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Polly;
@@ -86,6 +87,7 @@ public partial class App
                 _ = services.AddSingleton<ISnackbarService, SnackbarService>();
                 _ = services.AddSingleton<IContentDialogService, ContentDialogService>();
                 _ = services.AddSingleton<WindowsProviderService>();
+                _ = services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
                 // Login 登录窗口
                 _ = services.AddSingleton<LoginWindow>();
                 _ = services.AddSingleton<LoginWindowViewModel>();
