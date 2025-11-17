@@ -107,7 +107,8 @@ public class DatabaseService : IDatabaseService
                         ProduceBatchItemCount = produceBatchVo.ProduceBatchItemCount,
                         ProduceBatchStatus = produceBatchVo.ProduceBatchStatus,
                         NeedLayoutCount = 0,
-                        FactoryGetTime = DateTime.Now
+                        FactoryGetTime = DateTime.Now,
+                        CheckTime = produceBatchVo.CheckTime
                     });
                 }
                 catch (Exception ex)
@@ -132,6 +133,7 @@ public class DatabaseService : IDatabaseService
                                 ProduceBatchStatus = produceBatchVo.ProduceBatchStatus,
                                 NeedLayoutCount = 0,
                                 FactoryGetTime = DateTime.Now,
+                                CheckTime = produceBatchVo.CheckTime
                             });
                     }
                 }
@@ -458,6 +460,7 @@ public class DatabaseService : IDatabaseService
                 {
                     db.Insert(new ProduceItemEntity()
                     {
+                        FactoryId = productBatchItemInfo.FactoryId,
                         ProduceBatchNum = productBatchItemInfo.ProduceBatchNumber,
                         BatchNum = productBatchItemInfo.BatchNum,
                         ProduceBatchItemProcess = ProduceBatchItemProcess.等待数据,
@@ -465,6 +468,10 @@ public class DatabaseService : IDatabaseService
                 }
                 catch (Exception ex)
                 {
+                    /*var planToUpdate = db.Table<ProduceItemEntity>()
+                        .FirstOrDefault(field => field.ProduceBatchNum == productBatchItemInfo.ProduceBatchNumber & field.BatchNum == productBatchItemInfo.BatchNum);
+                    planToUpdate.FactoryId = productBatchItemInfo.FactoryId;
+                    db.Update(planToUpdate);*/
                     Console.WriteLine("插入项批号 唯一索引冲突, 已存在项批号条目:" + ex.Message);
                 }
             }
@@ -507,6 +514,7 @@ public class DatabaseService : IDatabaseService
                     planToUpdate.Size = uniqueBatchItem.Size;
                     planToUpdate.ItemId = uniqueBatchItem.ItemId;
                     planToUpdate.OrderNo = uniqueBatchItem.OrderNo;
+                    planToUpdate.OrderCode = uniqueBatchItem.OrderCode;
                     planToUpdate.OrderDetailId = uniqueBatchItem.OrderDetailId;
                     planToUpdate.ViewId = uniqueBatchItem.ViewId;
                     planToUpdate.UpdateTime = DateTime.Now;
@@ -566,6 +574,23 @@ public class DatabaseService : IDatabaseService
             {
                 return db.Table<ProduceItemEntity>()
                     .Where(field => field.ItemId == itemId)
+                    .FirstOrDefault();
+            }
+        }
+    }
+    
+    public ProduceItemEntity GetProduceItemByOrderNo(string orderNo)
+    {
+        using (var db = GetConnection())
+        {
+            if (string.IsNullOrEmpty(orderNo))
+            {
+                return null;
+            }
+            else
+            {
+                return db.Table<ProduceItemEntity>()
+                    .Where(field => field.OrderNo == orderNo)
                     .FirstOrDefault();
             }
         }

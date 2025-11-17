@@ -129,4 +129,7 @@ public partial class ProduceBatchVo : ObservableObject
     
     [ObservableProperty]
     private DateTime _factoryGetTime;
+    
+    [ObservableProperty]
+    private DateTime _checkTime;
 }

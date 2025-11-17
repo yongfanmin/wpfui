@@ -25,6 +25,8 @@ public class AppSetting
 
     public ApplicationTheme ApplicationTheme { get; set; } = ApplicationTheme.Light;
 
+    public bool IsPaneOpen { get; set; } = false;
+    
     // 日志输入等级
     public LogEventLevel LogLevel { get; set; } = LogEventLevel.Error;
     
@@ -252,11 +254,11 @@ public enum LayoutOption
 }
 
 
-public class OrderTrackConfig
+public partial class OrderTrackConfig: ObservableObject
 {
     
-    public OrderTrackType OrderTrackType { get; set; } = OrderTrackType.打印详细跟踪条;
-    
+    [ObservableProperty] private OrderTrackType _orderTrackType = OrderTrackType.打印详细跟踪条;
+
     //信息条 默认宽度自动 布局 [靠左 居中 靠右]
     
     // 信息条默认高度 39毫米
@@ -266,10 +268,10 @@ public class OrderTrackConfig
     public decimal QrCodeBorderMm { get; set; } = 2;
 
     // 产品名称占跟踪条的宽度比例
-    public double ProductNameInBannerWidthRatio { get; set; } = 0.3;
+    public double ProductNameInBannerWidthRatio { get; set; } = 0.5;
     
     // 产品信息占跟踪条的宽度比例
-    public double ProductInfoInBannerWidthRatio { get; set; } = 0.3;
+    public double ProductInfoInBannerWidthRatio { get; set; } = 0.5;
     
     // 与印花图的距离 默认一厘米
     public decimal PrintPaddingMm { get; set; } = 10;

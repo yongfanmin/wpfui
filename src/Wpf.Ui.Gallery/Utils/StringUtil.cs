@@ -14,7 +14,26 @@ public static class StringUtil
         {
             return false;
         }
-        return scanCode.All(char.IsDigit);
+
+        if (scanCode.All(char.IsDigit) && scanCode.Length == 13)
+        {
+            return true;
+        }
+        return false;
+    }
+    
+    public static bool IsOrderNo(string scanCode)
+    {
+        if (string.IsNullOrEmpty(scanCode))
+        {
+            return false;
+        }
+
+        if (scanCode.All(char.IsDigit) && scanCode.Length > 15)
+        {
+            return true;
+        }
+        return false;
     }
 
     // 扫描到的编码  是一个 子项号

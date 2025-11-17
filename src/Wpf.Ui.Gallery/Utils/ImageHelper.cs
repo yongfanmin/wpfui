@@ -1102,4 +1102,38 @@ public static class ImageHelper
             throw;
         }
     }
+    
+    public static Image ResizeImageToHeight(
+        string filePath, 
+        int targetHeight, 
+        Enums.Kernel kernel = Enums.Kernel.Lanczos3)
+    {
+        // 1. 参数校验
+        if (string.IsNullOrEmpty(filePath))
+        {
+            throw new ArgumentException("文件路径不能为空。", nameof(filePath));
+        }
+        if (targetHeight <= 0)
+        {
+            throw new ArgumentException("目标高度必须为正数。", nameof(targetHeight));
+        }
+
+        // 2. 从文件加载图像。使用 using 语句确保加载的图像在操作完成后被释放。
+        using (var sourceImage = Image.NewFromFile(filePath))
+        {
+            // 如果原始高度与目标高度相同，则无需处理，直接返回一个副本
+            if (sourceImage.Height == targetHeight)
+            {
+                return sourceImage.Copy();
+            }
+
+            // 3. 计算等比缩放因子
+            // 必须进行浮点数除法，否则整数除法可能会得到0或1
+            double scaleFactor = (double)targetHeight / sourceImage.Height;
+
+            // 4. 执行缩放并返回新图像
+            // Resize 方法会返回一个新的 Image 对象，源图像 sourceImage 会在 using 块结束时被自动释放
+            return sourceImage.Resize(scaleFactor, kernel: kernel);
+        }
+    }
 }

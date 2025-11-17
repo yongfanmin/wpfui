@@ -35,4 +35,5 @@ public class ProducePlanEntity
     //生产计划状态
     public ProduceBatchStatus ProduceBatchStatus { get; set; }
     public DateTime FactoryGetTime { get; set; }
+    public DateTime CheckTime { get; set; }
 }

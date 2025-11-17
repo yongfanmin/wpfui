@@ -248,6 +248,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                 NeedLayoutCount = producePlanEntity.NeedLayoutCount,
                 ProduceBatchItemCount = producePlanEntity.ProduceBatchItemCount,
                 FactoryGetTime = producePlanEntity.FactoryGetTime,
+                CheckTime = producePlanEntity.CheckTime,
                 ProduceBatchStatus = producePlanEntity.ProduceBatchStatus,
             });
         }
@@ -271,6 +272,11 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             produceBatchVo.ProduceBatchItemCount = produceBatchItem.ProduceBatchNumberTotal;
             produceBatchVo.ProduceBatchStatus = ProduceStatusToStringConverter.Convert(produceBatchItem.Status);
             produceBatchVo.FactoryGetTime = DateTime.Now;
+            string format = "yyyy-MM-dd HH:mm:ss";
+            // 2. 使用 ParseExact 进行转换
+            //    CultureInfo.InvariantCulture 确保解析不受本地化设置的影响（例如小数点或日期分隔符）
+            DateTime result = DateTime.ParseExact(produceBatchItem.CheckTime, format, CultureInfo.InvariantCulture);
+            produceBatchVo.CheckTime = result;
             produceBatchList.Add(produceBatchVo);
         }
 
@@ -358,6 +364,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
             // 获取并锁定批次
             FactoryApiResponse<List<ProduceBatchInfo>> produceBatchListResponse =
                 await _produceBatchApi.getProduceBatchList(produceBatchRequest, token);
+            
             if (produceBatchListResponse.IsSuccess)
             {
                 Console.WriteLine("批次信息抓取成功");
@@ -501,6 +508,17 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                     }
 
                     await Task.WhenAll(downloadTasks);
+                    
+
+                    string fileName = Path.GetFileName(produceItemEntity.ProduceImgName);
+                    string productImgUrl = uniqueBatchItem.ProductImageUrl;
+                    // TODO 临时写法 只获取低质量印花图 用于跟踪条预览
+                    productImgUrl = productImgUrl.Replace("w_600,", "w_300,").Replace("quality,q_80", "quality,q_50");
+                    uniqueBatchItem.ProductImageLocalImg = await _imageDownloader.DownloadImageAsync(
+                        productImgUrl,
+                        FileName.getProductShowImgPath(produceItemEntity.FactoryId,
+                            uniqueBatchItem.ProductId),fileName);
+                    
                     updateProduceBatchItemDetail(
                         uniqueBatchItem,
                         ProduceBatchItemProcess.图片已加载
@@ -607,6 +625,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                                     ColorId = produceBatchItemDetail.Attributes.ColorId,
                                     Color = produceBatchItemDetail.Attributes.ColorAlias,
                                     ProductName = produceBatchItemDetail.DesignName,
+                                    ProductImageUrl = produceBatchItemDetail.ProductImageUrl,
                                     OrderNo = produceBatchItemDetail.OrderNo,
                                     OrderCode = produceBatchItemDetail.OrderCode,
                                     ItemId = produceBatchItemDetail.ItemId,
@@ -898,6 +917,26 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         window.DataContext = viewModel;
         window.Show();
     }
+    
+    [RelayCommand]
+    private void GoToPrint(object? parameter)
+    {
+        if (parameter is not ProduceBatchVo batchVo)
+        {
+            return;
+        }
+        var viewModel =
+            new CreatePrintTaskViewModel(new List<string>()
+                {
+                    batchVo.ProduceBatchNum
+                }, _databaseService,
+                _contentDialogService);
+        var window = _windowsProviderService.GetWindow<CreatePrintTaskWindow>();
+        window.DataContext = viewModel;
+        window.Show();
+    }
+    
+    
 }
 
 public partial class DateFilterButton : ObservableObject

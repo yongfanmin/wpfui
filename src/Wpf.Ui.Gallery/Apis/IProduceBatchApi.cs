@@ -68,6 +68,13 @@ public interface IProduceBatchApi
         [Header("Token")] string token
         );
     
+    [Post("/api/v2/factoryInterface/getProduceList")]
+    Task<object> getProduceBatchListObj(
+        [Body] ProduceBatchRequest request,
+        // TODO 接口端使用非标准鉴权方式
+        [Header("Token")] string token
+    );
+    
     // 后端接口出现歧义 实际是对 item_id 设置成已生产 而不是batch_no
     [Post("/api/v2/factoryInterface/setOrderProduceBatchNoCreating")]
     Task<FactoryApiResponse<Object>> setBatchNo2Produce(

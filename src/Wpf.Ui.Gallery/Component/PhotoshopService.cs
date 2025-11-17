@@ -63,6 +63,7 @@ public class PhotoshopService
             // 3. 设置为静默运行
             // 注意：在后期绑定中，我们直接调用方法，如果方法或属性不存在，会在运行时抛出异常。
             // 这段JS代码是与版本无关的，非常安全。
+            // TODO System.Runtime.InteropServices.COMException (0x8001010A): 消息筛选器显示应用程序正在使用中。 (0x8001010A (RPC_E_SERVERCALL_RETRYLATER))
             app.DoJavaScript("app.displayDialogs = DialogModes.NO;");
 
             List<string> errorList = new List<string>();

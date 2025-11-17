@@ -35,6 +35,9 @@ public class UniqueBatchItem
     
     public int ColorId { get; set; }
     public string ProductName { get; set; }
+    
+    public string ProductImageUrl { get; set; }
+    public LocalImgInfo ProductImageLocalImg { get; set; }
     public string OrderNo { get; set; }
     public string OrderCode { get; set; }
     public int OrderDetailId { get; set; }

@@ -17,6 +17,16 @@ public class FileName
                Path.DirectorySeparatorChar + "Paper-pattern-" + designProductId +
                Path.DirectorySeparatorChar;
     }
+    
+    public static string getProductShowImgPath(int factoryId, long productId)
+    {
+        // Cache/[工厂]/Product-show/ProductShow-成品id/ [成品图]
+        return AppContext.BaseDirectory + "Cache" +
+               Path.DirectorySeparatorChar + "Factory-" + factoryId +
+               Path.DirectorySeparatorChar + "Product-show" +
+               Path.DirectorySeparatorChar + "ProductShow-" + productId +
+               Path.DirectorySeparatorChar;
+    }
 
     // 公版裁片图对应的印花图 本地保存的路径
     public static string getPatternPrintImgPath(int factoryId, long galleryId)

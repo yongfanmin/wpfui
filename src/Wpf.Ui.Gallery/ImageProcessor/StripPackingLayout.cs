@@ -8,6 +8,7 @@ using RectpackSharp;
 using Wpf.Ui.Gallery.Dto.PrintTask;
 using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Utils;
+using Wpf.Ui.Gallery.ViewModels.Windows;
 
 namespace Wpf.Ui.Gallery.ImageProcessor;
 
@@ -67,18 +68,32 @@ public class StripPackingLayout
         return polygon;
     }*/
 
-    // 使用skyline算法进行矩形图片排版 支持旋转正负90度排版  自动排版
+    // 使用skyline算法进行矩形图片排版 支持旋转正负90度排版  自动排版; 可以分组预打包 将同一件衣服不同部位印花预打包在一起
     public static LayoutResult SkylineLayout(List<LayoutImg> printImgList, uint machinePrintWidthPx )
     {
-        
-        
-        
+
 
         var rectanglesToPack = new PackingRectangle[printImgList.Count];
         for (int i = 0; i < rectanglesToPack.Length; i++)
         {
-            rectanglesToPack[i] = new PackingRectangle(0, 0, printImgList[i].WidthPx, printImgList[i].HeightPx,
-                printImgList[i].Id);
+            if (Math.Min(printImgList[i].WidthPx, printImgList[i].HeightPx) > machinePrintWidthPx)
+            {
+                // 最短边 大于机器印刷宽度 无法打印 直接报错
+                throw new Exception($"图片宽高超出机器可印刷的宽度,请检查印花图尺寸");
+            }
+
+            // 默认算法不支持旋转排版 ， 手动支持印花图可旋转的排版
+            if (printImgList[i].WidthPx > machinePrintWidthPx && printImgList[i].HeightPx <= machinePrintWidthPx)
+            {
+                // 如果宽度大于机器的印刷宽度 但是高度小于机器宽度, 则印花放平还可以进行打印 则方平印花图
+                rectanglesToPack[i] = new PackingRectangle(0, 0, printImgList[i].HeightPx, printImgList[i].WidthPx,
+                    printImgList[i].Id);
+            }
+            else
+            {
+                rectanglesToPack[i] = new PackingRectangle(0, 0, printImgList[i].WidthPx, printImgList[i].HeightPx,
+                    printImgList[i].Id);
+            }
         }
 
         // Store original dimensions
@@ -93,8 +108,10 @@ public class StripPackingLayout
         TryByHeight	按高度尝试	将所有矩形从大到小按高度排序后，再进行打包。	条带打包的“黄金策略”。 在固定宽度、追求最短长度（高度）的场景下，先放入最高的矩形通常能得到最优或次优解。
         TryByPathologicalMultiplier	按病态乘数尝试	这是一个更高级的启发式规则，排序依据是 max(w,h) / min(w,h) * w * h。	专门用于优化那些宽高比差异极大的矩形（例如 10x800 和 800x10）。它会优先处理那些最“极端”的形状。*/
         // 设置打包提示，启用旋转
-        var packingHint = PackingHints.TryByHeight | PackingHints.TryByWidth | PackingHints.TryByBiggerSide |
+        var packingHint = PackingHints.TryByWidth | PackingHints.TryByHeight | PackingHints.TryByBiggerSide |
                           PackingHints.TryByArea;
+        
+        // 执行自动打包
         RectanglePacker.Pack(
             rectanglesToPack,
             out var bounds,
@@ -113,8 +130,8 @@ public class StripPackingLayout
         {
             var packed = rectanglesToPack[i];
             var original = originalRectangles[i];
-            var isRotated = packed.Width != original.Width;
             LayoutImg layoutImg = printImgList.Where(item => item.Id == packed.Id).FirstOrDefault();
+            bool rot90 = (packed.Width != layoutImg.WidthPx) && (packed.Height != layoutImg.HeightPx);
             layoutImgList.Add(new LayoutImg()
             {
                 WidthPx = packed.Width,
@@ -123,7 +140,8 @@ public class StripPackingLayout
                 PositionX = packed.X,
                 PositionY = packed.Y,
                 ImgPath = layoutImg.ImgPath,
-                LayoutCropImg = layoutImg.LayoutCropImg
+                LayoutCropImg = rot90 ? layoutImg.LayoutCropImg.Rot90() : layoutImg.LayoutCropImg,
+                Rot90 = rot90,
             });
             /*Console.WriteLine(
                 $"矩形: 原始尺寸({original.Width}x{original.Height}), " +
@@ -132,7 +150,7 @@ public class StripPackingLayout
                 $"{(isRotated ? "(已旋转)" : "")}"
             );*/
         }
-
+        
         return new LayoutResult()
         {
             LayoutWidthPx = bounds.Width, LayoutHeightPx = bounds.Height, LayoutImgList = layoutImgList,
@@ -141,9 +159,125 @@ public class StripPackingLayout
 
     // 一件多印花图 必须相邻排版
     // 1.计算出单件衣服内 面积最大的印花图 的 短边 能被打印机出料宽度整除几次(n次), 然后循环排版n件到1件 ,算出 1->n 和 2n 每种排版方式 单件衣服占用面积|长度最小的情况, 再算出 1->和2n 能否被m件衣服整除, 能整除 则按照平均单件占用面积最小执行重复排版, 如果不整除 则再算出取余部分占用空间平摊到单件面积占用
-    /*public static LayoutResult SkylineLayoutByOneProduct(List<string> printImgPathList, uint machinePrintWidthPx,
-        int printImgPaddingPx)
+    /*public static LayoutResult SkylineLayoutByNearProduct(Dictionary<long, Dictionary<long, List<CopyFile>>> product2buyIndex2imgMap, uint machinePrintWidthPx)
     {
-        
+        foreach (Dictionary<long, List<CopyFile>> dictionary in product2buyIndex2imgMap.Values)
+        {
+            // 一件产品下了多少件 (超过一定件数 则使用单排排版 只排版一排 然后重复印刷这一排即可)
+            int productListCount = dictionary.Count;
+            // [TODO 存在逻辑bug 应该是 一件衣服上 所有印花图都一样 才进行单排重复印刷]一款产品打印超过 10 件 则单独打一版
+            if (productListCount > 10000000)
+            {
+                
+            }
+            else
+            {
+                
+            }
+        }
+
+        return null;
     }*/
+
+    public class LayoutPrintImg
+    {
+        public Image Img { get; set; }
+        public double Area { get; set; }
+        public double MinBorder { get; set; }
+    }
+
+    public class PrePrintCanvas
+    {
+        public bool Rot90 { get; set; } = false;
+        public uint WidthPx { get; set; }
+    }
+    
+    // 根据印花宽度 计算出预打包画布宽度  使用机器打印宽度 从机器可打印宽度 从划分10块 到划分1块 进行宽度容纳测试
+    public static PrePrintCanvas GetPrintWidthByImgWidthDivide(int printImgWidth, int printImgHeight, uint machinePrintWidthPx)
+    {
+        // 例如 印花宽度 小于 3等分宽度 则 印花都要弄宽度就是 3等分宽度
+        for (int divide = 10; divide > 0 ; divide--)
+        {
+            uint divideWidth = (uint)(machinePrintWidthPx / divide);
+            if (printImgWidth <= divideWidth)
+            {
+                return new PrePrintCanvas { WidthPx = divideWidth, };
+            }
+        }
+        // 打印机宽度不够打印印花图的宽度 则尝试放平 如果放平都打印不了 则报错
+        if (printImgHeight <= machinePrintWidthPx)
+        {
+            for (int divide = 10; divide > 0 ; divide--)
+            {
+                uint divideWidth = (uint)(machinePrintWidthPx / divide);
+                if (printImgHeight <= divideWidth)
+                {
+                    return new PrePrintCanvas
+                    {
+                        WidthPx = divideWidth,
+                        Rot90 = true,
+                    };
+                }
+            }
+        }
+        throw new Exception("预组合排版出错: 无法打印超过打印机印刷宽度的图片");
+    }
+    
+    public static LayoutResult SkylineLayoutByNearProduct(Dictionary<long, Dictionary<long, List<CopyFile>>> product2buyIndex2imgMap, uint machinePrintWidthPx)
+    {
+        // product -> bugIndex + printImg
+        foreach (Dictionary<long, List<CopyFile>> dictionary in product2buyIndex2imgMap.Values)
+        {
+            // buyIndex -> printImgList
+            foreach (List<CopyFile> productPrintImgList in dictionary.Values)
+            {
+                // printImgList
+                // 先计算出 面积最大印花图的短边与机器可印刷宽度的整除关系
+                List<LayoutPrintImg> productImgList = new List<LayoutPrintImg>();
+                var rectanglesToPack = new PackingRectangle[productPrintImgList.Count];
+                if (productPrintImgList.Count > 1)
+                {
+                    // 多印花面 同件衣服的不同印花先预打包成一个小排版
+                    for (int i = 0; i < productPrintImgList.Count; i++)
+                    {
+                        CopyFile copyFile = productPrintImgList[i];
+                        Image printImg = Image.NewFromFile(copyFile.SourceFile);
+                        productImgList.Add(new LayoutPrintImg()
+                        {
+                            Img = printImg,
+                            Area = printImg.Width * printImg.Height,
+                            MinBorder = Math.Min(printImg.Width , printImg.Height)
+                        });
+                        
+                        
+                        rectanglesToPack[i] = new PackingRectangle(0, 0, (uint)printImg.Width, (uint)printImg.Height, i);
+                    }
+                    // 预打包宽度
+                    int prePackWidthPx = 0;
+                    // 先算出面积最大的一个印花 以此印花为基准 ??? TODO 不确定合不合理 感觉使用长度最长的边来排序也很合理
+                    LayoutPrintImg? largestAreaImg = productImgList.MaxBy(p => p.Area);
+                    PrePrintCanvas prePrintCanvas = GetPrintWidthByImgWidthDivide(largestAreaImg.Img.Width,largestAreaImg.Img.Height,machinePrintWidthPx);
+
+                    var packingHint = PackingHints.TryByWidth | PackingHints.TryByHeight | PackingHints.TryByBiggerSide |
+                                      PackingHints.TryByArea;
+        
+                    // 执行自动打包
+                    RectanglePacker.Pack(
+                        rectanglesToPack,
+                        out var bounds,
+                        packingHint,
+                        maxBoundsWidth: machinePrintWidthPx // 固定宽度 但是长度不定
+                    );
+                }
+                else
+                {
+                    
+                }
+               
+                //Math.Floor(machinePrintWidthPx / largestAreaImg);
+            }
+        }
+
+        return null;
+    }
 }

@@ -23,6 +23,10 @@ public class ProductBatchItemInfo
     [JsonPropertyName("id")]
     [JsonConverter(typeof(StringOrNumberToLongConverter))]
     public long Id { get; set; }
+    
+    [JsonPropertyName("factory_id")]
+    [JsonConverter(typeof(StringOrNumberToIntConverter))]
+    public int FactoryId { get; set; }
 
     [JsonPropertyName("produce_batch_number")]
     public string ProduceBatchNumber { get; set; }

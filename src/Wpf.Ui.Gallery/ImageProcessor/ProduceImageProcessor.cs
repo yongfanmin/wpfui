@@ -1240,6 +1240,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
     public async static Task<bool> CreateLayoutTiffFromPxSize(
         LayoutResult layoutResult,
         string outputTiffPath,
+        int machinePrintWidthMm,
         int safeEdgeWithoutPaddingMm,
         int dpi,
         PrintTaskConfig printTaskConfig,
@@ -1257,7 +1258,15 @@ public class ProduceImageProcessor : IProduceImageProcessor
         // --- 2. 将图片根据X,Y的坐标信息排版在画布上 ---
         foreach (var imgInfo in layoutResult.LayoutImgList)
         {
-            Image piece = imgInfo.LayoutCropImg is not null ? imgInfo.LayoutCropImg : Image.NewFromFile(imgInfo.ImgPath);
+            Image piece;
+            if (imgInfo.LayoutCropImg is not null)
+            {
+                piece = imgInfo.LayoutCropImg;
+            }
+            else
+            {
+                piece = imgInfo.Rot90 ? Image.NewFromFile(imgInfo.ImgPath).Rot90() : Image.NewFromFile(imgInfo.ImgPath);
+            }
             if (piece.Bands == currentResult.Bands)
             {
                 Image newResult = currentResult.Composite(piece, Enums.BlendMode.Over, x: (int)imgInfo.PositionX, y: (int)imgInfo.PositionY);
@@ -1274,14 +1283,27 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 Console.WriteLine($"图像通道不符(不是CMYK+专色通道):{imgInfo.ImgPath}");
             }
         }
+
+        int machinePrintWidthPx = ImageHelper.ConvertMmToPixels(machinePrintWidthMm, dpi);
+        if (Math.Max(currentResult.Width, currentResult.Height) < machinePrintWidthPx && currentResult.Height > currentResult.Width)
+        {
+            // 排版算法是求面积最小 如果变成竖排 需要旋转成横排
+            currentResult = currentResult.Rot90();
+            currentResult = ImageHelper.AddTransparentPadding(currentResult.Copy(interpretation: Enums.Interpretation.Srgb), -1 * ImageHelper.ConvertMmToPixels(safeEdgeWithoutPaddingMm, dpi));
+        }
+        
         if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Jpg)
         {
-            currentResult.Jpegsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Jpeg)));
+            double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
+            var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
+            finalImage.Jpegsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Jpeg)));
             return true;
         }
         else if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Png)
         {
-            currentResult.Pngsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)));
+            double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
+            var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
+            finalImage.Pngsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)));
             return true;
         }
         else if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifCymk || LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifWithSpotColor )

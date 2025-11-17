@@ -73,7 +73,8 @@ public class ProduceBatchItemDetail
 
     // 设计器配置，Key是ViewId (string)
     [JsonPropertyName("product_config")] public Dictionary<string, List<ProductConfigItem>> ProductConfig { get; set; }
-
+    
+    [JsonPropertyName("image")] public string ProductImageUrl { get; set; }
     // 文字转印花图列表
     [JsonPropertyName("logo_image_list")] public Dictionary<string, string> WordImgMap { get; set; }
     // SVG兼容性不太好 没有合适的库实现 有点问题 先不用 (扭曲旋转的文字无法渲染)

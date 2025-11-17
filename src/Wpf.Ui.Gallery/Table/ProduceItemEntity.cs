@@ -11,7 +11,8 @@ namespace Wpf.Ui.Gallery.Table;
 public class ProduceItemEntity
 {
     [PrimaryKey, AutoIncrement] public int Id { get; set; }
-
+    
+    public int FactoryId { get; set; }
     /// <summary>
     ///  生产计划编号
     /// </summary>
@@ -26,6 +27,8 @@ public class ProduceItemEntity
     [Unique] public string ItemId { get; set; }
 
     public string OrderNo { get; set; }
+    
+    public string OrderCode { get; set; }
 
     public int OrderDetailId { get; set; }
 

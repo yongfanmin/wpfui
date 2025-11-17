@@ -3,6 +3,8 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using Wpf.Ui.Gallery.Converters;
+
 namespace Wpf.Ui.Gallery.Dto;
 
 using System.Text.Json.Serialization;
@@ -21,4 +23,9 @@ public class ProduceBatchInfo
 
     [JsonPropertyName("produce_batch_number_total")]
     public int ProduceBatchNumberTotal { get; set; }
+    
+    // 审核时间
+    [JsonPropertyName("checktime")]
+    // [JsonConverter(typeof(StringToDateTimeConverter))]
+    public string CheckTime { get; set; }
 }

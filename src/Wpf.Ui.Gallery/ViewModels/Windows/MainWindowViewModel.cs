@@ -9,6 +9,7 @@ using Microsoft.Extensions.Localization;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Extensions;
 using Wpf.Ui.Gallery.Dto.Machine;
+using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Resources;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Utils;
@@ -33,6 +34,15 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows;
 
 public partial class MainWindowViewModel : ViewModel
 {
+    [ObservableProperty]
+    private bool _isPaneOpen = LocalAppConfig.AppSetting.IsPaneOpen;
+
+    partial void OnIsPaneOpenChanged(bool value)
+    {
+        LocalAppConfig.AppSetting.IsPaneOpen = value;
+        LocalAppConfig.Save(LocalAppConfig.AppSetting);
+    }
+    
     private readonly IServiceProvider _serviceProvider;
     private readonly LoginInfoService _loginInfoService;
     //[ObservableProperty]

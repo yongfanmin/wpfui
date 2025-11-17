@@ -9,7 +9,7 @@ public class OrderTrackInfo
 {
     public string OrderNo { get; set; }
         
-    public string ProductImg { get; set; }
+    public string ProductImgPath { get; set; }
         
     public string ProductName { get; set; }
     

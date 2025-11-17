@@ -14,6 +14,8 @@ using Wpf.Ui.Gallery.Dto.Picking;
 using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Models;
 using Wpf.Ui.Gallery.Services;
+using Wpf.Ui.Gallery.Services.Database;
+using Wpf.Ui.Gallery.Table;
 using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.Vo;
 using Wpf.Ui.Gallery.ViewModels.Windows;
@@ -31,7 +33,7 @@ public partial class PickingViewModel : ObservableObject
     private readonly ISnackbarService _snackbarService;
     private readonly WindowsProviderService _windowsProviderService;
     private readonly PrintDialogViewModel _printDialogViewModel;
-
+    private readonly IDatabaseService _databaseService;
     private readonly object _lockObject = new object();
 
     [ObservableProperty]
@@ -49,7 +51,8 @@ public partial class PickingViewModel : ObservableObject
         IOrderApi orderApi,
         LoginInfoService loginInfoService,
         WindowsProviderService windowsProviderService,
-        PrintDialogViewModel printDialogViewModel
+        PrintDialogViewModel printDialogViewModel,
+        IDatabaseService databaseService
     )
     {
         _contentDialogService = contentDialogService;
@@ -58,7 +61,7 @@ public partial class PickingViewModel : ObservableObject
         _loginInfoService = loginInfoService;
         _windowsProviderService = windowsProviderService;
         _printDialogViewModel = printDialogViewModel;
-
+        _databaseService = databaseService;
         LoadBasketSortHistory();
         UpdateBasketList();
     }
@@ -158,6 +161,11 @@ public partial class PickingViewModel : ObservableObject
                 OrderReturnDetail orderReturnDetail =
                     JsonSerializer.Deserialize<OrderReturnDetail>(orderDetailReturn.Data.ToString());
                 orderPick.OrderCode = orderReturnDetail.OrderCode;
+            }
+            else if (StringUtil.IsOrderNo(orderPick.OrderCode))
+            {
+                ProduceItemEntity produceItemEntity = _databaseService.GetProduceItemByOrderNo(orderPick.OrderCode);
+                orderPick.OrderCode = produceItemEntity.OrderCode;
             }
             if (OrderPickBasketList.Any(item => orderPick.OrderCode.Equals(item.OrderCode)))
             {

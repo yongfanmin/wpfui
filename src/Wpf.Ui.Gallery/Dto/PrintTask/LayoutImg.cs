@@ -24,4 +24,6 @@ public class LayoutImg
     
     public OrderTrackInfo OrderTrackInfo { get; set; }
     
+    // 目前只支持90度
+    public bool Rot90 { get; set; }
 }
