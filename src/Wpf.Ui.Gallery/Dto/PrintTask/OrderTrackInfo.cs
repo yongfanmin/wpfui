@@ -22,4 +22,6 @@ public class OrderTrackInfo
     public string? SkuAlias { get; set; }
     
     public string? SkuInfo { get; set; }
+    
+    public string? ViewName { get; set; }
 }

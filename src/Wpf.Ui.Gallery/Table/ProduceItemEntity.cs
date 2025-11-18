@@ -51,4 +51,6 @@ public class ProduceItemEntity
     public string ProduceImgName { get; set; }
     
     public int ViewId { get; set; }
+    
+    public string ViewName { get; set; }
 }

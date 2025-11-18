@@ -87,6 +87,18 @@
             </ListView.ItemContainerStyle>
             <ListView.View>
                 <GridView>
+                    <GridViewColumn>
+                        <GridViewColumn.Header>
+                            <CheckBox
+                                Command="{Binding DataContext.ViewModel.ToggleSelectAllCommand, RelativeSource={RelativeSource AncestorType=local:PickingPage}}"
+                                CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}" />
+                        </GridViewColumn.Header>
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                     <GridViewColumn Header="分拣篮编号" Width="120">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>

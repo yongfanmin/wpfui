@@ -517,6 +517,7 @@ public class DatabaseService : IDatabaseService
                     planToUpdate.OrderCode = uniqueBatchItem.OrderCode;
                     planToUpdate.OrderDetailId = uniqueBatchItem.OrderDetailId;
                     planToUpdate.ViewId = uniqueBatchItem.ViewId;
+                    planToUpdate.ViewName = uniqueBatchItem.ViewName;
                     planToUpdate.UpdateTime = DateTime.Now;
                     planToUpdate.ProduceBatchItemProcess = ProduceBatchItemProcess.数据已加载;
                     // 4. 调用 Update 方法将更改保存回数据库

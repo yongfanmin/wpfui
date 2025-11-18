@@ -71,8 +71,6 @@ public class StripPackingLayout
     // 使用skyline算法进行矩形图片排版 支持旋转正负90度排版  自动排版; 可以分组预打包 将同一件衣服不同部位印花预打包在一起
     public static LayoutResult SkylineLayout(List<LayoutImg> printImgList, uint machinePrintWidthPx )
     {
-
-
         var rectanglesToPack = new PackingRectangle[printImgList.Count];
         for (int i = 0; i < rectanglesToPack.Length; i++)
         {
@@ -181,9 +179,11 @@ public class StripPackingLayout
 
     public class LayoutPrintImg
     {
+        public int Id { get; set; }
         public Image Img { get; set; }
         public double Area { get; set; }
         public double MinBorder { get; set; }
+        public bool Rot90 { get; set; } = false;
     }
 
     public class PrePrintCanvas
@@ -223,61 +223,126 @@ public class StripPackingLayout
         throw new Exception("预组合排版出错: 无法打印超过打印机印刷宽度的图片");
     }
     
-    public static LayoutResult SkylineLayoutByNearProduct(Dictionary<long, Dictionary<long, List<CopyFile>>> product2buyIndex2imgMap, uint machinePrintWidthPx)
+    public static LayoutResult SkylineLayoutByNearProduct(Dictionary<long, Dictionary<long, List<LayoutImg>>> product2buyIndex2imgMap, uint machinePrintWidthPx, int printerDpi)
     {
+        LayoutResult layoutResult = new LayoutResult()
+        {
+            LayoutImgList = new List<LayoutImg>()
+        };
+        List<Image> needLayoutImgList = new List<Image>();
         // product -> bugIndex + printImg
-        foreach (Dictionary<long, List<CopyFile>> dictionary in product2buyIndex2imgMap.Values)
+        foreach (Dictionary<long, List<LayoutImg>> dictionary in product2buyIndex2imgMap.Values)
         {
             // buyIndex -> printImgList
-            foreach (List<CopyFile> productPrintImgList in dictionary.Values)
+            foreach (var index in dictionary.Keys)
             {
+                List<LayoutImg> productPrintImgList = dictionary[index];
                 // printImgList
                 // 先计算出 面积最大印花图的短边与机器可印刷宽度的整除关系
                 List<LayoutPrintImg> productImgList = new List<LayoutPrintImg>();
-                var rectanglesToPack = new PackingRectangle[productPrintImgList.Count];
+                
                 if (productPrintImgList.Count > 1)
                 {
                     // 多印花面 同件衣服的不同印花先预打包成一个小排版
                     for (int i = 0; i < productPrintImgList.Count; i++)
                     {
-                        CopyFile copyFile = productPrintImgList[i];
-                        Image printImg = Image.NewFromFile(copyFile.SourceFile);
+                        LayoutImg layoutImg = productPrintImgList[i];
+                        Image printImg = layoutImg.LayoutCropImg;
                         productImgList.Add(new LayoutPrintImg()
                         {
+                            Id = i,
                             Img = printImg,
                             Area = printImg.Width * printImg.Height,
                             MinBorder = Math.Min(printImg.Width , printImg.Height)
                         });
-                        
-                        
-                        rectanglesToPack[i] = new PackingRectangle(0, 0, (uint)printImg.Width, (uint)printImg.Height, i);
                     }
-                    // 预打包宽度
-                    int prePackWidthPx = 0;
                     // 先算出面积最大的一个印花 以此印花为基准 ??? TODO 不确定合不合理 感觉使用长度最长的边来排序也很合理
                     LayoutPrintImg? largestAreaImg = productImgList.MaxBy(p => p.Area);
                     PrePrintCanvas prePrintCanvas = GetPrintWidthByImgWidthDivide(largestAreaImg.Img.Width,largestAreaImg.Img.Height,machinePrintWidthPx);
-
+                    if (prePrintCanvas.Rot90)
+                    {
+                        int indexToReplace = productImgList.FindIndex(p => p.Id == largestAreaImg.Id);
+                        productImgList[indexToReplace] = new LayoutPrintImg()
+                        {
+                            Id = largestAreaImg.Id,
+                            Img = largestAreaImg.Img.Rot90(),
+                            Area = largestAreaImg.Area,
+                            MinBorder = largestAreaImg.MinBorder
+                        };
+                    }
+                    var rectanglesToPack = new PackingRectangle[productPrintImgList.Count];
+                    for (int i = 0; i < productImgList.Count; i++)
+                    {
+                        Image printImg = productImgList[i].Img;
+                        rectanglesToPack[i] = new PackingRectangle(0, 0, (uint)printImg.Width, (uint)printImg.Height, i);
+                    }
+                    
                     var packingHint = PackingHints.TryByWidth | PackingHints.TryByHeight | PackingHints.TryByBiggerSide |
                                       PackingHints.TryByArea;
         
-                    // 执行自动打包
+                    // 执行自动打包 预排版
                     RectanglePacker.Pack(
                         rectanglesToPack,
                         out var bounds,
                         packingHint,
-                        maxBoundsWidth: machinePrintWidthPx // 固定宽度 但是长度不定
+                        maxBoundsWidth: prePrintCanvas.WidthPx // 固定宽度 但是长度不定
                     );
+                    int printImgPaddingMm = LocalAppConfig.AppSetting.PrintTaskConfig.PrintImgPaddingMm;
+                    using Image image = Image.Black((int)bounds.Width, (int)bounds.Height, bands: 4);
+                    using Image layoutCanvas = ImageHelper.AddTransparentPadding(image.Copy(interpretation: Enums.Interpretation.Srgb), ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
+                    Image currentResult = layoutCanvas;
+                    foreach (PackingRectangle packingRectangle in rectanglesToPack)
+                    {
+                        Image printImg = productImgList.First(item => item.Id == packingRectangle.Id).Img;
+                        Image newResult = currentResult.Composite(printImg, Enums.BlendMode.Over, x: (int)packingRectangle.X, y: (int)packingRectangle.Y);
+
+                        if (currentResult != layoutCanvas)
+                        {
+                            currentResult.Dispose();
+                        }
+                        currentResult = newResult;
+                    }
+                    needLayoutImgList.Add(currentResult);
                 }
                 else
                 {
+                    LayoutImg layoutImg = productPrintImgList[0];
+                    Image printImg = layoutImg.LayoutCropImg;
+                    // 不需要预打包
+                    needLayoutImgList.Add(printImg);
                     
+                    /*layoutResult.LayoutImgList.Add(new LayoutImg()
+                    {
+                        Id = productImgList[index].Id,
+                        WidthPx = printImg.Width,
+                        HeightPx = printImg.Height,
+                        PositionX = packed.X,
+                        PositionY = packed.Y,
+                        ImgPath = layoutImg.ImgPath,
+                        LayoutCropImg = rot90 ? layoutImg.LayoutCropImg.Rot90() : layoutImg.LayoutCropImg,
+                        Rot90 = rot90,
+                    });*/
                 }
                
                 //Math.Floor(machinePrintWidthPx / largestAreaImg);
             }
         }
 
-        return null;
+        List<LayoutImg> printImgList = new List<LayoutImg>();
+        int id = 0;
+        foreach (Image image in needLayoutImgList)
+        {
+            printImgList.Add(new LayoutImg()
+            {
+                WidthPx = (uint)image.Width,
+                HeightPx = (uint)image.Height,
+                Id = id++,
+                ImgPath = "",
+                LayoutCropImg = image.Copy(),
+                // 订单跟踪条 先置空
+                OrderTrackInfo = new OrderTrackInfo()
+            });
+        }
+        return SkylineLayout(printImgList, machinePrintWidthPx);
     }
 }

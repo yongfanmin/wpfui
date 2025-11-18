@@ -515,6 +515,7 @@ public partial class PickingViewModel : ObservableObject
                         var failResult = await messageBox.ShowDialogAsync();
                         if (failResult == Wpf.Ui.Controls.MessageBoxResult.Primary)
                         {
+                            await Task.Yield();
                             FactoryApiResponse<Object> responseAgain = await _orderApi.setOrderCompleteByOrderCodeForce(
                                 new OrderCodeRequest() { OrderCode = orderSelect.OrderCode, Force = true },
                                 token
@@ -531,7 +532,7 @@ public partial class PickingViewModel : ObservableObject
                                 var messageBoxAgain = new Wpf.Ui.Controls.MessageBox
                                 {
                                     Title = "错误",
-                                    Content = $"强制发货失败 [{response.Msg}]，单号{orderSelect.OrderNo}",
+                                    Content = $"强制发货失败 [{responseAgain.Msg}]，单号{orderSelect.OrderNo}",
                                     CloseButtonText = "好的 (Esc)"
                                 };
                                 await messageBoxAgain.ShowDialogAsync();

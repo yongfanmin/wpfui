@@ -174,7 +174,8 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                         BuyNumber = uniqueBatchItem.BuyNumber,
                                         ProductName = uniqueBatchItem.ProductName,
                                         SkuAlias = produceItemEntity.SkuAlias,
-                                        SkuInfo = $"{produceItemEntity.Size} - {produceItemEntity.Color}"
+                                        SkuInfo = $"{produceItemEntity.Size} - {produceItemEntity.Color}",
+                                        ViewName = produceItemEntity.ViewName
                                     },
                                     SourceFile =
                                         produceItemEntity.ProduceImgLocalPath +
@@ -185,6 +186,11 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             }
                         }
                     }
+                }
+
+                if (allFilesToCopy.Count <= 0)
+                {
+                    Console.WriteLine("不存在生产数据,请重置生产");
                 }
 
                 // 使用 GroupBy 和 ToDictionary 进行分组  按照ProductId(成品id进行分组)
@@ -336,7 +342,12 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             // 扣除固定商品图 与 二维码 与箭头宽度 剩余宽度
                             int arrowWithPx = 200;
                             int leftWidthPx = orderTrackBanner.Width - qrCode.Width - productShowImg.Width - arrowWithPx;
-
+                            if (leftWidthPx < 0)
+                            {
+                                leftWidthPx = 0;
+                                // TODO 只写 单号 / 码数-颜色 / 印花位置名称 [正面 左肩 后背 左胸]
+                                Console.WriteLine("跟踪条太小, 容纳不下所有内容");
+                            }
                             
                             // 创建左边块 (商品名称 大写)
                             using (Image productNameImg = ImageHelper.CreateTextImage(
@@ -476,7 +487,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                     {
                         
                         // 先按照成品id分类 再按照 单件分类(同件印花图归类)
-                        /*Dictionary<long, Dictionary<long, List<CopyFile>>> groupByProductIdAndBuyIndex = allFilesToCopy
+                        Dictionary<long, Dictionary<long, List<LayoutImg>>> groupByProductIdAndBuyIndex = printImgList
                             .GroupBy(file => file.OrderTrackInfo.ProductId) // 第一级分组：按照 ProductId
                             .ToDictionary(
                                 outerGroup => outerGroup.Key, // 外层字典的键：ProductId
@@ -487,16 +498,19 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                         innerGroup => innerGroup.ToList() // 内层字典的值：该 BuyIndex 下的 CopyFile 列表
                                     )
                             );
-                        LayoutResult layoutResultNearProduct = StripPackingLayout.SkylineLayoutByNearProduct(
-                            groupByProductIdAndBuyIndex,
-                            (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi));*/
                         try
                         {
-                            LayoutResult layoutResult = StripPackingLayout.SkylineLayout(
+                            // 同件多印花临近排版
+                            LayoutResult layoutResultNearProduct = StripPackingLayout.SkylineLayoutByNearProduct(
+                            groupByProductIdAndBuyIndex,
+                            (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi),printerDpi);
+                        
+                            // 矩形节约面料排版
+                            /*LayoutResult layoutResult = StripPackingLayout.SkylineLayout(
                                 printImgList,
-                                (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi));
+                                (uint)ImageHelper.ConvertMmToPixels(machineLayoutSafeWidthMm, printerDpi));*/
                             // 创建排版画布 将排版数据换成印花图排版到 画布上
-                            await ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResult,
+                            await ProduceImageProcessor.CreateLayoutTiffFromPxSize(layoutResultNearProduct,
                                 Path.Combine(targetPath,
                                     Path.GetFileName(FileName.getLayoutTargetName(ProduceBatchNumbers))),
                                 machinePrintWidthMm,

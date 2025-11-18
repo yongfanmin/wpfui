@@ -617,6 +617,9 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                                     BuyIndex = produceBatchItemDetail.BuyIndex,
                                     BuyNumber = produceBatchItemDetail.BuyNumber,
                                     ViewId = produceBatchItemDetail.ViewId,
+                                    ViewName = produceBatchItemDetail.ViewNameMap?.ContainsKey(Convert.ToString(produceBatchItemDetail.ViewId)) ?? false
+                                        ? produceBatchItemDetail.ViewNameMap[Convert.ToString(produceBatchItemDetail.ViewId)]
+                                        : string.Empty,
                                     DesignProductId = produceBatchItemDetail.DesignProductId,
                                     BatchNum = produceBatchItemDetail.BatchNum,
                                     ProduceBatchNum = produceBatchItemDetail.ProduceBatchNumber,

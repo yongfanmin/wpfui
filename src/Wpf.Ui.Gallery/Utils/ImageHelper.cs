@@ -902,6 +902,12 @@ public static class ImageHelper
             return null;
         }
 
+        if (0>maxWidthMm || 0>maxHeightMm)
+        {
+            // 没有空间 则创建一个像素的黑图返回 (免去返回null值复杂的判断)
+            return Image.Black(1, 1);
+        }
+        
         try
         {
             int paddingInPixels = paddingMm > 0 ? ConvertMmToPixels(paddingMm, dpi) : 0;
