@@ -14,6 +14,8 @@ public class OrderCodeRequest
     //[JsonPropertyName("batch_no")]
     [JsonPropertyName("orderCode")]
     public string OrderCode { get; set; }
+
+    [JsonPropertyName("force")] public bool Force { get; set; } = false;
 }
 
 public class BatchNoRequest
@@ -64,6 +66,13 @@ public interface IOrderApi
     // 设置发货
     [Post("/api/factoryInterface/setOrderCompleteByOrderCode")]
     Task<FactoryApiResponse<Object>> setOrderCompleteByOrderCode(
+        [Body] OrderCodeRequest request,
+        [Header("Token")] string token
+    );
+    
+    // 强制设置发货
+    [Post("/api/factoryInterface/setOrderCompleteByOrderCode")]
+    Task<FactoryApiResponse<Object>> setOrderCompleteByOrderCodeForce(
         [Body] OrderCodeRequest request,
         [Header("Token")] string token
     );

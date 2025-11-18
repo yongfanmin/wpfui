@@ -499,16 +499,44 @@ public partial class PickingViewModel : ObservableObject
                     if (response.IsSuccess)
                     {
                         SetStartDeliveryStatus(orderSelect.OrderNo);
+                        _snackbarService.Show("发货成功", $"单号 {orderSelect.OrderNo} 发货成功",
+                            ControlAppearance.Success, new SymbolIcon(SymbolRegular.Check24),
+                            TimeSpan.FromSeconds(5));
                     }
                     else
                     {
                         var messageBox = new Wpf.Ui.Controls.MessageBox
                         {
                             Title = "警告",
-                            Content = $"发货失败[{response.Msg}]，单号{orderSelect.OrderNo}",
+                            Content = $"发货失败 [{response.Msg}]，单号{orderSelect.OrderNo}",
+                            PrimaryButtonText = "强制发货[忽略生产状态]",
                             CloseButtonText = "好的 (Esc)"
                         };
-                        _ = await messageBox.ShowDialogAsync();
+                        var failResult = await messageBox.ShowDialogAsync();
+                        if (failResult == Wpf.Ui.Controls.MessageBoxResult.Primary)
+                        {
+                            FactoryApiResponse<Object> responseAgain = await _orderApi.setOrderCompleteByOrderCodeForce(
+                                new OrderCodeRequest() { OrderCode = orderSelect.OrderCode, Force = true },
+                                token
+                            );
+                            if (responseAgain.IsSuccess)
+                            {
+                                SetStartDeliveryStatus(orderSelect.OrderNo);
+                                _snackbarService.Show("发货成功", $"单号 {orderSelect.OrderNo} 发货成功",
+                                    ControlAppearance.Success, new SymbolIcon(SymbolRegular.Check24),
+                                    TimeSpan.FromSeconds(5));
+                            }
+                            else
+                            {
+                                var messageBoxAgain = new Wpf.Ui.Controls.MessageBox
+                                {
+                                    Title = "错误",
+                                    Content = $"强制发货失败 [{response.Msg}]，单号{orderSelect.OrderNo}",
+                                    CloseButtonText = "好的 (Esc)"
+                                };
+                                await messageBoxAgain.ShowDialogAsync();
+                            }
+                        }
                     }
                 }
             }
