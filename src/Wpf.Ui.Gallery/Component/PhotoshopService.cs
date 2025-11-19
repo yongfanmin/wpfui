@@ -15,6 +15,56 @@ using System.Text.RegularExpressions;
 
 public class PhotoshopService
 {
+    private static dynamic _photoshopApp = null;
+    
+    /// <summary>
+    /// 连接到正在运行的 Photoshop 实例，如果未运行，则创建一个新的实例。
+    /// </summary>
+    private static void GetOrConnectToPhotoshop()
+    {
+        if (_photoshopApp != null)
+        {
+            try
+            {
+                string appName = _photoshopApp.Name;
+                return; 
+            }
+            catch (COMException)
+            {
+                Cleanup();
+            }
+        }
+
+        string progID = FindLatestPhotoshopProgID();
+        if (string.IsNullOrEmpty(progID))
+        {
+            throw new InvalidOperationException("未在系统中找到任何已安装的 Adobe Photoshop。");
+        }
+            
+        try
+        {
+            // 现在因为有了正确的 using 指令，这个方法可以被正确解析
+            _photoshopApp = Marshal.GetActiveObject(progID);
+        }
+        catch (COMException)
+        {
+            Type psType = Type.GetTypeFromProgID(progID);
+            if (psType == null)
+            {
+                throw new InvalidOperationException($"无法通过 ProgID '{progID}' 创建 Photoshop 实例。");
+            }
+            _photoshopApp = Activator.CreateInstance(psType);
+        }
+
+        if (_photoshopApp == null)
+        {
+            throw new InvalidOperationException("无法连接或创建 Photoshop 实例。");
+        }
+            
+        _photoshopApp.Visible = true;
+        _photoshopApp.DoJavaScript("app.displayDialogs = DialogModes.NO;");
+    }
+    
     /// <summary>
     /// 异步在后台使用 Photoshop JSX 脚本处理单个图片，自动检测已安装的 Photoshop 版本。
     /// </summary>
@@ -63,7 +113,11 @@ public class PhotoshopService
             // 3. 设置为静默运行
             // 注意：在后期绑定中，我们直接调用方法，如果方法或属性不存在，会在运行时抛出异常。
             // 这段JS代码是与版本无关的，非常安全。
-            // TODO System.Runtime.InteropServices.COMException (0x8001010A): 消息筛选器显示应用程序正在使用中。 (0x8001010A (RPC_E_SERVERCALL_RETRYLATER))
+            // TODO 应该是重复开关PS导致的错误
+            // System.Runtime.InteropServices.COMException (0x8001010A): 消息筛选器显示应用程序正在使用中。 (0x8001010A (RPC_E_SERVERCALL_RETRYLATER))
+            // System.Runtime.InteropServices.COMException (0x80010108): 被调用的对象已与其客户端断开连接。 (0x80010108 (RPC_E_DISCONNECTED))
+            // System.Runtime.InteropServices.COMException (0x80042260): 发生了常规 Photoshop 错误。该功能可能无法在这个版本的 Photoshop 中使用。
+            // Microsoft.CSharp.RuntimeBinder.RuntimeBinderException: 'System.__ComObject' does not contain a definition for 'DoJavaScript'
             app.DoJavaScript("app.displayDialogs = DialogModes.NO;");
 
             List<string> errorList = new List<string>();
@@ -118,6 +172,21 @@ public class PhotoshopService
             }
             return (true, "处理成功！");
         });
+    }
+    
+    /// <summary>
+    /// 释放对 Photoshop COM 对象的引用。
+    /// 应在您的应用程序关闭时调用此方法。
+    /// </summary>
+    public static void Cleanup()
+    {
+        if (_photoshopApp != null)
+        {
+            Marshal.ReleaseComObject(_photoshopApp);
+            _photoshopApp = null;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
     }
 
     /// <summary>
