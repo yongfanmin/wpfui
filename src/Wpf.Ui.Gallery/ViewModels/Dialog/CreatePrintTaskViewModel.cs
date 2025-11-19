@@ -11,6 +11,7 @@ using System.Text.Json;
 using CommunityToolkit.Mvvm.Messaging;
 using DataJuggler.RealESRGAN;
 using DataJuggler.RealESRGAN.Enumerations;
+using ImageMagick;
 using NetVips;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Config;
@@ -320,6 +321,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                         {
                             // 是空白区域的最左边坐标
                             int emptyPositionX = 0;
+                            var joinDirection = Enums.Direction.Vertical;
                             // 将二维码叠加在不透明的Banner上
                             // 计算x坐标以实现右对齐
                             int qrCodeX = orderTrackBanner.Width - qrCode.Width;
@@ -344,61 +346,80 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             int leftWidthPx = orderTrackBanner.Width - qrCode.Width - productShowImg.Width - arrowWithPx;
                             if (leftWidthPx < 0)
                             {
+                                joinDirection = Enums.Direction.Horizontal;
                                 leftWidthPx = 0;
-                                // TODO 只写 单号 / 码数-颜色 / 印花位置名称 [正面 左肩 后背 左胸]
                                 Console.WriteLine("跟踪条太小, 容纳不下所有内容");
-                            }
-                            
-                            // 创建左边块 (商品名称 大写)
-                            using (Image productNameImg = ImageHelper.CreateTextImage(
-                                       layoutImg.OrderTrackInfo.ProductName,
-                                       ImageHelper.ConvertPixelsToMm(
-                                           Convert.ToInt32(leftWidthPx * LocalAppConfig.AppSetting
-                                               .PrintTaskConfig.OrderTrackConfig.ProductNameInBannerWidthRatio),
-                                           printerDpi),
-                                       Convert.ToInt32(
-                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
-                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
-                                           2)))
-                            {
+                                // 只打印两行文字, 第一行打印订单号(orderNo) ； 第二行打印 面名称(viewName)
+                                Image textBanner;
+                                using (Image orderNoImg = ImageHelper.CreateTextImage(
+                                           StringUtil.LastNum4(layoutImg.OrderTrackInfo.OrderNo),
+                                           TextDirection.LeftToRight,
+                                           maxWidthMm: 20,
+                                           maxHeightMm: ImageHelper.ConvertPixelsToMm(orderTrackBanner.Height / 2, printerDpi)
+                                       ))
+                                {
+                                    using(Image viewNameImg = ImageHelper.CreateTextImage(
+                                              layoutImg.OrderTrackInfo.ViewName,
+                                              TextDirection.Undefined,
+                                              maxWidthMm: 20,
+                                              maxHeightMm: ImageHelper.ConvertPixelsToMm(orderTrackBanner.Height / 2, printerDpi)
+                                              ))
+                                    {
+                                        textBanner = orderNoImg.Join(viewNameImg, Enums.Direction.Vertical, align:Enums.Align.Centre, expand:true);
+                                    }
+                                }
+                                // 为纯文字的banner添加Alpha通道, 以便能和4通道的印花图合并
+                                var textBannerWithAlpha = textBanner.Bandjoin(255);
+                                textBanner.Dispose();
                                 
-                                orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(productNameImg,
-                                    Enums.BlendMode.Over,
-                                    x: 0,
-                                    y: 0
-                                );
-                                emptyPositionX += productNameImg.Width;
+                                // 释放旧的 banner, 替换为新的纯文字 banner
+                                orderTrackBannerWithInfo.Dispose();
+                                orderTrackBannerWithInfo = textBannerWithAlpha;
                             }
-                            
-                            // 创建印花位置指示箭头
-                            using (Image arrowImg = ImageHelper.ScaleImageToHeight(
-                                       Image.NewFromFile(FileName.getPrintImgTargetArrow()),
-                                       LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm + LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm * 2,
-                                       printerDpi))
+                            else
                             {
-                                orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(arrowImg,
-                                    Enums.BlendMode.Over,
-                                    x: emptyPositionX,
-                                    y: 0
-                                );
-                                emptyPositionX += arrowImg.Width;
-                            }
+                                // 创建左边块 (商品名称 大写)
+                                using (Image productNameImg = ImageHelper.CreateTextImage(
+                                           layoutImg.OrderTrackInfo.ProductName,
+                                           TextDirection.LeftToRight,
+                                           ImageHelper.ConvertPixelsToMm(
+                                               Convert.ToInt32(leftWidthPx * LocalAppConfig.AppSetting
+                                                   .PrintTaskConfig.OrderTrackConfig.ProductNameInBannerWidthRatio),
+                                               printerDpi),
+                                           Convert.ToInt32(
+                                               LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
+                                               LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
+                                               2)))
+                                {
 
-                            string orderNoShow = StringUtil.EasyWatchNo(layoutImg.OrderTrackInfo.OrderNo);
-                            // 创建 跟踪条 中间模块 (单号 + 仓位 + SKU + 此单总件数)
-                            using (Image orderNoImg = ImageHelper.CreateTextImage(
-                                       orderNoShow,
-                                       ImageHelper.ConvertPixelsToMm(
-                                           Convert.ToInt32(leftWidthPx * LocalAppConfig.AppSetting
-                                               .PrintTaskConfig.OrderTrackConfig.ProductInfoInBannerWidthRatio),
-                                           printerDpi),
-                                       Convert.ToInt32(
+                                    orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(productNameImg,
+                                        Enums.BlendMode.Over,
+                                        x: 0,
+                                        y: 0
+                                    );
+                                    emptyPositionX += productNameImg.Width;
+                                }
+
+                                // 创建印花位置指示箭头
+                                using (Image arrowImg = ImageHelper.ScaleImageToHeight(
+                                           Image.NewFromFile(FileName.getPrintImgTargetArrow()),
                                            LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
-                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
-                                           2)/3))
-                            {
-                                using (Image skuImg = ImageHelper.CreateTextImage(
-                                           layoutImg.OrderTrackInfo.SkuInfo,
+                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm * 2,
+                                           printerDpi))
+                                {
+                                    orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(arrowImg,
+                                        Enums.BlendMode.Over,
+                                        x: emptyPositionX,
+                                        y: 0
+                                    );
+                                    emptyPositionX += arrowImg.Width;
+                                }
+
+                                string orderNoShow = StringUtil.EasyWatchNo(layoutImg.OrderTrackInfo.OrderNo);
+                                // 创建 跟踪条 中间模块 (单号 + 仓位 + SKU + 此单总件数)
+                                using (Image orderNoImg = ImageHelper.CreateTextImage(
+                                           orderNoShow,
+                                           TextDirection.LeftToRight,
                                            ImageHelper.ConvertPixelsToMm(
                                                Convert.ToInt32(leftWidthPx * LocalAppConfig.AppSetting
                                                    .PrintTaskConfig.OrderTrackConfig.ProductInfoInBannerWidthRatio),
@@ -406,47 +427,67 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                                            Convert.ToInt32(
                                                LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
                                                LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.QrCodeBorderMm *
-                                               2)/3))
+                                               2) / 3))
                                 {
-                                    using (Image orderNoWithSku = orderNoImg.Join(
-                                               skuImg,
-                                               Enums.Direction.Vertical,
-                                               expand: true,
-                                               align: Enums.Align.Centre
-                                               // shim: ImageHelper.ConvertMmToPixels(2, printerDpi),
-                                               // background: new double[] { 255, 255, 255 }
-                                           ))
+                                    string skuView = $"{layoutImg.OrderTrackInfo.SkuInfo} {layoutImg.OrderTrackInfo.ViewName}";
+                                    using (Image skuImg = ImageHelper.CreateTextImage(
+                                               skuView,
+                                               TextDirection.LeftToRight,
+                                               ImageHelper.ConvertPixelsToMm(
+                                                   Convert.ToInt32(leftWidthPx * LocalAppConfig.AppSetting
+                                                       .PrintTaskConfig.OrderTrackConfig.ProductInfoInBannerWidthRatio),
+                                                   printerDpi),
+                                               Convert.ToInt32(
+                                                   LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
+                                                   LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig
+                                                       .QrCodeBorderMm *
+                                                   2) / 3))
                                     {
-                                        
-                                        using (Image buyCountImg = ImageHelper.CreateTextImage(
-                                                   $"本单共 {layoutImg.OrderTrackInfo.BuyNumber} 件",
-                                                   ImageHelper.ConvertPixelsToMm(
-                                                       Convert.ToInt32(leftWidthPx * LocalAppConfig.AppSetting
-                                                           .PrintTaskConfig.OrderTrackConfig.ProductInfoInBannerWidthRatio),
-                                                       printerDpi),
-                                                   Convert.ToInt32(
-                                                       LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.HeightMm +
-                                                       LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig
-                                                           .QrCodeBorderMm *
-                                                       2) / 3))
+                                        using (Image orderNoWithSku = orderNoImg.Join(
+                                                   skuImg,
+                                                   Enums.Direction.Vertical,
+                                                   expand: true,
+                                                   align: Enums.Align.Centre
+                                                   // shim: ImageHelper.ConvertMmToPixels(2, printerDpi),
+                                                   // background: new double[] { 255, 255, 255 }
+                                               ))
                                         {
-                                            using (Image orderNoWithSkuAndBuy = orderNoWithSku.Join(
-                                                       buyCountImg,
-                                                       Enums.Direction.Vertical,
-                                                       expand: true,
-                                                       align: Enums.Align.Centre
-                                                       // shim: ImageHelper.ConvertMmToPixels(2, printerDpi),
-                                                       // background: new double[] { 255, 255, 255 }
-                                                   ))
+
+                                            using (Image buyCountImg = ImageHelper.CreateTextImage(
+                                                       $"本单共 {layoutImg.OrderTrackInfo.BuyNumber} 件",
+                                                       TextDirection.LeftToRight,
+                                                       ImageHelper.ConvertPixelsToMm(
+                                                           Convert.ToInt32(leftWidthPx * LocalAppConfig.AppSetting
+                                                               .PrintTaskConfig.OrderTrackConfig
+                                                               .ProductInfoInBannerWidthRatio),
+                                                           printerDpi),
+                                                       Convert.ToInt32(
+                                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig
+                                                               .HeightMm +
+                                                           LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig
+                                                               .QrCodeBorderMm *
+                                                           2) / 3))
                                             {
-                                                orderTrackBannerWithInfo = orderTrackBannerWithInfo.Composite(orderNoWithSkuAndBuy,
-                                                    Enums.BlendMode.Over,
-                                                    x: emptyPositionX,
-                                                    y: 0
-                                                );
+                                                using (Image orderNoWithSkuAndBuy = orderNoWithSku.Join(
+                                                           buyCountImg,
+                                                           Enums.Direction.Vertical,
+                                                           expand: true,
+                                                           align: Enums.Align.Centre
+                                                           // shim: ImageHelper.ConvertMmToPixels(2, printerDpi),
+                                                           // background: new double[] { 255, 255, 255 }
+                                                       ))
+                                                {
+                                                    orderTrackBannerWithInfo =
+                                                        orderTrackBannerWithInfo.Composite(orderNoWithSkuAndBuy,
+                                                            Enums.BlendMode.Over,
+                                                            x: emptyPositionX,
+                                                            y: 0
+                                                        );
+                                                }
                                             }
+
+                                            emptyPositionX += orderNoWithSku.Width;
                                         }
-                                        emptyPositionX += orderNoWithSku.Width;
                                     }
                                 }
                             }
@@ -458,7 +499,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             // JOIN会让 alpha通道 发生一个叫 "通道预乘" 的优化, 导致这时把透明通道输出成png查看 会偏黑
                             layoutImg.LayoutCropImg = originalImg.Join(
                                 orderTrackBannerWithInfo,
-                                Enums.Direction.Vertical,
+                                joinDirection,
                                 expand: true,
                                 align: Enums.Align.Centre,
                                 shim: ImageHelper.ConvertMmToPixels(LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.PrintPaddingMm,printerDpi)

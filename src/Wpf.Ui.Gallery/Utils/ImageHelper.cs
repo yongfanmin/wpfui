@@ -7,6 +7,7 @@
 using NetVips;
 using System;
 using System.Globalization;
+using ImageMagick;
 using OpenCvSharp;
 using OpenCvSharp.XImgProc;
 using Wpf.Ui.Gallery.Constant;
@@ -890,6 +891,9 @@ public static class ImageHelper
      // 健壮性判断 不传字体 "Arial"字体也不存在. 会尽量找到一个字体进行打印 完全没字体才会报错 
        public static Image? CreateTextImage(
         string textToPrint,
+        // --- [新参数] ---
+        // 添加了排版方向参数，默认为水平
+        TextDirection? direction = TextDirection.LeftToRight,
         int? maxWidthMm = null,
         int? maxHeightMm = null,
         int heightMm = 20,
@@ -902,14 +906,25 @@ public static class ImageHelper
             return null;
         }
 
-        if (0>maxWidthMm || 0>maxHeightMm)
+        if (0 > maxWidthMm || 0 > maxHeightMm)
         {
-            // 没有空间 则创建一个像素的黑图返回 (免去返回null值复杂的判断)
             return Image.Black(1, 1);
         }
         
         try
         {
+            // --- [核心修改] ---
+            // 根据排版方向，预处理文本字符串。
+            // 对于垂直排版，我们在每个字符之间插入一个换行符。
+            string processedText = textToPrint;
+            if (direction != TextDirection.LeftToRight && textToPrint.Length > 1)
+            {
+                // "ABC" -> "A\nB\nC"
+                processedText = string.Join("\n", textToPrint.ToCharArray());
+            }
+            // --- [修改结束] ---
+
+
             int paddingInPixels = paddingMm > 0 ? ConvertMmToPixels(paddingMm, dpi) : 0;
             Image? textImage = null;
             int finalWidthInPixels = ConvertMmToPixels(maxWidthMm.Value, dpi);
@@ -920,8 +935,6 @@ public static class ImageHelper
             if (maxWidthMm.HasValue && maxWidthMm.Value > 0 && maxHeightMm.HasValue && maxHeightMm.Value > 0)
             {
                 // **【自适应字体和缩放逻辑】**
-               
-
                 if (textRenderMaxWidth <= 0 || textRenderMaxHeight <= 0) return null;
 
                 // 步骤A: 使用二分查找找到一个“接近最佳”的字体大小
@@ -931,19 +944,19 @@ public static class ImageHelper
                     int currentFontSize = minFontSize + (maxFontSize - minFontSize) / 2;
                     if (currentFontSize == 0) break;
 
-                    using (var tempMask = TryCreateTextMask(textToPrint, fontName, currentFontSize, textRenderMaxWidth, dpi))
+                    // 使用处理后的 processedText
+                    using (var tempMask = TryCreateTextMask(processedText, fontName, currentFontSize, textRenderMaxWidth, dpi))
                     {
                         if (tempMask == null) throw new Exception("系统中未找到任何可用的字体进行渲染。");
                         
-                        // 检查是否超出边界
                         if (tempMask.Width <= textRenderMaxWidth && tempMask.Height <= textRenderMaxHeight)
                         {
                             optimalFontSize = currentFontSize;
-                            minFontSize = currentFontSize + 1; // 尝试更大
+                            minFontSize = currentFontSize + 1;
                         }
                         else
                         {
-                            maxFontSize = currentFontSize - 1; // 太大了，尝试更小
+                            maxFontSize = currentFontSize - 1;
                         }
                     }
                 }
@@ -954,17 +967,16 @@ public static class ImageHelper
                     return null;
                 }
 
-                // 步骤B: 【修复关键】使用找到的最佳字体进行一次高质量渲染
-                using (var rawTextImage = CreateBlackOnWhiteTextImage(textToPrint, fontName, optimalFontSize, textRenderMaxWidth, dpi))
+                // 步骤B: 使用最佳字体进行高质量渲染 (使用处理后的 processedText)
+                using (var rawTextImage = CreateBlackOnWhiteTextImage(processedText, fontName, optimalFontSize, textRenderMaxWidth, dpi))
                 {
-                    if (rawTextImage == null) return null; // 字体渲染失败
+                    if (rawTextImage == null) return null;
                     
-                    // 步骤C: 计算精确的缩放比例以适应边界
+                    // 步骤C: 计算精确的缩放比例
                     double hScale = (double)textRenderMaxWidth / rawTextImage.Width;
                     double vScale = (double)textRenderMaxHeight / rawTextImage.Height;
-                    double scale = Math.Min(hScale, vScale); // 取较小的比例以确保等比缩放后能完全放入
+                    double scale = Math.Min(hScale, vScale);
 
-                    // 如果需要缩小，则执行Resize操作
                     if (scale < 1.0)
                     {
                         textImage = rawTextImage.Resize(scale, kernel: Enums.Kernel.Lanczos3);
@@ -975,7 +987,7 @@ public static class ImageHelper
                     }
                 }
 
-                // 步骤D: 将最终的文字图像居中放置在固定大小的画布上
+                // 步骤D: 将最终的文字图像居中放置
                 var whitePixel = new double[] { 255, 255, 255 };
                 int leftOffset = (finalWidthInPixels - textImage.Width) / 2;
                 int topOffset = (finalHeightInPixels - textImage.Height) / 2;
@@ -988,13 +1000,15 @@ public static class ImageHelper
             }
             else
             {
-                // **【固定高度逻辑】** (保持不变)
+                // **【固定高度逻辑】**
                 int textRenderHeight = ConvertMmToPixels(heightMm, dpi);
                 if (maxWidthMm.HasValue && maxWidthMm.Value > 0)
                 {
                     textRenderMaxWidth = ConvertMmToPixels(maxWidthMm.Value, dpi) - (2 * paddingInPixels);
                 }
-                textImage = CreateBlackOnWhiteTextImage(textToPrint, fontName, textRenderHeight, textRenderMaxWidth, dpi);
+                
+                // 使用处理后的 processedText
+                textImage = CreateBlackOnWhiteTextImage(processedText, fontName, textRenderHeight, textRenderMaxWidth, dpi);
                 
                 if (textImage == null) return null;
 
