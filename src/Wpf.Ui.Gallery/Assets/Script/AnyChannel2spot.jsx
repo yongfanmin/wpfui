@@ -58,11 +58,12 @@ function processImage(filePath, outputFolderPath, newFileName) {
 			doc.close(SaveOptions.DONOTSAVECHANGES);
 			
 			// (已移除成功提示的 alert)
-
+			return "Success";
 		} else {
 			// 如果文件不存在，就在 Adobe ExtendScript Toolkit 的控制台中显示错误
 			// 如果不是在调试环境中运行，这一步将不会有任何可见提示
 			$.writeln("错误：文件不存在于指定路径: " + filePath);
+			return "Error: File not found at path: " + filePath;
 		}
 
 	} catch (e) {
@@ -72,6 +73,7 @@ function processImage(filePath, outputFolderPath, newFileName) {
 		if (doc) {
 			doc.close(SaveOptions.DONOTSAVECHANGES);
 		}
+		return "Error: " + e.toString();
 	}
 }
 

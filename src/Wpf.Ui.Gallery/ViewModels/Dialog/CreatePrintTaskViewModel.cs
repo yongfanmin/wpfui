@@ -589,7 +589,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                         var copyFile = allFilesToCopy[i]; // Get corresponding file info for naming
 
                         var baseDestinationPath = Path.Combine(targetPath,
-                            FileName.getLayoutTargetName(ProduceBatchNumbers, copyFile.UniFileName,
+                            FileName.getPrintTaskFileName(copyFile.UniFileName,
                                 Path.GetFileName(layoutImg.ImgPath)));
                         await ConvertImageAsync(layoutImg.LayoutCropImg , baseDestinationPath, printTaskConfig);
                         CopyProgress = (double)(i + 1) / printImgList.Count * 100;
@@ -635,7 +635,14 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
 
                 if (printTaskConfig.IsCymk())
                 {
-                    await ProduceImageProcessor.PrintTaskImgProcess(layoutImg, finalPath, printTaskConfig);
+                    if (File.Exists(finalPath))
+                    {
+                        Console.WriteLine($"试图写入的文件已存在: {finalPath}");
+                    }
+                    else
+                    {
+                        await ProduceImageProcessor.PrintTaskImgProcess(layoutImg, finalPath, printTaskConfig);
+                    }
                 }
                 else if(printTaskConfig.OutputFormat == OutputFormat.Png)
                 {

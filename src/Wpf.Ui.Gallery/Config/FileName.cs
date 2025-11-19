@@ -99,6 +99,11 @@ public class FileName
     {
         return produceBatchNumberList.Count > 1 ? $"{uniFileName}_{sourceName}" : sourceName;
     }
+    
+    public static string getPrintTaskFileName(string uniFileName, string sourceName)
+    {
+        return $"{uniFileName}_{sourceName}";
+    }
 
 
     public static string getPrintImgTargetArrow()

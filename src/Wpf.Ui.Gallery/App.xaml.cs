@@ -255,6 +255,8 @@ public partial class App
     /// </summary>
     private void OnExit(object sender, ExitEventArgs e)
     {
+        // PS实例 内存回收
+        Component.PhotoshopService.Cleanup(true);
         _host.StopAsync().Wait();
 
         _host.Dispose();

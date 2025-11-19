@@ -16,6 +16,7 @@ using System.Text.RegularExpressions;
 public class PhotoshopService
 {
     private static dynamic _photoshopApp = null;
+    public static bool KeepAlive { get; set; } = false;
     
     /// <summary>
     /// 连接到正在运行的 Photoshop 实例，如果未运行，则创建一个新的实例。
@@ -31,7 +32,7 @@ public class PhotoshopService
             }
             catch (COMException)
             {
-                Cleanup();
+                Cleanup(true);
             }
         }
 
@@ -43,17 +44,24 @@ public class PhotoshopService
             
         try
         {
-            // 现在因为有了正确的 using 指令，这个方法可以被正确解析
-            _photoshopApp = Marshal.GetActiveObject(progID);
+            _photoshopApp = GetActiveObjectByProgID(progID);
         }
         catch (COMException)
         {
-            Type psType = Type.GetTypeFromProgID(progID);
-            if (psType == null)
+            try
             {
-                throw new InvalidOperationException($"无法通过 ProgID '{progID}' 创建 Photoshop 实例。");
+                Type psType = Type.GetTypeFromProgID(progID);
+                if (psType == null)
+                {
+                    throw new InvalidOperationException($"无法通过 ProgID '{progID}' 创建 Photoshop 实例。");
+                }
+                _photoshopApp = Activator.CreateInstance(psType);
             }
-            _photoshopApp = Activator.CreateInstance(psType);
+            catch (Exception)
+            {
+                Cleanup(true);
+                throw;
+            }
         }
 
         if (_photoshopApp == null)
@@ -62,6 +70,14 @@ public class PhotoshopService
         }
             
         _photoshopApp.Visible = true;
+        // 3. 设置为静默运行
+        // 注意：在后期绑定中，我们直接调用方法，如果方法或属性不存在，会在运行时抛出异常。
+        // 这段JS代码是与版本无关的，非常安全。
+        // TODO 应该是重复开关PS导致的错误
+        // System.Runtime.InteropServices.COMException (0x8001010A): 消息筛选器显示应用程序正在使用中。 (0x8001010A (RPC_E_SERVERCALL_RETRYLATER))
+        // System.Runtime.InteropServices.COMException (0x80010108): 被调用的对象已与其客户端断开连接。 (0x80010108 (RPC_E_DISCONNECTED))
+        // System.Runtime.InteropServices.COMException (0x80042260): 发生了常规 Photoshop 错误。该功能可能无法在这个版本的 Photoshop 中使用。
+        // Microsoft.CSharp.RuntimeBinder.RuntimeBinderException: 'System.__ComObject' does not contain a definition for 'DoJavaScript'
         _photoshopApp.DoJavaScript("app.displayDialogs = DialogModes.NO;");
     }
     
@@ -82,45 +98,17 @@ public class PhotoshopService
         }
         return await Task.Run(() =>
         {
-            // 使用 dynamic 关键字进行后期绑定
-            dynamic app = null;
-            string result = "未知错误。";
-            // 1. 自动查找已安装的最新版 Photoshop 的 ProgID
-            string progID = FindLatestPhotoshopProgID();
-            if (string.IsNullOrEmpty(progID))
+            try
             {
-                return (false, "未在系统中找到任何已安装的 Adobe Photoshop。");
+                GetOrConnectToPhotoshop();
             }
-
-            // 2. 通过 ProgID 动态创建 Photoshop 实例
-            Type psType = Type.GetTypeFromProgID(progID);
-            if (psType == null)
+            catch (Exception ex)
             {
-                return (false, $"无法通过 ProgID '{progID}' 创建 Photoshop 实例。");
+                return (false, $"连接或启动 Photoshop 失败: {ex.Message}");
             }
-            // TODO PS未响应报错 (一直重复开关PS  内存耗尽?)
-            /*System.Runtime.InteropServices.COMException (0x80080005): Retrieving the COM class factory for component with CLSID {DD6CF2ED-4840-40A1-A393-B1F74F54D59A} failed due to the following error: 80080005 服务器运行失败 (0x80080005 (CO_E_SERVER_EXEC_FAILURE)).
-                at System.RuntimeTypeHandle.AllocateComObject(Void* pClassFactory)
-            at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
-            at Wpf.Ui.Gallery.Component.PhotoshopService.<>c__DisplayClass0_0.<ProcessImageAsync>b__0() in D:\POD\exeSoftware\wpf-exe-master\src\Wpf.Ui.Gallery\Component\PhotoshopService.cs:line 51
-            at System.Threading.Tasks.Task`1.InnerInvoke()
-            at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)*/
-            app = Activator.CreateInstance(psType);
-            if (app is null)
-            {
-                return (false,"与 Photoshop 通信时发生错误。请确保 Photoshop 已正确安装。");
-            }
-            // 3. 设置为静默运行
-            // 注意：在后期绑定中，我们直接调用方法，如果方法或属性不存在，会在运行时抛出异常。
-            // 这段JS代码是与版本无关的，非常安全。
-            // TODO 应该是重复开关PS导致的错误
-            // System.Runtime.InteropServices.COMException (0x8001010A): 消息筛选器显示应用程序正在使用中。 (0x8001010A (RPC_E_SERVERCALL_RETRYLATER))
-            // System.Runtime.InteropServices.COMException (0x80010108): 被调用的对象已与其客户端断开连接。 (0x80010108 (RPC_E_DISCONNECTED))
-            // System.Runtime.InteropServices.COMException (0x80042260): 发生了常规 Photoshop 错误。该功能可能无法在这个版本的 Photoshop 中使用。
-            // Microsoft.CSharp.RuntimeBinder.RuntimeBinderException: 'System.__ComObject' does not contain a definition for 'DoJavaScript'
-            app.DoJavaScript("app.displayDialogs = DialogModes.NO;");
-
+    
             List<string> errorList = new List<string>();
+            string result = "未知错误。";
             try
             {
                 foreach (string imagePath in imagePathList)
@@ -129,47 +117,41 @@ public class PhotoshopService
                     {
                         try
                         {
-                            // 4. 准备并执行脚本
-                            string newFileName = Path.GetFileNameWithoutExtension(imagePath);
                             object[] arguments = { imagePath, "", "" };
-
-                            // 【关键修正】PsJavaScriptExecutionMode 枚举在后期绑定中不可用，
-                            // 我们直接使用其整数值。psNeverShowDebugger 的值是 2。
                             const int psNeverShowDebugger = 2;
-                            result = app.DoJavaScriptFile(jsxScriptPath, arguments, psNeverShowDebugger);
-
-                            // 5. 处理脚本返回值
-                            // 如果脚本成功但没有返回值，DoJavaScriptFile 可能会返回 null
-                            if (string.IsNullOrEmpty(result) || result.Trim().Equals("Success", StringComparison.OrdinalIgnoreCase))
+                            result = _photoshopApp.DoJavaScriptFile(jsxScriptPath, arguments, psNeverShowDebugger);
+    
+                            if (string.IsNullOrEmpty(result) || !result.Trim().Equals("Success", StringComparison.OrdinalIgnoreCase))
                             {
-
-                            }
-                            else
-                            {
-                                errorList.Add(imagePath);
+                                errorList.Add(Path.GetFileName(imagePath));
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
-                            errorList.Add(imagePath);
+                            errorList.Add(Path.GetFileName(imagePath));
                         }
                     }
                 }
             }
             finally
             {
-                // 预检查
-                // 6. 【至关重要】关闭并彻底释放 COM 对象
-
-                if (app != null)
+                if (!KeepAlive)
                 {
-                    app.Quit();
-                    Marshal.ReleaseComObject(app);
-                    // 主动进行垃圾回收，有助于清理COM的运行时可调用包装 (RCW)
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
+                    Cleanup();
                 }
             }
+    
+            if (errorList.Count == imagePathList.Count)
+            {
+                // TODO 实际PS处理成功 但是有点报错 先跳过错误处理
+                // return (false, "所有图片处理失败。");
+            }
+    
+            if (errorList.Count > 0)
+            {
+                return (true, $"部分图片处理失败: {string.Join(", ", errorList)}");
+            }
+    
             return (true, "处理成功！");
         });
     }
@@ -178,14 +160,28 @@ public class PhotoshopService
     /// 释放对 Photoshop COM 对象的引用。
     /// 应在您的应用程序关闭时调用此方法。
     /// </summary>
-    public static void Cleanup()
+    public static void Cleanup(bool force = false)
     {
         if (_photoshopApp != null)
         {
-            Marshal.ReleaseComObject(_photoshopApp);
-            _photoshopApp = null;
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
+            if (force || !KeepAlive)
+            {
+                try
+                {
+                    _photoshopApp.Quit();
+                }
+                catch (COMException)
+                {
+                    // Ignore exceptions during quit, as Photoshop might have been closed manually.
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(_photoshopApp);
+                    _photoshopApp = null;
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
+            }
         }
     }
 
@@ -244,5 +240,21 @@ public class PhotoshopService
         }
 
         return latestProgID;
+    }
+
+    [DllImport("ole32.dll")]
+    private static extern int CLSIDFromProgID([MarshalAs(UnmanagedType.LPWStr)] string lpszProgID, out Guid pclsid);
+
+    [DllImport("oleaut32.dll", PreserveSig = false)]
+    private static extern void GetActiveObject(ref Guid rclsid, IntPtr pvReserved, [MarshalAs(UnmanagedType.IUnknown)] out object ppunk);
+
+    private static object GetActiveObjectByProgID(string progID)
+    {
+        Guid clsid;
+        CLSIDFromProgID(progID, out clsid);
+
+        object obj;
+        GetActiveObject(ref clsid, IntPtr.Zero, out obj);
+        return obj;
     }
 }
