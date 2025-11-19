@@ -1026,8 +1026,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
     * <param name="inputImagePath">输入图像文件（例如 a.png）的完整路径。</param>
     * <param name="outputTiffPath">输出 TIFF 文件（例如 a.tif）的保存路径。</param>
     * <param name="cmykProfilePath">（强烈推荐）用于精确颜色转换的 CMYK ICC 颜色配置文件路径。</param> **/
-    public static async Task<LayoutImg>  PrintTaskImgProcess(
-        string inputImagePath,
+    public static async Task<LayoutImg> PrintTaskImgProcess(
+        Image layoutImg,
         string outputTiffPath,
         PrintTaskConfig printTaskConfig,
         string? cmykProfilePath = null, // 参数仍然是可选的
@@ -1037,10 +1037,10 @@ public class ProduceImageProcessor : IProduceImageProcessor
         // 测试放放大四倍正常 放大两倍出错 AI图片放大
         // RealESRGANHelper.UpscaleImage(inputImagePath, outputTiffPath,UpscaleModelEnum.UltraSharp,ScaleEnum.Four_X);
 
-        if (!File.Exists(inputImagePath))
+        /*if (!File.Exists(inputImagePath))
         {
             throw new FileNotFoundException("输入图像文件未找到。", inputImagePath);
-        }
+        }*/
 
         var iccProfileToUse = cmykProfilePath;
         if (string.IsNullOrEmpty(iccProfileToUse) || !File.Exists(iccProfileToUse))
@@ -1050,7 +1050,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
         string finalPath = Path.ChangeExtension(outputTiffPath, ".tif");
 
-        using var image = Image.NewFromFile(inputImagePath);
+        using var image = layoutImg;
 
         // --- DPI 准备 ---
         var xresInPpm = image.Xres;
@@ -1136,17 +1136,38 @@ public class ProduceImageProcessor : IProduceImageProcessor
         // 步骤 3: 保存这个 5 通道的图像。
         // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
         // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
-        cmykWithSpot.Tiffsave(finalPath,
-            compression: Enums.ForeignTiffCompression.Lzw,
-            profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
-            tile: true,
-            pyramid: false,
-            resunit: Enums.ForeignTiffResunit.Inch,
-            xres: xresInPpm,
-            yres: yresInPpm
-        );
-        bool success = await ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalPath});
-        if (success)
+        if (File.Exists(finalPath))
+        {
+            Console.WriteLine($"试图写入的文件已存在: {finalPath}");
+        }
+        else
+        {
+            cmykWithSpot.Tiffsave(finalPath,
+                compression: Enums.ForeignTiffCompression.Lzw,
+                profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
+                tile: true,
+                pyramid: false,
+                resunit: Enums.ForeignTiffResunit.Inch,
+                xres: xresInPpm,
+                yres: yresInPpm
+            );
+        }
+        if (printTaskConfig.OutputFormat == OutputFormat.TifWithSpotColor)
+        {
+            bool success = await ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalPath});
+            if (success)
+            {
+                return new LayoutImg()
+                {
+                    WidthPx = (uint)cmykWithSpot.Width, HeightPx = (uint)cmykWithSpot.Height, ImgPath = finalPath,
+                };
+            }
+            else
+            {
+                throw new Exception("PS转换专色通道出错");
+            }
+        }
+        else if(printTaskConfig.OutputFormat == OutputFormat.TifCymk)
         {
             return new LayoutImg()
             {
@@ -1155,7 +1176,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         }
         else
         {
-            throw new Exception("PS转换专色通道出错");
+            throw new Exception($"不支持的格式转换:{printTaskConfig.OutputFormat}");
         }
     }
 

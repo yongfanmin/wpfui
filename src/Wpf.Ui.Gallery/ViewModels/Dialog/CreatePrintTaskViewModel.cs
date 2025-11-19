@@ -37,6 +37,8 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         private readonly IDatabaseService _databaseService;
 
         private readonly IContentDialogService _contentDialogService;
+        
+        private readonly IProduceImageProcessor _produceImageProcessor;
 
         [ObservableProperty] private ObservableCollection<string> _produceBatchNumbers = new();
 
@@ -76,14 +78,23 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             LocalAppConfig.Save(LocalAppConfig.AppSetting);
         }
         
+        
+        partial void OnLayoutOptionObChanged(LayoutOption value)
+        {
+            LocalAppConfig.AppSetting.PrintTaskConfig.LayoutOption = value;
+            LocalAppConfig.Save(LocalAppConfig.AppSetting);
+        }
+        
         public CreatePrintTaskViewModel(IEnumerable<string> produceBatchNumbers, IDatabaseService databaseService,
-            IContentDialogService contentDialogService)
+            IContentDialogService contentDialogService, IProduceImageProcessor produceImageProcessor)
         {
             ProduceBatchNumbers = new ObservableCollection<string>(produceBatchNumbers);
             _databaseService = databaseService;
             _contentDialogService = contentDialogService;
+            _produceImageProcessor = produceImageProcessor;
             DestinationFolder = LocalAppConfig.AppSetting.PrintTaskDestinationFolder;
             OutputFormatOb = LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat;
+            LayoutOptionOb = LocalAppConfig.AppSetting.PrintTaskConfig.LayoutOption;
             OrderTrackTypeOb = LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.OrderTrackType;
         }
 
@@ -348,7 +359,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                             {
                                 joinDirection = Enums.Direction.Horizontal;
                                 leftWidthPx = 0;
-                                Console.WriteLine("跟踪条太小, 容纳不下所有内容");
+                                Console.WriteLine("跟踪条太小, 容纳不下所有内容, 已换成显示简短内容");
                                 // 只打印两行文字, 第一行打印订单号(orderNo) ； 第二行打印 面名称(viewName)
                                 Image textBanner;
                                 using (Image orderNoImg = ImageHelper.CreateTextImage(
@@ -571,27 +582,17 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                 }
                 else
                 {
-                    // 不需要排版 复制原来的印花到打印目录 如果需要格式转换的情况 复制的时候再转换
-                    //TODO 缺少格式转换
-                    for (int i = 0; i < allFilesToCopy.Count; i++)
+                    // 不需要排版，直接处理带有跟踪条的单个图像
+                    for (int i = 0; i < printImgList.Count; i++)
                     {
-                        var sourcePath = allFilesToCopy[i].SourceFile;
-                        var destinationPath = Path.Combine(targetPath,
-                            FileName.getLayoutTargetName(ProduceBatchNumbers, allFilesToCopy[i].UniFileName,
-                                Path.GetFileName(sourcePath)));
+                        var layoutImg = printImgList[i];
+                        var copyFile = allFilesToCopy[i]; // Get corresponding file info for naming
 
-                        // 如果格式为PNG，则直接复制
-                        if (printTaskConfig.OutputFormat == OutputFormat.Png)
-                        {
-                            await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
-                        }
-                        else
-                        {
-                            // 否则，进行格式转换
-                            await ConvertImageAsync(sourcePath, destinationPath, printTaskConfig);
-                        }
-
-                        CopyProgress = (double)(i + 1) / allFilesToCopy.Count * 100;
+                        var baseDestinationPath = Path.Combine(targetPath,
+                            FileName.getLayoutTargetName(ProduceBatchNumbers, copyFile.UniFileName,
+                                Path.GetFileName(layoutImg.ImgPath)));
+                        await ConvertImageAsync(layoutImg.LayoutCropImg , baseDestinationPath, printTaskConfig);
+                        CopyProgress = (double)(i + 1) / printImgList.Count * 100;
                     }
                 }
                 // 自动排版 输入需要排版的图片 与 机器打印宽度  (实际都是毫米 但是计算库只支持 无符号整数 所以按照像素排版 然后再转成毫米)
@@ -625,21 +626,48 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             return IsPrintButtonEnabled;
         }
 
-        public async Task ConvertImageAsync(string sourcePath, string destinationPath, PrintTaskConfig printTaskConfig)
+        public async Task ConvertImageAsync(Image layoutImg, string baseDestinationPath, PrintTaskConfig printTaskConfig)
         {
             await Task.Run(async () =>
             {
-                using var image = Image.NewFromFile(sourcePath);
                 var extension = "." + printTaskConfig.OutputFormat.ToString().ToLower();
-                var finalPath = Path.ChangeExtension(destinationPath, extension);
+                var finalPath = Path.ChangeExtension(baseDestinationPath, extension);
 
                 if (printTaskConfig.IsCymk())
                 {
-                    //await PrintTaskImgProcess(sourcePath, finalPath, printTaskConfig);
+                    await ProduceImageProcessor.PrintTaskImgProcess(layoutImg, finalPath, printTaskConfig);
+                }
+                else if(printTaskConfig.OutputFormat == OutputFormat.Png)
+                {
+                    var pngDestinationPath = Path.ChangeExtension(baseDestinationPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Png));
+                    if (File.Exists(pngDestinationPath))
+                    {
+                        Console.WriteLine($"试图写入的文件已存在: {pngDestinationPath}");
+                    }
+                    else
+                    {
+                        layoutImg.WriteToFile(pngDestinationPath);
+                    }
+                }
+                else if(printTaskConfig.OutputFormat == OutputFormat.Jpg)
+                {
+                    var jpgDestinationPath = Path.ChangeExtension(baseDestinationPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Jpeg));
+                    if (File.Exists(jpgDestinationPath))
+                    {
+                        Console.WriteLine($"试图写入的文件已存在: {jpgDestinationPath}");
+                    }
+                    else
+                    {
+                        layoutImg.WriteToFile(jpgDestinationPath);
+                    }
                 }
                 else
                 {
-                    image.WriteToFile(finalPath);
+                    var messageBox = new Wpf.Ui.Controls.MessageBox
+                    {
+                        Title = "创建打印任务错误", Content = $"不支持的转换格式: {printTaskConfig.OutputFormat}", CloseButtonText = "好的"
+                    };
+                    _ = await messageBox.ShowDialogAsync();
                 }
             });
         }

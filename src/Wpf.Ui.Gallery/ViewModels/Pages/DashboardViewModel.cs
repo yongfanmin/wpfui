@@ -915,7 +915,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
 
         var viewModel =
             new CreatePrintTaskViewModel(selectedBatches.Select(b => b.ProduceBatchNum).ToList(), _databaseService,
-                _contentDialogService);
+                _contentDialogService, _produceImageProcessor);
         var window = _windowsProviderService.GetWindow<CreatePrintTaskWindow>();
         window.DataContext = viewModel;
         window.Show();
@@ -933,7 +933,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                 {
                     batchVo.ProduceBatchNum
                 }, _databaseService,
-                _contentDialogService);
+        _contentDialogService, _produceImageProcessor);
         var window = _windowsProviderService.GetWindow<CreatePrintTaskWindow>();
         window.DataContext = viewModel;
         window.Show();
