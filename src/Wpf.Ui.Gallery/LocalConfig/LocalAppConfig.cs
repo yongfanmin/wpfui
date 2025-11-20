@@ -228,6 +228,14 @@ public class PrintTaskConfig : ObservableObject
         set => SetProperty(ref _orderTrackConfig, value);
     }
     
+    // PS连续使用不关闭
+    private bool _keepAlivePS = true;
+    public bool KeepAlivePS
+    {
+        get => _keepAlivePS;
+        set => SetProperty(ref _keepAlivePS, value);
+    }
+    
     public bool IsNeedLayout()
     {
         return this.LayoutOption == LayoutOption.Automatic;

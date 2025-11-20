@@ -20,6 +20,10 @@
         <ui:TextBox Margin="0,0,0,16" Text="{Binding PrintTaskConfig.PrintImgPaddingMm, Mode=TwoWay}" />
         <TextBlock Margin="0,0,0,8" Text="白墨烫画专色通道内缩量 (像素)" />
         <ui:TextBox Margin="0,0,0,16" Text="{Binding PrintTaskConfig.WhiteInkBleedPx, Mode=TwoWay}" />
+        <ui:ToggleSwitch
+            Margin="0,0,0,16"
+            Content="完成任务继续开着PS"
+            IsChecked="{Binding PrintTaskConfig.KeepAlivePS, Mode=TwoWay}" />
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

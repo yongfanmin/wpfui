@@ -6,6 +6,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using Wpf.Ui.Gallery.Component;
 using Wpf.Ui.Gallery.LocalConfig;
 
 namespace Wpf.Ui.Gallery.ViewModels.Dialog;
@@ -20,6 +21,14 @@ public partial class PrintSettingsDialogViewModel : ObservableObject
     public PrintSettingsDialogViewModel()
     {
         _printTaskConfig = LocalAppConfig.AppSetting.PrintTaskConfig;
+        _printTaskConfig.PropertyChanged += (sender, args) =>
+        {
+            if (args.PropertyName == nameof(PrintTaskConfig.KeepAlivePS))
+            {
+                PhotoshopService.KeepAlive = _printTaskConfig.KeepAlivePS;
+            }
+            LocalAppConfig.Save(LocalAppConfig.AppSetting);
+        };
     }
 
     [RelayCommand]

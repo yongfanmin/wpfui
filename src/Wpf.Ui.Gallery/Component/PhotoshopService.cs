@@ -16,7 +16,7 @@ using System.Text.RegularExpressions;
 public class PhotoshopService
 {
     private static dynamic _photoshopApp = null;
-    public static bool KeepAlive { get; set; } = false;
+    public static bool KeepAlive { get; set; } = true;
     
     /// <summary>
     /// 连接到正在运行的 Photoshop 实例，如果未运行，则创建一个新的实例。
@@ -91,7 +91,10 @@ public class PhotoshopService
     public static async Task<(bool IsSuccess, string Message)> ProcessImageAsync(List<string> imagePathList)
     {
         string jsxScriptPath = FileName.getPhotoshopJsxScriptPath();
-        if (!File.Exists(jsxScriptPath)) return (false, $"PS任务脚本不存在,请联系开发商: '{jsxScriptPath}'");
+        if (!File.Exists(jsxScriptPath))
+        {
+            return (false, $"PS任务脚本不存在,请联系开发商: '{jsxScriptPath}'");
+        }
         if (imagePathList.Count == 0)
         {
             return (false, "待处理图片列表为空");
@@ -104,6 +107,8 @@ public class PhotoshopService
             }
             catch (Exception ex)
             {
+                // 重复一直打开 关闭 PS导致在处理的过程中PS被关闭了?
+                // System.Runtime.InteropServices.COMException (0x80010108): 被调用的对象已与其客户端断开连接。 (0x80010108 (RPC_E_DISCONNECTED))
                 return (false, $"连接或启动 Photoshop 失败: {ex.Message}");
             }
     

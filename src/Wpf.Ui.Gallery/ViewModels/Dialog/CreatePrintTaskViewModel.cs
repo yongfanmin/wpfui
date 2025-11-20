@@ -14,6 +14,7 @@ using DataJuggler.RealESRGAN.Enumerations;
 using ImageMagick;
 using NetVips;
 using Wpf.Ui.Controls;
+using Wpf.Ui.Gallery.Component;
 using Wpf.Ui.Gallery.Config;
 using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.Converters;
@@ -126,6 +127,8 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         [RelayCommand]
         private async Task OnConvertFormat2print()
         {
+            PhotoshopService.KeepAlive = LocalAppConfig.AppSetting.PrintTaskConfig.KeepAlivePS;
+
             if (string.IsNullOrEmpty(DestinationFolder) || !Directory.Exists(DestinationFolder))
             {
                 // Ideally, show a message to the user

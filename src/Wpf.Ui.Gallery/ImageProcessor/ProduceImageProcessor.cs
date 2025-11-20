@@ -1214,6 +1214,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         {
             // 捕获异步任务中未处理的异常
             //StatusTextBlock.Text = $"程序发生意外错误: {ex.Message}";
+            return false;
         }
         finally
         {
