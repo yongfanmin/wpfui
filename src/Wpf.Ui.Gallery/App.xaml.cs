@@ -25,11 +25,14 @@ using Wpf.Ui.Gallery.Services.Contracts;
 using Wpf.Ui.Gallery.Services.Creator;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Services.Downloader;
+using Wpf.Ui.Gallery.Services.Log;
 using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.ViewModels.Pages;
 using Wpf.Ui.Gallery.ViewModels.Windows;
+using Wpf.Ui.Gallery.ViewModels.Windows.Logs;
 using Wpf.Ui.Gallery.Views.Pages;
 using Wpf.Ui.Gallery.Views.Windows;
+using Wpf.Ui.Gallery.Views.Windows.Logs;
 
 namespace Wpf.Ui.Gallery;
 
@@ -52,22 +55,6 @@ public partial class App
     public static readonly LoggingLevelSwitch LevelSwitch = new(LogEventLevel.Error);
     
     private static readonly IHost _host = Host.CreateDefaultBuilder()
-        .UseSerilog(
-            (context, configuration) =>
-            {
-                configuration
-                    .MinimumLevel.ControlledBy(LevelSwitch)
-                    .Enrich.FromLogContext()
-                    .WriteTo.File(
-                        FileName.LogFileFullPath,
-                        rollingInterval: RollingInterval.Day,
-                        rollOnFileSizeLimit: true,
-                        fileSizeLimitBytes: 100 * 1024 * 1024,
-                        retainedFileCountLimit: 10,
-                        retainedFileTimeLimit: TimeSpan.FromDays(3)
-                    );
-            }
-        )
         .ConfigureAppConfiguration(c =>
         {
             _ = c.SetBasePath(AppContext.BaseDirectory);
@@ -88,6 +75,13 @@ public partial class App
                 _ = services.AddSingleton<IContentDialogService, ContentDialogService>();
                 _ = services.AddSingleton<WindowsProviderService>();
                 _ = services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
+                
+                // Logging
+                _ = services.AddSingleton<ObservableSink>();
+                _ = services.AddSingleton<ILoggingService, LoggingService>();
+                _ = services.AddTransient<ConsoleWindow>();
+                _ = services.AddTransient<ConsoleViewModel>();
+                
                 // Login 登录窗口
                 _ = services.AddSingleton<LoginWindow>();
                 _ = services.AddSingleton<LoginWindowViewModel>();
@@ -202,6 +196,23 @@ public partial class App
                         //接口域名 接口地址 订单接口
                         c.BaseAddress = new Uri(_apiDomain);
                     }).AddHttpMessageHandler<NetworkActivityHandler>();
+            }
+        ).UseSerilog(
+            (context, services, configuration) =>
+            {
+                var observableSink = services.GetRequiredService<ObservableSink>();
+                configuration
+                    .MinimumLevel.ControlledBy(LevelSwitch)
+                    .Enrich.FromLogContext()
+                    .WriteTo.File(
+                        FileName.LogFileFullPath,
+                        rollingInterval: RollingInterval.Day,
+                        rollOnFileSizeLimit: true,
+                        fileSizeLimitBytes: 100 * 1024 * 1024,
+                        retainedFileCountLimit: 10,
+                        retainedFileTimeLimit: TimeSpan.FromDays(3)
+                    )
+                    .WriteTo.Sink(observableSink);
             }
         )
         .Build();

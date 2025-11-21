@@ -187,7 +187,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                         // 1. 预处理：确保图像有Alpha通道和sRGB身份
                         using Image cleanPatternPrintImg = patternPrintImg.HasAlpha()
                             ? patternPrintImg.Colourspace(Enums.Interpretation.Srgb)
-                            : patternPrintImg.AddAlpha().Copy().Colourspace(Enums.Interpretation.Srgb);
+                            : patternPrintImg.AddAlpha().Copy(interpretation: Enums.Interpretation.Srgb);
                         using Image flipImage = patternPrintLayerTask.XFlip
                             // 翻转 - 水平翻转
                             ? cleanPatternPrintImg.Flip(Enums.Direction.Horizontal)
@@ -297,16 +297,15 @@ public class ProduceImageProcessor : IProduceImageProcessor
                         }
 
 
-                        Image rotatedImage = null;
-                        Image imageToProcess = tileImage;
-                        try
+                        using (tileImage)
                         {
+                            Image imageToProcess;
                             if (!patternPrintLayerTask.Rotation.Equals(decimal.Zero))
                             {
                                 // 3. 旋转 (Rotate)
                                 double rotationAngle = decimal.ToDouble(patternPrintLayerTask.Rotation);
-                                rotatedImage = tileImage.Rotate(rotationAngle);
-                                imageToProcess = rotatedImage;
+                                imageToProcess = tileImage.Rotate(rotationAngle);
+
 
                                 // BOF 因为旋转 需要重新计算偏移量
                                 // 4. 计算最终位移 (Translate) 目前前端传的XY轴偏移量 是offset_x和y, 但是经过旋转 这个值又是存在transform和gtransform, 未能一致, 所以后端自己计算了 ；以后可以统一前端计算; 计算值跟印花图的宽高 旋转角度 原来的XY轴偏移量有关
@@ -333,46 +332,44 @@ public class ProduceImageProcessor : IProduceImageProcessor
                                     finalY = Convert.ToInt32(NewY);
                                 }
                             }
-
-                            if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.无平铺))
-                            {
-                                double targetCenterX = translateXPixel + (tileImage.Width / 2.0);
-
-                                double targetCenterY = translateYPixel + (tileImage.Height / 2.0);
-
-                                // c. 旋转后的图像，其内容是居中的，所以我们获取它的尺寸
-                                // d. 根据目标中心点，反向推算出旋转后图像的左上角应该放置的位置，以实现中心对齐
-                                finalX = (int)Math.Round(targetCenterX - (imageToProcess.Width / 2.0));
-                                finalY = (int)Math.Round(targetCenterY - (imageToProcess.Height / 2.0));
-                            }
-
-                            // EOF 因为旋转 需要重新计算偏移量
-                            if (tempCanvas == null)
-                            {
-                                //画布为空的 直接打印出印花图即可
-                                tempCanvas = imageToProcess.Copy();
-                            }
                             else
                             {
-                                // 5. 叠加合成
-                                Image newCanvas = tempCanvas.Composite(
-                                    imageToProcess,
-                                    blendMode,
-                                    x: finalX,
-                                    y: finalY
-                                );
-                                if (tempCanvas != newCanvas)
+                                imageToProcess = tileImage.Copy();
+                            }
+
+                            using (imageToProcess)
+                            {
+                                if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.无平铺))
                                 {
-                                    tempCanvas.Dispose();
+                                    double targetCenterX = translateXPixel + (tileImage.Width / 2.0);
+
+                                    double targetCenterY = translateYPixel + (tileImage.Height / 2.0);
+
+                                    // c. 旋转后的图像，其内容是居中的，所以我们获取它的尺寸
+                                    // d. 根据目标中心点，反向推算出旋转后图像的左上角应该放置的位置，以实现中心对齐
+                                    finalX = (int)Math.Round(targetCenterX - (imageToProcess.Width / 2.0));
+                                    finalY = (int)Math.Round(targetCenterY - (imageToProcess.Height / 2.0));
                                 }
 
-                                tempCanvas = newCanvas;
+                                // EOF 因为旋转 需要重新计算偏移量
+                                if (tempCanvas == null)
+                                {
+                                    //画布为空的 直接打印出印花图即可
+                                    tempCanvas = imageToProcess.Copy();
+                                }
+                                else
+                                {
+                                    // 5. 叠加合成
+                                    using Image newCanvas = tempCanvas.Composite(
+                                        imageToProcess,
+                                        blendMode,
+                                        x: finalX,
+                                        y: finalY
+                                    );
+                                    tempCanvas.Dispose();
+                                    tempCanvas = newCanvas.Copy();
+                                }
                             }
-                        }
-                        finally
-                        {
-                            rotatedImage?.Dispose();
-                            tileImage.Dispose();
                         }
                     }
                     catch (Exception ex)
@@ -435,10 +432,6 @@ public class ProduceImageProcessor : IProduceImageProcessor
                         catch (Exception ex)
                         {
                             Console.WriteLine($"裁片印花无法正常合成{ex}");
-                        }
-                        finally
-                        {
-                            cropImg.Dispose();
                         }
                     }
                 }
@@ -735,23 +728,22 @@ public class ProduceImageProcessor : IProduceImageProcessor
             //    这个方法会创建一个更大的画布，并将源图像放置在指定位置
             // 不要用这个方法 会导致alpha通道丢失 srgb信息丢失变成multibands
             //using var cell = Image.Black(cellWidth, cellHeight, bands: 4).Insert(sourceTileWithAlpha, 0, 0);
-            Image cell = sourceTileWithAlpha.Gravity(
+            using Image cell = sourceTileWithAlpha.Gravity(
                 Enums.CompassDirection.NorthWest, // 将源图像放在新画布的左上角
                 cellWidth,
                 cellHeight
                 // (可选) background: new double[] { R, G, B, A } // 可以指定背景色
             );
             // 5. 执行平铺操作
-            using (cell)
-            {
-                // 计算平铺次数
-                int across =
-                    (int)Math.Ceiling(backgroundWidth / cellWidth);
-                int down = (int)Math.Ceiling(
-                    backgroundHeight / cellHeight);
-                // Replicate 会正确地继承 cell 的 sRGB + Alpha 身份
-                return (cell.Replicate(across, down), cellWidth, cellHeight);
-            }
+
+            // 计算平铺次数
+            int across =
+                (int)Math.Ceiling(backgroundWidth / cellWidth);
+            int down = (int)Math.Ceiling(
+                backgroundHeight / cellHeight);
+            // Replicate 会正确地继承 cell 的 sRGB + Alpha 身份
+            return (cell.Replicate(across, down), cellWidth, cellHeight);
+
         }
         else if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.镜像平铺))
         {
@@ -803,89 +795,85 @@ public class ProduceImageProcessor : IProduceImageProcessor
         }
         else if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.横向错位平铺))
         {
-            Image cell = sourceTileWithAlpha.Gravity(
+            using Image cell = sourceTileWithAlpha.Gravity(
                 Enums.CompassDirection.NorthWest, // 将源图像放在新画布的左上角
                 cellWidth,
                 cellHeight
                 // (可选) background: new double[] { R, G, B, A } // 可以指定背景色
             );
             // 5. 执行平铺操作
-            using (cell)
-            {
-                // 计算平铺次数
-                int across =
-                    (int)Math.Ceiling(backgroundWidth / cellWidth);
-                int down = (int)Math.Ceiling(
-                    backgroundHeight / cellHeight);
+            // 计算平铺次数
+            int across =
+                (int)Math.Ceiling(backgroundWidth / cellWidth);
+            int down = (int)Math.Ceiling(
+                backgroundHeight / cellHeight);
 
-                Image horizontalTileLineOne = cell.Replicate(across, 1);
+            using Image horizontalTileLineOne = cell.Replicate(across, 1);
 
-                using var doubleCell = cell.Join(cell, Enums.Direction.Horizontal);
-                // Crop 参数: left, top, width, height
-                // 起始点 left = cell.Width / 2，就实现了向左偏移
-                using var shiftedCell = doubleCell.Crop(cell.Width / 2, 0, cell.Width, cell.Height);
+            using var doubleCell = cell.Join(cell, Enums.Direction.Horizontal);
+            // Crop 参数: left, top, width, height
+            // 起始点 left = cell.Width / 2，就实现了向左偏移
+            using var shiftedCell = doubleCell.Crop(cell.Width / 2, 0, cell.Width, cell.Height);
 
-                // 使用这个错位的瓦片来创建第二行
-                using var horizontalTileLineTwo = shiftedCell.Replicate(across, 1);
+            // 使用这个错位的瓦片来创建第二行
+            using var horizontalTileLineTwo = shiftedCell.Replicate(across, 1);
 
-                // --- 步骤 3: 将正常行和错位行拼接成一个“双行模块” ---
-                using var tileDoubleMod = horizontalTileLineOne.Join(horizontalTileLineTwo, Enums.Direction.Vertical);
-                // --- 步骤 4: 平铺这个“双行模块” ---
-                // 计算需要多少个“双行模块”才能覆盖整个高度
-                // 因为 tileDoubleMod 的高度是 2 * cellHeight
-                var modDown = (int)Math.Ceiling(down / 2.0);
+            // --- 步骤 3: 将正常行和错位行拼接成一个“双行模块” ---
+            using var tileDoubleMod = horizontalTileLineOne.Join(horizontalTileLineTwo, Enums.Direction.Vertical);
+            // --- 步骤 4: 平铺这个“双行模块” ---
+            // 计算需要多少个“双行模块”才能覆盖整个高度
+            // 因为 tileDoubleMod 的高度是 2 * cellHeight
+            var modDown = (int)Math.Ceiling(down / 2.0);
 
-                using var finalTiledImage = tileDoubleMod.Replicate(1, modDown);
+            using var finalTiledImage = tileDoubleMod.Replicate(1, modDown);
 
-                // --- 步骤 5: 裁剪到最终需要的精确尺寸 ---
-                var finalImage = finalTiledImage.Crop(0, 0, (int)backgroundWidth, (int)backgroundHeight);
-                // 返回最终图像和单元格尺寸
-                return (finalImage, cellWidth, cellHeight);
-            }
+            // --- 步骤 5: 裁剪到最终需要的精确尺寸 ---
+            var finalImage = finalTiledImage.Crop(0, 0, (int)backgroundWidth, (int)backgroundHeight);
+            // 返回最终图像和单元格尺寸
+            return (finalImage, cellWidth, cellHeight);
+
         }
         else if (patternPrintLayerTask.TileTool.TileType.Equals(TileType.纵向错位平铺))
         {
-            Image cell = sourceTileWithAlpha.Gravity(
+            using Image cell = sourceTileWithAlpha.Gravity(
                 Enums.CompassDirection.NorthWest, // 将源图像放在新画布的左上角
                 cellWidth,
                 cellHeight
                 // (可选) background: new double[] { R, G, B, A } // 可以指定背景色
             );
             // 5. 执行平铺操作
-            using (cell)
-            {
-                // 计算平铺次数
-                int across =
-                    (int)Math.Ceiling(backgroundWidth / cellWidth);
-                int down = (int)Math.Ceiling(
-                    backgroundHeight / cellHeight);
+            // 计算平铺次数
+            int across =
+                (int)Math.Ceiling(backgroundWidth / cellWidth);
+            int down = (int)Math.Ceiling(
+                backgroundHeight / cellHeight);
 
-                Image verticalTileLineOne = cell.Replicate(1, down);
+            using Image verticalTileLineOne = cell.Replicate(1, down);
 
-                using var doubleCell = cell.Join(cell, Enums.Direction.Vertical);
-                // Crop 参数: left, top, width, height
-                // 起始点 left = cell.Height / 2，就实现了向上偏移
-                using var shiftedCell = doubleCell.Crop(0, cell.Height / 2, cell.Width, cell.Height);
+            using var doubleCell = cell.Join(cell, Enums.Direction.Vertical);
+            // Crop 参数: left, top, width, height
+            // 起始点 left = cell.Height / 2，就实现了向上偏移
+            using var shiftedCell = doubleCell.Crop(0, cell.Height / 2, cell.Width, cell.Height);
 
-                // 使用这个错位的瓦片来创建第二行
-                using var verticalTileLineTwo = shiftedCell.Replicate(1, down);
+            // 使用这个错位的瓦片来创建第二行
+            using var verticalTileLineTwo = shiftedCell.Replicate(1, down);
 
-                // --- 步骤 3: 将正常行和错位行拼接成一个“双行模块” ---
-                using var tileDoubleMod = verticalTileLineOne.Join(verticalTileLineTwo, Enums.Direction.Horizontal);
-                // --- 步骤 4: 平铺这个“双行模块” ---
-                // 计算需要多少个“双行模块”才能覆盖整个高度
-                // 因为 tileDoubleMod 的宽度是 2 * cellWidth
-                var modDown = (int)Math.Ceiling(across / 2.0);
+            // --- 步骤 3: 将正常行和错位行拼接成一个“双行模块” ---
+            using var tileDoubleMod = verticalTileLineOne.Join(verticalTileLineTwo, Enums.Direction.Horizontal);
+            // --- 步骤 4: 平铺这个“双行模块” ---
+            // 计算需要多少个“双行模块”才能覆盖整个高度
+            // 因为 tileDoubleMod 的宽度是 2 * cellWidth
+            var modDown = (int)Math.Ceiling(across / 2.0);
 
-                using var finalTiledImage = tileDoubleMod.Replicate(modDown, 1);
+            using var finalTiledImage = tileDoubleMod.Replicate(modDown, 1);
 
-                // --- 步骤 5: 裁剪到最终需要的精确尺寸 ---
-                var finalImage = finalTiledImage.Crop(0, 0, (int)backgroundWidth, (int)backgroundHeight);
+            // --- 步骤 5: 裁剪到最终需要的精确尺寸 ---
+            var finalImage = finalTiledImage.Crop(0, 0, (int)backgroundWidth, (int)backgroundHeight);
 
 
-                // 返回最终图像和单元格尺寸
-                return (finalImage, cellWidth, cellHeight);
-            }
+            // 返回最终图像和单元格尺寸
+            return (finalImage, cellWidth, cellHeight);
+
         }
         else
         {
@@ -990,7 +978,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                     backgroundColor: new double[] { 255, 255, 255, 255 }))
                 using (var qrCodeWithBg = whiteQrBackground.Composite(qrCode, Enums.BlendMode.Over))
                 {
-                    currentResult = currentResult.Composite(
+                    Image newResult = currentResult.Composite(
                         qrCodeWithBg,
                         Enums.BlendMode.Over, // Over 是标准的Alpha叠加，Atop可能不是您想要的
                         x: ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.OffsetX,
@@ -998,6 +986,11 @@ public class ProduceImageProcessor : IProduceImageProcessor
                         y: ImageHelper.ConvertMmToPixels(produceImgInfo.QrCode.OffsetY,
                             produceImgInfo.MachineConfig.Dpi)
                     );
+                    if (currentResult != canvas)
+                    {
+                        currentResult.Dispose();
+                    }
+                    currentResult = newResult;
                 }
 
                 // --- 步骤 3: 保存最终结果 ---
@@ -1088,8 +1081,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         // 先对透明通道取反->外扩 = 非透明区域内缩
         using var spotPlateShrunk = spotPlate.Dilate(mask);
         
-        using var imageWithoutAlpha = image.HasAlpha() ? image.Copy() : image;
-        // using var imageWithoutAlpha = image.HasAlpha() ? image.ExtractBand(0, n: image.Bands - 1) : image.Copy();
+        using var imageWithoutAlpha = image.HasAlpha() ? image.ExtractBand(0, n: image.Bands - 1) : image.Copy();
 
         using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
 
@@ -1280,29 +1272,37 @@ public class ProduceImageProcessor : IProduceImageProcessor
         // --- 2. 将图片根据X,Y的坐标信息排版在画布上 ---
         foreach (var imgInfo in layoutResult.LayoutImgList)
         {
-            Image piece;
-            if (imgInfo.LayoutCropImg is not null)
+            Image pieceToUse = imgInfo.LayoutCropImg;
+            Image createdPiece = null;
+            if (pieceToUse == null)
             {
-                piece = imgInfo.LayoutCropImg;
+                createdPiece = imgInfo.Rot90 ? Image.NewFromFile(imgInfo.ImgPath).Rot90() : Image.NewFromFile(imgInfo.ImgPath);
+                pieceToUse = createdPiece;
             }
-            else
-            {
-                piece = imgInfo.Rot90 ? Image.NewFromFile(imgInfo.ImgPath).Rot90() : Image.NewFromFile(imgInfo.ImgPath);
-            }
-            if (piece.Bands == currentResult.Bands)
-            {
-                Image newResult = currentResult.Composite(piece, Enums.BlendMode.Over, x: (int)imgInfo.PositionX, y: (int)imgInfo.PositionY);
 
-                if (currentResult != layoutCanvas)
-                {
-                    currentResult.Dispose();
-                }
-                currentResult = newResult;
-            }
-            else
+            try
             {
-                // 通道数量不相符 无法合成 (可能图片存在隐形通道/或者PS生成通道错误)
-                Console.WriteLine($"图像通道不符(不是CMYK+专色通道):{imgInfo.ImgPath}");
+                if (pieceToUse.Bands == currentResult.Bands)
+                {
+                    using Image newResult =
+                        currentResult.Composite(pieceToUse, Enums.BlendMode.Over, x: (int)imgInfo.PositionX,
+                            y: (int)imgInfo.PositionY);
+                    if (currentResult != layoutCanvas)
+                    {
+                        currentResult.Dispose();
+                    }
+
+                    currentResult = newResult.Copy();
+                }
+                else
+                {
+                    // 通道数量不相符 无法合成 (可能图片存在隐形通道/或者PS生成通道错误)
+                    Console.WriteLine($"图像通道不符(不是CMYK+专色通道):{imgInfo.ImgPath}");
+                }
+            }
+            finally
+            {
+                createdPiece?.Dispose(); // Only dispose the image if we created it.
             }
         }
 
@@ -1310,21 +1310,23 @@ public class ProduceImageProcessor : IProduceImageProcessor
         if (Math.Max(currentResult.Width, currentResult.Height) < machinePrintWidthPx && currentResult.Height > currentResult.Width)
         {
             // 排版算法是求面积最小 如果变成竖排 需要旋转成横排
-            currentResult = currentResult.Rot90();
-            currentResult = ImageHelper.AddTransparentPadding(currentResult.Copy(interpretation: Enums.Interpretation.Srgb), -1 * ImageHelper.ConvertMmToPixels(safeEdgeWithoutPaddingMm, dpi));
+            using Image rotatedResult = currentResult.Rot90();
+            currentResult.Dispose();
+            using Image paddedResult = ImageHelper.AddTransparentPadding(rotatedResult.Copy(interpretation: Enums.Interpretation.Srgb), -1 * ImageHelper.ConvertMmToPixels(safeEdgeWithoutPaddingMm, dpi));
+            currentResult = paddedResult.Copy();
         }
         
         if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Jpg)
         {
             double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
-            var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
+            using var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
             finalImage.Jpegsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Jpeg)));
             return true;
         }
         else if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Png)
         {
             double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
-            var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
+            using var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
             finalImage.Pngsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)));
             return true;
         }
@@ -1332,7 +1334,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         {
             // --- 3. 设置DPI并返回最终图像 ---
             double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
-            var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
+            using var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
 
             if (currentResult != layoutCanvas)
             {
@@ -1356,8 +1358,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
             using var imageWithAlpha = finalImage.HasAlpha()
                 ? finalImage.Copy() // 如果已经有 alpha，直接使用
                 : finalImage.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
-            using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.Copy() : finalImage;
-            // using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.ExtractBand(0, n: finalImage.Bands - 1) : finalImage.Copy();
+            using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.ExtractBand(0, n: finalImage.Bands - 1) : finalImage.Copy();
 
             
             using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
@@ -1400,7 +1401,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
             // 先对透明通道取反->外扩 = 非透明区域内缩
             using var spotPlateShrunk = spotPlate.Dilate(mask);
 
-            Image spotComplete = spotPlateShrunk.Composite2(skeletonImg, Enums.BlendMode.Darken);
+            using Image spotComplete = spotPlateShrunk.Composite2(skeletonImg, Enums.BlendMode.Darken);
             
             using (var spotBand = spotComplete.ExtractBand(0))
             {

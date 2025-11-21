@@ -36,7 +36,6 @@
     <PackageReference Include="OpenCvSharp4.Extensions" />
     <PackageReference Include="OpenCvSharp4.Windows" />
     <PackageReference Include="PdfiumPrinter" />
-    <PackageReference Include="RectpackSharp" />
     <PackageReference Include="Refit" />
     <PackageReference Include="Refit.HttpClientFactory" />
     <PackageReference Include="ReflectionEventing" />
@@ -45,6 +44,7 @@
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Svg.Skia" />
+    <PackageReference Include="System.Reactive" />
     <PackageReference Include="ZXing.Net" />
   </ItemGroup>
 
@@ -117,6 +117,7 @@
     <Folder Include="Assets\Monaco\" />
 	  <Folder Include="Assets\Audio\" />
     <Folder Include="Assets\Icc\" />
+    <Folder Include="Lib\RectPackSharp\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -146,6 +147,5 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Translations.pl-PL.resx</DependentUpon>
     </Compile>
-  </ItemGroup>
-
+  </ItemGroup>	
 </Project>

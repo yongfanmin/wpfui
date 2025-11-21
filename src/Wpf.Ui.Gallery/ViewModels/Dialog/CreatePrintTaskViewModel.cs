@@ -52,7 +52,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         [ObservableProperty] private bool _isExecuting = false;
 
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(StartBatchPrintCommand))]
+        [NotifyCanExecuteChangedFor(nameof(OpenTargetFolderCommand))]
         private bool _isPrintButtonEnabled = false;
 
         // 转成CYMK
@@ -613,18 +613,31 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         }
 
 
-        [RelayCommand(CanExecute = nameof(CanStartBatchPrint))]
-        private void OnStartBatchPrint()
+        [RelayCommand(CanExecute = nameof(CanOpenTargetFolder))]
+        private void OnOpenTargetFolder()
         {
-            var messageBox = new Wpf.Ui.Controls.MessageBox
+            string targetPath = Path.Combine(DestinationFolder, string.Join("--", ProduceBatchNumbers));
+            if (Directory.Exists(targetPath))
             {
-                Title = "警告", Content = $"无法连接打印机,请手动打印", CloseButtonText = "好的 (Esc)"
-            };
-            _ = messageBox.ShowDialogAsync();
-            // Logic to start batch printing will go here.
+                Process.Start("explorer.exe", targetPath);
+            }
+            else if (Directory.Exists(DestinationFolder))
+            {
+                Process.Start("explorer.exe", DestinationFolder);
+            }
+            else
+            {
+                var messageBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "文件夹不存在",
+                    Content = "目标文件夹不存在，请先选择一个有效的文件夹并制作生产图。",
+                    CloseButtonText = "好的"
+                };
+                _ = messageBox.ShowDialogAsync();
+            }
         }
 
-        private bool CanStartBatchPrint()
+        private bool CanOpenTargetFolder()
         {
             return IsPrintButtonEnabled;
         }

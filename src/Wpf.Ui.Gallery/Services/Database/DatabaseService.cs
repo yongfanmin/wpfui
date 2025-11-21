@@ -49,7 +49,7 @@ public class DatabaseService : IDatabaseService
 
         return connection;
     }
-    
+
     /*public void Initialize()
     {
         // 步骤1: 创建内存数据库连接并打开
@@ -149,7 +149,7 @@ public class DatabaseService : IDatabaseService
             // _dbWriteLock.Release();
         }
     }
-    
+
     public void UpdateProduceBatchStatus(IEnumerable<string> produceBatchNumbers, ProduceBatchStatus produceBatchStatus)
     {
         // _dbWriteLock.Wait();
@@ -164,7 +164,8 @@ public class DatabaseService : IDatabaseService
                 }
 
                 var placeholders = string.Join(",", Enumerable.Repeat("?", batchNumbers.Count));
-                var query = $"UPDATE ProducePlanEntity SET ProduceBatchStatus = ? WHERE ProduceBatchNum IN ({placeholders})";
+                var query =
+                    $"UPDATE ProducePlanEntity SET ProduceBatchStatus = ? WHERE ProduceBatchNum IN ({placeholders})";
 
                 var args = new List<object> { produceBatchStatus };
                 args.AddRange(batchNumbers);
@@ -177,7 +178,7 @@ public class DatabaseService : IDatabaseService
             // _dbWriteLock.Release();
         }
     }
-    
+
     public void AddProduceBatchNeedLayoutItemCount(string produceBatchNum)
     {
         // _dbWriteLock.Wait();
@@ -192,28 +193,31 @@ public class DatabaseService : IDatabaseService
             {
                 using (var db = GetConnection())
                 {
-                    // 1. 先查询到要更新的实体对象
-                    var planToUpdate = db.Table<ProducePlanEntity>()
-                        .FirstOrDefault(p => p.ProduceBatchNum.ToUpper() == produceBatchNum.ToUpper());
-
-                    // 2. 检查对象是否存在
-                    if (planToUpdate != null)
+                    lock (this)
                     {
-                        // 4. 调用 .Update() 将整个对象的更改保存回数据库
-                        //    Update 方法会根据主键 (Id) 找到正确的行并更新所有字段
-                        planToUpdate.NeedLayoutCount += 1;
-                        int rowsAffected = db.Update(planToUpdate);
+                        // 1. 先查询到要更新的实体对象
+                        var planToUpdate = db.Table<ProducePlanEntity>()
+                            .FirstOrDefault(p => p.ProduceBatchNum.ToUpper() == produceBatchNum.ToUpper());
 
-                        // 5. 检查是否成功更新了一行
-                        if (rowsAffected <= 0)
+                        // 2. 检查对象是否存在
+                        if (planToUpdate != null)
                         {
-                            Console.WriteLine($"生产计划'{produceBatchNum}' 新增排版项数量, 数据写入失败");
+                            // 4. 调用 .Update() 将整个对象的更改保存回数据库
+                            //    Update 方法会根据主键 (Id) 找到正确的行并更新所有字段
+                            planToUpdate.NeedLayoutCount += 1;
+                            int rowsAffected = db.Update(planToUpdate);
+
+                            // 5. 检查是否成功更新了一行
+                            if (rowsAffected <= 0)
+                            {
+                                Console.WriteLine($"生产计划'{produceBatchNum}' 新增排版项数量, 数据写入失败");
+                            }
                         }
-                    }
-                    else
-                    {
-                        // 记录一个日志或警告：尝试为一个不存在的批次号增加计数
-                        Console.WriteLine($"生产计划'{produceBatchNum}' 不存在,无法变更排版项数量");
+                        else
+                        {
+                            // 记录一个日志或警告：尝试为一个不存在的批次号增加计数
+                            Console.WriteLine($"生产计划'{produceBatchNum}' 不存在,无法变更排版项数量");
+                        }
                     }
                 }
             }
@@ -244,52 +248,53 @@ public class DatabaseService : IDatabaseService
             {
                 using (var db = GetConnection())
                 {
-                    // 1. 先查询到要更新的实体对象
-                    var planToUpdate = db.Table<ProducePlanEntity>()
-                        .FirstOrDefault(p => p.ProduceBatchNum.ToUpper() == produceBatchNum.ToUpper());
-
-                    // 2. 检查对象是否存在
-                    if (planToUpdate != null)
+                    lock (this)
                     {
-                        if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.数据已加载))
-                        {
-                            planToUpdate.DataDownloadCount += 1;
-                        }
-                        else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.图片已加载))
-                        {
-                            planToUpdate.ImgDownloadCount += 1;
-                        }
-                        else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.裁片已合成))
-                        {
-                            planToUpdate.PiecePrintCount += 1;
-                        }
-                        else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.生产稿件已合成))
-                        {
-                            planToUpdate.LayoutCreateCount += 1;
-                        }
-                        else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.生产中))
-                        {
-                            
-                        }
-                        else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.生产完成))
-                        {
-                            
-                        }
+                        // 1. 先查询到要更新的实体对象
+                        var planToUpdate = db.Table<ProducePlanEntity>()
+                            .FirstOrDefault(p => p.ProduceBatchNum.ToUpper() == produceBatchNum.ToUpper());
 
-                        // 4. 调用 .Update() 将整个对象的更改保存回数据库
-                        //    Update 方法会根据主键 (Id) 找到正确的行并更新所有字段
-                        int rowsAffected = db.Update(planToUpdate);
-
-                        // 5. 检查是否成功更新了一行
-                        if (rowsAffected <= 0)
+                        // 2. 检查对象是否存在
+                        if (planToUpdate != null)
                         {
-                            Console.WriteLine($"生产计划'{produceBatchNum}' 变更进度失败, 数据写入失败");
+                            if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.数据已加载))
+                            {
+                                planToUpdate.DataDownloadCount += 1;
+                            }
+                            else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.图片已加载))
+                            {
+                                planToUpdate.ImgDownloadCount += 1;
+                            }
+                            else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.裁片已合成))
+                            {
+                                planToUpdate.PiecePrintCount += 1;
+                            }
+                            else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.生产稿件已合成))
+                            {
+                                planToUpdate.LayoutCreateCount += 1;
+                            }
+                            else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.生产中))
+                            {
+                            }
+                            else if (produceBatchItemProcess.Equals(ProduceBatchItemProcess.生产完成))
+                            {
+                            }
+
+                            // 4. 调用 .Update() 将整个对象的更改保存回数据库
+                            //    Update 方法会根据主键 (Id) 找到正确的行并更新所有字段
+                            int rowsAffected = db.Update(planToUpdate);
+
+                            // 5. 检查是否成功更新了一行
+                            if (rowsAffected <= 0)
+                            {
+                                Console.WriteLine($"生产计划'{produceBatchNum}' 变更进度失败, 数据写入失败");
+                            }
                         }
-                    }
-                    else
-                    {
-                        // 记录一个日志或警告：尝试为一个不存在的批次号增加计数
-                        Console.WriteLine($"生产计划'{produceBatchNum}' 不存在,无法变更批次状态");
+                        else
+                        {
+                            // 记录一个日志或警告：尝试为一个不存在的批次号增加计数
+                            Console.WriteLine($"生产计划'{produceBatchNum}' 不存在,无法变更批次状态");
+                        }
                     }
                 }
             }
@@ -430,16 +435,19 @@ public class DatabaseService : IDatabaseService
             {
                 using (var db = GetConnection())
                 {
-                    // 1. 先查询到要更新的实体对象
-                    var planToUpdate = db.Table<ProducePlanEntity>()
-                        .FirstOrDefault(p => p.ProduceBatchNum.ToUpper() == produceBatchNum.ToUpper());
-                    planToUpdate.ProduceBatchStatus = produceBatchStatus;
-                    int rowsAffected = db.Update(planToUpdate);
-
-                    // 5. 检查是否成功更新了一行
-                    if (rowsAffected <= 0)
+                    lock (this)
                     {
-                        Console.WriteLine($"生产计划'{produceBatchNum}' 变更状态失败, 数据写入失败");
+                        // 1. 先查询到要更新的实体对象
+                        var planToUpdate = db.Table<ProducePlanEntity>()
+                            .FirstOrDefault(p => p.ProduceBatchNum.ToUpper() == produceBatchNum.ToUpper());
+                        planToUpdate.ProduceBatchStatus = produceBatchStatus;
+                        int rowsAffected = db.Update(planToUpdate);
+
+                        // 5. 检查是否成功更新了一行
+                        if (rowsAffected <= 0)
+                        {
+                            Console.WriteLine($"生产计划'{produceBatchNum}' 变更状态失败, 数据写入失败");
+                        }
                     }
                 }
             }
@@ -463,21 +471,25 @@ public class DatabaseService : IDatabaseService
             {
                 try
                 {
-                    ProduceItemEntity produceItemEntity = GetProduceBatchItem(productBatchItemInfo.ProduceBatchNumber,
-                        productBatchItemInfo.BatchNum);
-                    if (produceItemEntity is null)
+                    lock (this)
                     {
-                        db.Insert(new ProduceItemEntity()
+                        ProduceItemEntity produceItemEntity = GetProduceBatchItem(productBatchItemInfo.ProduceBatchNumber,
+                            productBatchItemInfo.BatchNum);
+                        if (produceItemEntity is null)
                         {
-                            FactoryId = productBatchItemInfo.FactoryId,
-                            ProduceBatchNum = productBatchItemInfo.ProduceBatchNumber,
-                            BatchNum = productBatchItemInfo.BatchNum,
-                            ProduceBatchItemProcess = ProduceBatchItemProcess.等待数据,
-                        });
-                    }
-                    else
-                    {
-                        Console.WriteLine($"插入项批号 已存在项批号条目:{productBatchItemInfo.ProduceBatchNumber}-{productBatchItemInfo.BatchNum}");
+                            db.Insert(new ProduceItemEntity()
+                            {
+                                FactoryId = productBatchItemInfo.FactoryId,
+                                ProduceBatchNum = productBatchItemInfo.ProduceBatchNumber,
+                                BatchNum = productBatchItemInfo.BatchNum,
+                                ProduceBatchItemProcess = ProduceBatchItemProcess.等待数据,
+                            });
+                        }
+                        else
+                        {
+                            Console.WriteLine(
+                                $"插入项批号 已存在项批号条目:{productBatchItemInfo.ProduceBatchNumber}-{productBatchItemInfo.BatchNum}");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -508,7 +520,7 @@ public class DatabaseService : IDatabaseService
             });
         }
     }
-    
+
     public void setProductBatchItemInfo(string produceBatchNum, long batchNum, UniqueBatchItem uniqueBatchItem)
     {
         // _dbWriteLock.Wait();
@@ -516,12 +528,12 @@ public class DatabaseService : IDatabaseService
         {
             using (var db = GetConnection())
             {
+                // 不需要锁
                 // 1. 查找需要更新的实体对象
                 var planToUpdate = db.Table<ProduceItemEntity>()
                     .FirstOrDefault(field => field.ProduceBatchNum == produceBatchNum & field.BatchNum == batchNum);
-
                 // 2. 确保对象存在
-                if (planToUpdate != null)
+                if (planToUpdate is not null)
                 {
                     // 3. 修改对象的属性
                     planToUpdate.ProduceBatchDetail = JsonSerializer.Serialize(uniqueBatchItem);
@@ -557,7 +569,7 @@ public class DatabaseService : IDatabaseService
 
 
     // 获取生产计划编号下面的所有项批号
-    public List<ProduceItemEntity> GetProduceBatchItemList(string produceBatchNum,long batchNum)
+    public List<ProduceItemEntity> GetProduceBatchItemList(string produceBatchNum, long batchNum)
     {
         using (var db = GetConnection())
         {
@@ -595,7 +607,7 @@ public class DatabaseService : IDatabaseService
             }
         }
     }
-    
+
     public ProduceItemEntity GetProduceItemByOrderNo(string orderNo)
     {
         using (var db = GetConnection())
@@ -612,12 +624,12 @@ public class DatabaseService : IDatabaseService
             }
         }
     }
-    
+
     public ProduceItemEntity GetProduceItemByBatchNo(long batchNo)
     {
         using (var db = GetConnection())
         {
-            if (batchNo<=0)
+            if (batchNo <= 0)
             {
                 return null;
             }
@@ -671,25 +683,27 @@ public class DatabaseService : IDatabaseService
         {
             using (var db = GetConnection())
             {
-                // 1. 查找需要更新的实体对象
-                var planToUpdate = db.Table<ProduceItemEntity>()
-                    .FirstOrDefault(field => field.ProduceBatchNum == produceBatchNum & field.BatchNum == batchNum);
-
-                // 2. 确保对象存在
-                if (planToUpdate != null)
+                lock (this)
                 {
-                    // 3. 修改对象的属性
-                    planToUpdate.ProduceBatchItemProcess = produceBatchItemProcess;
-                    planToUpdate.UpdateTime = DateTime.Now;
-                    // 4. 调用 Update 方法将更改保存回数据库
-                    //    该方法会返回受影响的行数
-                    if (db.Update(planToUpdate) > 0)
+                    // 1. 查找需要更新的实体对象
+                    var planToUpdate = db.Table<ProduceItemEntity>()
+                        .FirstOrDefault(field => field.ProduceBatchNum == produceBatchNum & field.BatchNum == batchNum);
+                    // 2. 确保对象存在
+                    if (planToUpdate != null)
                     {
-                        //更新成功
-                    }
-                    else
-                    {
-                        // TODO 更新失败
+                        // 3. 修改对象的属性
+                        planToUpdate.ProduceBatchItemProcess = produceBatchItemProcess;
+                        planToUpdate.UpdateTime = DateTime.Now;
+                        // 4. 调用 Update 方法将更改保存回数据库
+                        //    该方法会返回受影响的行数
+                        if (db.Update(planToUpdate) > 0)
+                        {
+                            //更新成功
+                        }
+                        else
+                        {
+                            // TODO 更新失败
+                        }
                     }
                 }
             }
@@ -712,7 +726,7 @@ public class DatabaseService : IDatabaseService
                     .FirstOrDefault(field => field.ProduceBatchNum == produceBatchNum & field.BatchNum == batchNum);
 
                 // 2. 确保对象存在
-                if (planToUpdate != null)
+                if (planToUpdate is not null)
                 {
                     // 3. 修改对象的属性
                     planToUpdate.ProduceImgLocalPath = saveLocalInfo.LocalPath;
@@ -737,10 +751,10 @@ public class DatabaseService : IDatabaseService
             _dbWriteLock.Release();
         }
     }
-    
+
     public void DeleteOldProductionData(int days)
     {
-        _dbWriteLock.Wait();
+        // _dbWriteLock.Wait();
         try
         {
             using (var db = GetConnection())
@@ -764,7 +778,7 @@ public class DatabaseService : IDatabaseService
         }
         finally
         {
-            _dbWriteLock.Release();
+            // _dbWriteLock.Release();
         }
     }
 

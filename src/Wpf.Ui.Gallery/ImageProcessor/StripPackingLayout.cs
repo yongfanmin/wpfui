@@ -113,7 +113,8 @@ public class StripPackingLayout
         RectanglePacker.Pack(
             rectanglesToPack,
             out var bounds,
-            packingHint,
+            PackingHints.FindBest,
+            
             maxBoundsWidth: machinePrintWidthPx // 固定宽度 但是长度不定
         );
 
@@ -193,8 +194,10 @@ public class StripPackingLayout
     }
     
     // 根据印花宽度 计算出预打包画布宽度  使用机器打印宽度 从机器可打印宽度 从划分10块 到划分1块 进行宽度容纳测试
-    public static PrePrintCanvas GetPrintWidthByImgWidthDivide(int printImgWidth, int printImgHeight, uint machinePrintWidthPx)
+    public static PrePrintCanvas GetPrintWidthByImgWidthDivide(int printImgWidth, int printImgHeight, int paddingPx, uint machinePrintWidthPx)
     {
+        printImgWidth += paddingPx;
+        printImgHeight += paddingPx;
         // 例如 印花宽度 小于 3等分宽度 则 印花都要弄宽度就是 3等分宽度
         for (int divide = 10; divide > 0 ; divide--)
         {
@@ -256,9 +259,10 @@ public class StripPackingLayout
                             MinBorder = Math.Min(printImg.Width , printImg.Height)
                         });
                     }
+                    int printImgPaddingMm = LocalAppConfig.AppSetting.PrintTaskConfig.PrintImgPaddingMm;
                     // 先算出面积最大的一个印花 以此印花为基准 ??? TODO 不确定合不合理 感觉使用长度最长的边来排序也很合理
                     LayoutPrintImg? largestAreaImg = productImgList.MaxBy(p => p.Area);
-                    PrePrintCanvas prePrintCanvas = GetPrintWidthByImgWidthDivide(largestAreaImg.Img.Width,largestAreaImg.Img.Height,machinePrintWidthPx);
+                    PrePrintCanvas prePrintCanvas = GetPrintWidthByImgWidthDivide(largestAreaImg.Img.Width, largestAreaImg.Img.Height, ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi), machinePrintWidthPx);
                     if (prePrintCanvas.Rot90)
                     {
                         int indexToReplace = productImgList.FindIndex(p => p.Id == largestAreaImg.Id);
@@ -287,9 +291,9 @@ public class StripPackingLayout
                         packingHint,
                         maxBoundsWidth: prePrintCanvas.WidthPx // 固定宽度 但是长度不定
                     );
-                    int printImgPaddingMm = LocalAppConfig.AppSetting.PrintTaskConfig.PrintImgPaddingMm;
+                   
                     using Image image = Image.Black((int)bounds.Width, (int)bounds.Height, bands: 4);
-                    using Image layoutCanvas = ImageHelper.AddTransparentPadding(image.Copy(interpretation: Enums.Interpretation.Srgb), ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi));
+                    using Image layoutCanvas = image.Copy(interpretation: Enums.Interpretation.Srgb);
                     Image currentResult = layoutCanvas;
                     foreach (PackingRectangle packingRectangle in rectanglesToPack)
                     {

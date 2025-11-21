@@ -571,7 +571,6 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         
         foreach (ProductBatchItemInfo produceBatchItemInfo in produceBatchOrderList.Data)
         {
-            // TODO 感觉没有多线程进行获取数据 难道是接口并发只能一秒一个请求?
             downloadTasks.Add(Task.Run(async () =>
             {
                 // 2. 在任务开始时，异步等待信号量
@@ -584,13 +583,9 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                         {
                             BatchNo = produceBatchItemInfo.BatchNum
                         };
-                        Stopwatch watch = new Stopwatch();
-                        watch.Start();
                         FactoryApiResponse<List<JsonNode?>> produceBatchOrderDetailObj =
                             await _produceBatchDetailApi.getProduceBatchDetailObjTest(
                                 produceBatchDetailRequest, token);
-                        watch.Stop();
-                        Console.WriteLine($"getProduceBatchDetailObjTest耗时{watch.ElapsedMilliseconds}");
                         
                         Console.WriteLine(
                             $"批次 {produceBatchItem.ProduceBatchNumber} - 项位批次 {produceBatchItemInfo.BatchNum} 详情抓取成功");
@@ -708,6 +703,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         }
     }
 
+    public static int k = 0;
+    
     public void updateProduceBatchItemDetail(UniqueBatchItem uniqueBatchItem,
         ProduceBatchItemProcess produceBatchItemProcess)
     {

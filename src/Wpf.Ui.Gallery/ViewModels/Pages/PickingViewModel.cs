@@ -178,7 +178,15 @@ public partial class PickingViewModel : ObservableObject
             else if (StringUtil.IsOrderNo(orderPick.OrderCode))
             {
                 ProduceItemEntity produceItemEntity = _databaseService.GetProduceItemByOrderNo(orderPick.OrderCode);
-                orderPick.OrderCode = produceItemEntity.OrderCode;
+                if (produceItemEntity is null)
+                {
+                    // TODO 本地存储条目为空 可能不是下载生产计划数据的电脑 需要从远程拉取数据
+                    
+                }
+                else
+                {
+                    orderPick.OrderCode = produceItemEntity.OrderCode;
+                }
             }
             if (OrderPickBasketList.Any(item => orderPick.OrderCode.Equals(item.OrderCode)))
             {
