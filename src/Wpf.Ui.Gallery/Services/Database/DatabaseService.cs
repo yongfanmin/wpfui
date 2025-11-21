@@ -42,6 +42,11 @@ public class DatabaseService : IDatabaseService
         // 创建带有密码的连接选项
         var options = new SQLiteConnectionString(_dbPathAndFileName, true, key: _password);
         var connection = new SQLiteConnection(options);
+        connection.ExecuteScalar<string>("PRAGMA journal_mode=WAL;");
+        connection.ExecuteScalar<string>("PRAGMA synchronous=NORMAL;");
+        connection.ExecuteScalar<string>("PRAGMA wal_autocheckpoint=1000;");
+        connection.ExecuteScalar<string>("PRAGMA cache_size=-200000;");
+
         return connection;
     }
     
@@ -93,7 +98,7 @@ public class DatabaseService : IDatabaseService
 
     public void AddProduceBatch(ProduceBatchVo produceBatchVo)
     {
-        _dbWriteLock.Wait();
+        // _dbWriteLock.Wait();
         try
         {
             using (var db = GetConnection())
@@ -141,13 +146,13 @@ public class DatabaseService : IDatabaseService
         }
         finally
         {
-            _dbWriteLock.Release();
+            // _dbWriteLock.Release();
         }
     }
-
+    
     public void UpdateProduceBatchStatus(IEnumerable<string> produceBatchNumbers, ProduceBatchStatus produceBatchStatus)
     {
-        _dbWriteLock.Wait();
+        // _dbWriteLock.Wait();
         try
         {
             using (var db = GetConnection())
@@ -169,13 +174,13 @@ public class DatabaseService : IDatabaseService
         }
         finally
         {
-            _dbWriteLock.Release();
+            // _dbWriteLock.Release();
         }
     }
     
     public void AddProduceBatchNeedLayoutItemCount(string produceBatchNum)
     {
-        _dbWriteLock.Wait();
+        // _dbWriteLock.Wait();
         try
         {
             if (string.IsNullOrEmpty(produceBatchNum))
@@ -220,14 +225,14 @@ public class DatabaseService : IDatabaseService
         }
         finally
         {
-            _dbWriteLock.Release();
+            // _dbWriteLock.Release();
         }
     }
 
     // 更新生产计划 各类项批号进度 (数据加载/图片下载/生产图合成)
     public void updateProduceBatchProcess(string produceBatchNum, ProduceBatchItemProcess produceBatchItemProcess)
     {
-        _dbWriteLock.Wait();
+        // _dbWriteLock.Wait();
         try
         {
             if (string.IsNullOrEmpty(produceBatchNum))
@@ -296,7 +301,7 @@ public class DatabaseService : IDatabaseService
         }
         finally
         {
-            _dbWriteLock.Release();
+            // _dbWriteLock.Release();
         }
     }
 
@@ -413,7 +418,7 @@ public class DatabaseService : IDatabaseService
 
     public void UpdateProduceBatchStatus(string produceBatchNum, ProduceBatchStatus produceBatchStatus)
     {
-        _dbWriteLock.Wait();
+        // _dbWriteLock.Wait();
         try
         {
             if (string.IsNullOrEmpty(produceBatchNum))
@@ -445,26 +450,35 @@ public class DatabaseService : IDatabaseService
         }
         finally
         {
-            _dbWriteLock.Release();
+            // _dbWriteLock.Release();
         }
     }
 
     public void AddProduceBatchItem(ProductBatchItemInfo productBatchItemInfo)
     {
-        _dbWriteLock.Wait();
+        // _dbWriteLock.Wait();
         try
         {
             using (var db = GetConnection())
             {
                 try
                 {
-                    db.Insert(new ProduceItemEntity()
+                    ProduceItemEntity produceItemEntity = GetProduceBatchItem(productBatchItemInfo.ProduceBatchNumber,
+                        productBatchItemInfo.BatchNum);
+                    if (produceItemEntity is null)
                     {
-                        FactoryId = productBatchItemInfo.FactoryId,
-                        ProduceBatchNum = productBatchItemInfo.ProduceBatchNumber,
-                        BatchNum = productBatchItemInfo.BatchNum,
-                        ProduceBatchItemProcess = ProduceBatchItemProcess.等待数据,
-                    });
+                        db.Insert(new ProduceItemEntity()
+                        {
+                            FactoryId = productBatchItemInfo.FactoryId,
+                            ProduceBatchNum = productBatchItemInfo.ProduceBatchNumber,
+                            BatchNum = productBatchItemInfo.BatchNum,
+                            ProduceBatchItemProcess = ProduceBatchItemProcess.等待数据,
+                        });
+                    }
+                    else
+                    {
+                        Console.WriteLine($"插入项批号 已存在项批号条目:{productBatchItemInfo.ProduceBatchNumber}-{productBatchItemInfo.BatchNum}");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -478,7 +492,7 @@ public class DatabaseService : IDatabaseService
         }
         finally
         {
-            _dbWriteLock.Release();
+            // _dbWriteLock.Release();
         }
     }
 
@@ -487,15 +501,17 @@ public class DatabaseService : IDatabaseService
         string productBatchNum = "";
         foreach (ProductBatchItemInfo productBatchOrderInfo in productBatchOrderInfoList)
         {
-            // TODO 需要改成批量写入 节约写入时间
             //productBatchNum = productBatchOrderInfo.ProduceBatchNumber;
-            AddProduceBatchItem(productBatchOrderInfo);
+            ThreadPool5Config.EnqueueAsync(async () =>
+            {
+                AddProduceBatchItem(productBatchOrderInfo);
+            });
         }
     }
-
+    
     public void setProductBatchItemInfo(string produceBatchNum, long batchNum, UniqueBatchItem uniqueBatchItem)
     {
-        _dbWriteLock.Wait();
+        // _dbWriteLock.Wait();
         try
         {
             using (var db = GetConnection())
@@ -535,7 +551,7 @@ public class DatabaseService : IDatabaseService
         }
         finally
         {
-            _dbWriteLock.Release();
+            // _dbWriteLock.Release();
         }
     }
 
@@ -650,7 +666,7 @@ public class DatabaseService : IDatabaseService
     public void updateProduceItemStatus(string produceBatchNum, long batchNum,
         ProduceBatchItemProcess produceBatchItemProcess)
     {
-        _dbWriteLock.Wait();
+        // _dbWriteLock.Wait();
         try
         {
             using (var db = GetConnection())
@@ -680,7 +696,7 @@ public class DatabaseService : IDatabaseService
         }
         finally
         {
-            _dbWriteLock.Release();
+            // _dbWriteLock.Release();
         }
     }
 

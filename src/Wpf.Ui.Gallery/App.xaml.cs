@@ -143,6 +143,16 @@ public partial class App
                     b.FromResource<Translations>(new("pl-PL"));
                 });
                 
+                
+                /*var socketsHttpHandler = new SocketsHttpHandler
+                {
+                    // 默认是 int.MaxValue , some platforms (like older mobile versions) might have much smaller limits.
+                    // MaxConnectionsPerServer = int.MaxValue
+                    // some platforms might have much smaller limits.
+                    // lets set a high but reasonable number
+                    MaxConnectionsPerServer = 50
+                };*/
+                
                 _ = services
                     .AddRefitClient<ILoginApi>()
                     .ConfigureHttpClient(c =>
@@ -184,6 +194,7 @@ public partial class App
                         .Or<Refit.ApiException>(ex => ex.StatusCode == System.Net.HttpStatusCode.InternalServerError) // 也可以处理特定的 Refit 异常
                         // 设置重试策略：重试4次，每次等待时间为 2^n 秒 (即 3, 6, 9, 27 秒)
                         .WaitAndRetryAsync(4, retryAttempt => TimeSpan.FromSeconds(Math.Pow(3, retryAttempt)))).AddHttpMessageHandler<NetworkActivityHandler>();
+                        //  .WaitAndRetryAsync(4, retryAttempt => TimeSpan.FromSeconds(Math.Pow(3, retryAttempt)))).AddHttpMessageHandler<NetworkActivityHandler>().ConfigurePrimaryHttpMessageHandler(() => socketsHttpHandler);
                 _ = services
                     .AddRefitClient<IOrderApi>()
                     .ConfigureHttpClient(c =>
