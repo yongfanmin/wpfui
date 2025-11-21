@@ -13,10 +13,11 @@ using Wpf.Ui.Gallery.Constant;
 using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.ViewModels.Windows;
+using Wpf.Ui.Gallery.Views.Windows.Logs;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
 
-public sealed partial class SettingsViewModel(INavigationService navigationService, IContentDialogService contentDialogService)
+public sealed partial class SettingsViewModel(INavigationService navigationService, IContentDialogService contentDialogService, WindowsProviderService windowsProviderService)
     : ObservableObject, INavigationAware
 {
     private readonly MainWindowViewModel _mainWindowViewModel;
@@ -274,5 +275,11 @@ public sealed partial class SettingsViewModel(INavigationService navigationServi
                 await errorDialog.ShowDialogAsync();
             }
         }
+    }
+
+    [RelayCommand]
+    private void OnOpenConsole()
+    {
+        windowsProviderService.Show<ConsoleWindow>();
     }
 }

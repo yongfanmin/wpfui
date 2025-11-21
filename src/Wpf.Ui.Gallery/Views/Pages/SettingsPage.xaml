@@ -287,6 +287,27 @@
                 Content="打开目录"
                 Command="{Binding ViewModel.OpenLogCommand, Mode=OneWay}" />
         </ui:CardControl>
+        <ui:CardControl Margin="0,12,0,12" Icon="{ui:SymbolIcon WindowConsole20}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        FontTypography="Body"
+                        Text="控制台" />
+                    <ui:TextBlock
+                        Grid.Row="1"
+                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                        Text="打开实时日志控制台" />
+                </Grid>
+            </ui:CardControl.Header>
+            <ui:Button
+                Content="打开控制台"
+                Command="{Binding ViewModel.OpenConsoleCommand, Mode=OneWay}" />
+        </ui:CardControl>
         <ui:CardControl Margin="0,0,0,12" Icon="{ui:SymbolIcon Key24}">
             <ui:CardControl.Header>
                 <Grid>

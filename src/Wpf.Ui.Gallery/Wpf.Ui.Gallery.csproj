@@ -44,6 +44,7 @@
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="System.Reactive" />
     <PackageReference Include="Svg.Skia" />
     <PackageReference Include="ZXing.Net" />
   </ItemGroup>
@@ -146,6 +147,15 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Translations.pl-PL.resx</DependentUpon>
     </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Services\Log\**\*.cs" />
+    <Compile Include="ViewModels\Windows\Logs\**\*.cs" />
+    <Compile Include="Views\Windows\Logs\**\*.cs" />
+    <Page Include="Views\Windows\Logs\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
 
 </Project>
