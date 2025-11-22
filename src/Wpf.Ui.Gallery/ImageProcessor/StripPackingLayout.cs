@@ -110,12 +110,19 @@ public class StripPackingLayout
                           PackingHints.TryByArea;
         
         // 执行自动打包
-        RectanglePacker.Pack(
+        /*RectanglePacker.Pack(
             rectanglesToPack,
             out var bounds,
             PackingHints.FindBest,
-            
+            isRot90: true,
             maxBoundsWidth: machinePrintWidthPx // 固定宽度 但是长度不定
+        );*/
+        
+        RectanglePacker2.Pack(
+            rectanglesToPack,
+            out var bounds,
+            maxBoundsWidth: machinePrintWidthPx,
+            isRot90: true
         );
 
         /*Console.WriteLine($"在最大宽度为 {fabricWidth} 的画布上，成功打包了 {rectanglesToPack.Length} 个矩形。");
@@ -194,8 +201,11 @@ public class StripPackingLayout
     }
     
     // 根据印花宽度 计算出预打包画布宽度  使用机器打印宽度 从机器可打印宽度 从划分10块 到划分1块 进行宽度容纳测试
-    public static PrePrintCanvas GetPrintWidthByImgWidthDivide(int printImgWidth, int printImgHeight, int paddingPx, uint machinePrintWidthPx)
+    public static PrePrintCanvas GetPrintWidthByImgWidthDivide(List<LayoutPrintImg> productImgList, int paddingPx, uint machinePrintWidthPx)
     {
+        LayoutPrintImg? largestAreaImg = productImgList.MaxBy(p => p.Area);
+        int printImgHeight = largestAreaImg.Img.Height;
+        int printImgWidth = largestAreaImg.Img.Width;
         printImgWidth += paddingPx;
         printImgHeight += paddingPx;
         // 例如 印花宽度 小于 3等分宽度 则 印花都要弄宽度就是 3等分宽度
@@ -262,7 +272,7 @@ public class StripPackingLayout
                     int printImgPaddingMm = LocalAppConfig.AppSetting.PrintTaskConfig.PrintImgPaddingMm;
                     // 先算出面积最大的一个印花 以此印花为基准 ??? TODO 不确定合不合理 感觉使用长度最长的边来排序也很合理
                     LayoutPrintImg? largestAreaImg = productImgList.MaxBy(p => p.Area);
-                    PrePrintCanvas prePrintCanvas = GetPrintWidthByImgWidthDivide(largestAreaImg.Img.Width, largestAreaImg.Img.Height, ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi), machinePrintWidthPx);
+                    PrePrintCanvas prePrintCanvas = GetPrintWidthByImgWidthDivide(productImgList, ImageHelper.ConvertMmToPixels(printImgPaddingMm, printerDpi), machinePrintWidthPx);
                     if (prePrintCanvas.Rot90)
                     {
                         int indexToReplace = productImgList.FindIndex(p => p.Id == largestAreaImg.Id);

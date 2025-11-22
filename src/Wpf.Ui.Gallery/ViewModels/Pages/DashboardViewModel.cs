@@ -563,7 +563,6 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         Console.WriteLine($"项批号 {produceBatchItem.ProduceBatchNumber} 详情抓取成功");
 
         var downloadTasks = new List<Task>();
-        // 1. 创建一个 SemaphoreSlim，初始计数为5，最大计数为5 
         int processorCount = LocalAppConfig.AppSetting.GetParallelThreads();
         var semaphore = new SemaphoreSlim(processorCount, processorCount);
         

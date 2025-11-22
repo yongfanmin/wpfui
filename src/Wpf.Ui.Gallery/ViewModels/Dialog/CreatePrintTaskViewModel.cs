@@ -642,6 +642,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             return IsPrintButtonEnabled;
         }
 
+        // 印花图/印花排版图 转成目标格式
         public async Task ConvertImageAsync(Image layoutImg, string baseDestinationPath, PrintTaskConfig printTaskConfig)
         {
             await Task.Run(async () =>
@@ -669,7 +670,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                     }
                     else
                     {
-                        layoutImg.WriteToFile(pngDestinationPath);
+                        layoutImg.Pngsave(pngDestinationPath);
                     }
                 }
                 else if(printTaskConfig.OutputFormat == OutputFormat.Jpg)
@@ -681,7 +682,9 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
                     }
                     else
                     {
-                        layoutImg.WriteToFile(jpgDestinationPath);
+                        // JPG/JPEG 透明通道转成白色背景
+                        using var flattenedImage = layoutImg.Flatten(background: new double[] { 255, 255, 255 });
+                        flattenedImage.Jpegsave(jpgDestinationPath, optimizeCoding: true);
                     }
                 }
                 else

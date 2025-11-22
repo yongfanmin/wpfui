@@ -117,7 +117,6 @@
     <Folder Include="Assets\Monaco\" />
 	  <Folder Include="Assets\Audio\" />
     <Folder Include="Assets\Icc\" />
-    <Folder Include="Lib\RectPackSharp\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -147,5 +146,5 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Translations.pl-PL.resx</DependentUpon>
     </Compile>
-  </ItemGroup>	
+  </ItemGroup>
 </Project>

@@ -20,6 +20,8 @@ public class AppSetting
 {
     // 增加或者修改字段 需要变更版本号才能刷新数据
     public string Version { get; set; } = "0.16";
+    
+    public string Domain { get; set; } = "https://factory.gongwohuo.cn";
 
     public WindowSettings MainWindow { get; set; } = new();
 

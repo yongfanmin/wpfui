@@ -104,14 +104,11 @@ public partial class App
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
     // https://docs.microsoft.com/dotnet/core/extensions/configuration
     // https://docs.microsoft.com/dotnet/core/extensions/logging
-
+    
     // 工厂管理后台地址
     public static readonly string FactoryManageUrl = "https://factory.gongwohuo.cn";
 
-    private static readonly string _apiDomain = FactoryManageUrl;
-    // private static readonly string _domain = "https://factory.gongwohuo.cn";
-    
-    
+    public static readonly string DynamicHost = "http://localhost";
     
     public static readonly LoggingLevelSwitch LevelSwitch = new(LogEventLevel.Error);
     
@@ -141,7 +138,7 @@ public partial class App
                 _ = services.AddSingleton<ObservableSink>();
                 _ = services.AddSingleton<ILoggingService, LoggingService>();
                 _ = services.AddTransient<ConsoleWindow>();
-                _ = services.AddTransient<ConsoleViewModel>();
+                _ = services.AddTransient<ConsoleWindowViewModel>();
                 
                 // Login 登录窗口
                 _ = services.AddSingleton<LoginWindow>();
@@ -192,6 +189,7 @@ public partial class App
                 );
 
                 _ = services.AddTransient<NetworkActivityHandler>();
+                _ = services.AddTransient<DynamicBaseAddressHandler>();
                 
                 _ = services.AddStringLocalizer(b =>
                 {
@@ -212,51 +210,45 @@ public partial class App
                     .AddRefitClient<ILoginApi>()
                     .ConfigureHttpClient(c =>
                     {
-                        //接口域名 接口地址 登录接口
-                        c.BaseAddress = new Uri(_apiDomain);
-                    });
+                        c.BaseAddress = new Uri(DynamicHost);
+                    }).AddHttpMessageHandler<DynamicBaseAddressHandler>();
                 _ = services
                     .AddRefitClient<ILayoutApi>()
                     .ConfigureHttpClient(c =>
                     {
-                        //接口域名 接口地址 排版接口
-                        c.BaseAddress = new Uri(_apiDomain);
-                    });
+                        c.BaseAddress = new Uri(DynamicHost);
+                    }).AddHttpMessageHandler<DynamicBaseAddressHandler>();
                 _ = services
                     .AddRefitClient<IProduceBatchApi>()
                     .ConfigureHttpClient(c =>
                     {
-                        //接口域名 接口地址 生产计划接口
-                        c.BaseAddress = new Uri(_apiDomain);
-                    }).AddHttpMessageHandler<NetworkActivityHandler>();
+                        c.BaseAddress = new Uri(DynamicHost);
+                    }).AddHttpMessageHandler<NetworkActivityHandler>().AddHttpMessageHandler<DynamicBaseAddressHandler>();
                 _ = services
                     .AddRefitClient<IProduceBatchInfoApi>()
                     .ConfigureHttpClient(c =>
                     {
-                        //接口域名 接口地址 生产计划信息接口
-                        c.BaseAddress = new Uri(_apiDomain);
-                    }).AddHttpMessageHandler<NetworkActivityHandler>();
+                        c.BaseAddress = new Uri(DynamicHost);
+                    }).AddHttpMessageHandler<NetworkActivityHandler>().AddHttpMessageHandler<DynamicBaseAddressHandler>();
                 _ = services
                     .AddRefitClient<IProduceBatchDetailApi>()
                     .ConfigureHttpClient(c =>
                     {
-                        //接口域名 接口地址 生产计划详情接口
-                        c.BaseAddress = new Uri(_apiDomain);
+                        c.BaseAddress = new Uri(DynamicHost);
                     }).AddPolicyHandler(HttpPolicyExtensions
                         // 选择要处理的异常和HTTP错误
                         .HandleTransientHttpError() // 自动处理 HttpRequestException, 5xx 状态码, 408 状态码
                         .Or<IOException>() // 特别加入 IOException 来捕获 "The response ended prematurely"
                         .Or<Refit.ApiException>(ex => ex.StatusCode == System.Net.HttpStatusCode.InternalServerError) // 也可以处理特定的 Refit 异常
                         // 设置重试策略：重试4次，每次等待时间为 2^n 秒 (即 3, 6, 9, 27 秒)
-                        .WaitAndRetryAsync(4, retryAttempt => TimeSpan.FromSeconds(Math.Pow(3, retryAttempt)))).AddHttpMessageHandler<NetworkActivityHandler>();
+                        .WaitAndRetryAsync(4, retryAttempt => TimeSpan.FromSeconds(Math.Pow(3, retryAttempt)))).AddHttpMessageHandler<NetworkActivityHandler>().AddHttpMessageHandler<DynamicBaseAddressHandler>();
                         //  .WaitAndRetryAsync(4, retryAttempt => TimeSpan.FromSeconds(Math.Pow(3, retryAttempt)))).AddHttpMessageHandler<NetworkActivityHandler>().ConfigurePrimaryHttpMessageHandler(() => socketsHttpHandler);
                 _ = services
                     .AddRefitClient<IOrderApi>()
                     .ConfigureHttpClient(c =>
                     {
-                        //接口域名 接口地址 订单接口
-                        c.BaseAddress = new Uri(_apiDomain);
-                    }).AddHttpMessageHandler<NetworkActivityHandler>();
+                        c.BaseAddress = new Uri("http://localhost");
+                    }).AddHttpMessageHandler<NetworkActivityHandler>().AddHttpMessageHandler<DynamicBaseAddressHandler>();
             }
         ).UseSerilog(
             (context, services, configuration) =>

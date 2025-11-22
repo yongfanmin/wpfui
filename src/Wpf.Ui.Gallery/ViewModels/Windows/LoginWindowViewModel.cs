@@ -14,6 +14,7 @@ using Wpf.Ui.Controls;
 using Wpf.Ui.Gallery.Apis;
 using Wpf.Ui.Gallery.Dto;
 using Wpf.Ui.Gallery.Dto.Machine;
+using Wpf.Ui.Gallery.LocalConfig;
 using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Contracts;
 using Wpf.Ui.Gallery.Utils;
@@ -26,6 +27,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows;
 public partial class LoginWindowViewModel : ObservableObject
 {
     private readonly ILoginApi _loginApi;
+    private readonly IContentDialogService _contentDialogService;
     private readonly ISnackbarService _snackbarService;
     private readonly IServiceProvider _serviceProvider;
     private readonly LoginInfoService _loginInfoService;
@@ -42,13 +44,15 @@ public partial class LoginWindowViewModel : ObservableObject
         ILoginApi loginApi,
         ISnackbarService snackbarService,
         IServiceProvider serviceProvider,
-        LoginInfoService loginInfoService
+        LoginInfoService loginInfoService,
+        IContentDialogService contentDialogService
     )
     {
         _loginApi = loginApi;
         _snackbarService = snackbarService;
         _serviceProvider = serviceProvider;
         _loginInfoService = loginInfoService;
+        _contentDialogService = contentDialogService;
         loginInfoService.LoadLoginInfo();
         if (loginInfoService.LoginRequest is not null)
         {
@@ -59,6 +63,48 @@ public partial class LoginWindowViewModel : ObservableObject
             _account = loginInfoService.LoginRequest.Account;
             _password = loginInfoService.LoginRequest.Password;
             _rememberMe = true;
+        }
+    }
+    
+    public async Task InitializeViewModelAsync()
+    {
+        while (string.IsNullOrEmpty(LocalAppConfig.AppSetting.Domain))
+        {
+            var contentDialog = new ContentDialog(_contentDialogService.GetDialogHost());
+            var textBox = new System.Windows.Controls.TextBox
+            {
+                Text = LocalAppConfig.AppSetting.Domain
+            };
+            contentDialog.Title = "Enter Domain";
+            contentDialog.Content = textBox;
+            contentDialog.PrimaryButtonText = "Save";
+            contentDialog.CloseButtonText = "Cancel";
+
+            var result = await contentDialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                if (Uri.TryCreate(textBox.Text, UriKind.Absolute, out var uriResult) && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+                {
+                    LocalAppConfig.AppSetting.Domain = textBox.Text;
+                    LocalAppConfig.Save(LocalAppConfig.AppSetting);
+                }
+                else
+                {
+                    var messageBox = new Wpf.Ui.Controls.MessageBox
+                    {
+                        Title = "Invalid Domain",
+                        Content = "Please enter a valid URL.",
+                        CloseButtonText = "OK"
+                    };
+                    await messageBox.ShowDialogAsync();
+                }
+            }
+            else
+            {
+                Application.Current.Shutdown();
+                return;
+            }
         }
     }
 

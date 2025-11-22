@@ -9,9 +9,16 @@ namespace Wpf.Ui.Gallery.Views.Windows;
 
 public partial class LoginWindow
 {
+    private readonly LoginWindowViewModel _viewModel;
     public LoginWindow(LoginWindowViewModel viewModel)
     {
-        DataContext = viewModel;
+        _viewModel = viewModel;
+        DataContext = _viewModel;
         InitializeComponent();
+    }
+
+    private async void LoginWindow_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        await _viewModel.InitializeViewModelAsync();
     }
 }

@@ -16,7 +16,8 @@
     WindowBackdropType="Mica"
     WindowCornerPreference="Round"
     WindowStartupLocation="CenterScreen"
-    mc:Ignorable="d">
+    mc:Ignorable="d"
+    Loaded="LoginWindow_OnLoaded">
     <Window.Resources>
         <localConverters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </Window.Resources>

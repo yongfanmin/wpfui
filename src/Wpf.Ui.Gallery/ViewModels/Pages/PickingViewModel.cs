@@ -180,8 +180,8 @@ public partial class PickingViewModel : ObservableObject
                 ProduceItemEntity produceItemEntity = _databaseService.GetProduceItemByOrderNo(orderPick.OrderCode);
                 if (produceItemEntity is null)
                 {
-                    // TODO 本地存储条目为空 可能不是下载生产计划数据的电脑 需要从远程拉取数据
-                    
+                    // 本地存储条目为空 可能不是下载生产计划数据的电脑 需要从远程拉取数据
+                    // 下面已经从远程获取数据 不需要这里写
                 }
                 else
                 {

@@ -3,7 +3,6 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
-
 using System;
 using System.Collections.Generic;
 
@@ -35,11 +34,11 @@ namespace RectpackSharp
 #if NET5_0_OR_GREATER
         public static void Pack(Span<PackingRectangle> rectangles, out PackingRectangle bounds,
             PackingHints packingHint = PackingHints.FindBest, double acceptableDensity = 1, uint stepSize = 1,
-            uint? maxBoundsWidth = null, uint? maxBoundsHeight = null)
+            uint? maxBoundsWidth = null, uint? maxBoundsHeight = null, bool isRot90 = false)
 #elif NETSTANDARD2_0
         public static void Pack(PackingRectangle[] rectangles, out PackingRectangle bounds,
             PackingHints packingHint = PackingHints.FindBest, double acceptableDensity = 1, uint stepSize = 1,
-            uint? maxBoundsWidth = null, uint? maxBoundsHeight = null)
+            uint? maxBoundsWidth = null, uint? maxBoundsHeight = null, bool isRot90 = false)
 #endif
         {
             if (rectangles == null)
@@ -116,7 +115,7 @@ namespace RectpackSharp
                 // initial bin size the size of the best bin we got so far. The function never tries
                 // bigger bin sizes, so if with a specified packingHint it can't pack smaller than
                 // with the last solution, it simply stops.
-                if (TryFindBestBin(emptySpaces, ref tmpBest, ref tmpArray, binWidth, binHeight, stepSize, acceptableBoundsArea,
+                if (TryFindBestBin(emptySpaces, ref tmpBest, ref tmpArray, binWidth, binHeight, stepSize, acceptableBoundsArea, isRot90,
                     out PackingRectangle boundsTmp))
                 {
                     // We have a better solution!
@@ -168,10 +167,10 @@ namespace RectpackSharp
         /// <returns>Whether a solution was found.</returns>
 #if NET5_0_OR_GREATER
         private static bool TryFindBestBin(List<PackingRectangle> emptySpaces, ref Span<PackingRectangle> rectangles,
-            ref Span<PackingRectangle> tmpArray, uint binWidth, uint binHeight, uint stepSize, uint acceptableArea, out PackingRectangle bounds)
+            ref Span<PackingRectangle> tmpArray, uint binWidth, uint binHeight, uint stepSize, uint acceptableArea, bool isRot90, out PackingRectangle bounds)
 #elif NETSTANDARD2_0
         private static bool TryFindBestBin(List<PackingRectangle> emptySpaces, ref PackingRectangle[] rectangles,
-            ref PackingRectangle[] tmpArray, uint binWidth, uint binHeight, uint stepSize, uint acceptableArea, out PackingRectangle bounds)
+            ref PackingRectangle[] tmpArray, uint binWidth, uint binHeight, uint stepSize, uint acceptableArea, bool isRot90, out PackingRectangle bounds)
 #endif
         {
             // We set boundsWidth and boundsHeight to these initial
@@ -183,7 +182,7 @@ namespace RectpackSharp
 
             // We try packing the rectangles until we either fail, or find a solution with acceptable area.
             while ((isFirst || boundsWidth * boundsHeight > acceptableArea) &&
-                    TryPackAsOrdered(emptySpaces, rectangles, tmpArray, binWidth, binHeight, out boundsWidth, out boundsHeight))
+                    TryPackAsOrdered(emptySpaces, rectangles, tmpArray, binWidth, binHeight, out boundsWidth, out boundsHeight, isRot90))
             {
                 bounds.Width = boundsWidth;
                 bounds.Height = boundsHeight;
@@ -219,7 +218,7 @@ namespace RectpackSharp
         /// <returns>Whether the operation succeeded.</returns>
         /// <remarks>The unpacked and packed spans can be the same.</remarks>
         private static bool TryPackAsOrdered(List<PackingRectangle> emptySpaces, Span<PackingRectangle> unpacked,
-            Span<PackingRectangle> packed, uint binWidth, uint binHeight, out uint boundsWidth, out uint boundsHeight)
+            Span<PackingRectangle> packed, uint binWidth, uint binHeight, out uint boundsWidth, out uint boundsHeight, bool isRot90)
         {
             // We clear the empty spaces list and add one space covering the entire bin.
             emptySpaces.Clear();
@@ -232,12 +231,51 @@ namespace RectpackSharp
             // We loop through all the rectangles.
             for (int r = 0; r < unpacked.Length; r++)
             {
-                // We try to find a space for the rectangle. If we can't, then we return false.
-                if (!TryFindBestSpace(unpacked[r], emptySpaces, out int spaceIndex))
+                int bestSpaceIndex = -1;
+                uint bestY = uint.MaxValue;
+                uint bestX = uint.MaxValue;
+                bool bestRectRotated = false;
+
+                for (int i = 0; i < emptySpaces.Count; i++)
+                {
+                    PackingRectangle space = emptySpaces[i];
+                    PackingRectangle rect = unpacked[r];
+
+                    if (rect.Width <= space.Width && rect.Height <= space.Height)
+                    {
+                        if (space.Y < bestY || (space.Y == bestY && space.X < bestX))
+                        {
+                            bestY = space.Y;
+                            bestX = space.X;
+                            bestSpaceIndex = i;
+                            bestRectRotated = false;
+                        }
+                    }
+
+                    if (isRot90)
+                    {
+                        rect.Rotate();
+                        if (rect.Width <= space.Width && rect.Height <= space.Height)
+                        {
+                            if (space.Y < bestY || (space.Y == bestY && space.X < bestX))
+                            {
+                                bestY = space.Y;
+                                bestX = space.X;
+                                bestSpaceIndex = i;
+                                bestRectRotated = true;
+                            }
+                        }
+                    }
+                }
+
+                if (bestSpaceIndex == -1)
                     return false;
 
-                PackingRectangle oldSpace = emptySpaces[spaceIndex];
+                PackingRectangle oldSpace = emptySpaces[bestSpaceIndex];
                 packed[r] = unpacked[r];
+                if (bestRectRotated)
+                    packed[r].Rotate();
+
                 packed[r].X = oldSpace.X;
                 packed[r].Y = oldSpace.Y;
                 boundsWidth = Math.Max(boundsWidth, packed[r].Right);
@@ -249,7 +287,7 @@ namespace RectpackSharp
 
                 if (freeWidth != 0 && freeHeight != 0)
                 {
-                    emptySpaces.RemoveAt(spaceIndex);
+                    emptySpaces.RemoveAt(bestSpaceIndex);
                     // Both freeWidth and freeHeight are different from 0. We need to split the
                     // empty space into two (plus the image). We split it in such a way that the
                     // bigger rectangle will be where there is the most space.
@@ -269,46 +307,22 @@ namespace RectpackSharp
                     // We only need to change the Y and height of the space.
                     oldSpace.Y += packed[r].Height;
                     oldSpace.Height = freeHeight;
-                    emptySpaces[spaceIndex] = oldSpace;
-                    EnsureSorted(emptySpaces, spaceIndex);
-                    //emptySpaces.RemoveAt(spaceIndex);
-                    //emptySpaces.Add(new PackingRectangle(oldSpace.X, oldSpace.Y + packed[r].Height, oldSpace.Width, freeHeight));
+                    emptySpaces[bestSpaceIndex] = oldSpace;
+                    EnsureSorted(emptySpaces, bestSpaceIndex);
                 }
                 else if (freeHeight == 0)
                 {
                     // We only need to change the X and width of the space.
                     oldSpace.X += packed[r].Width;
                     oldSpace.Width = freeWidth;
-                    emptySpaces[spaceIndex] = oldSpace;
-                    EnsureSorted(emptySpaces, spaceIndex);
-                    //emptySpaces.RemoveAt(spaceIndex);
-                    //emptySpaces.Add(new PackingRectangle(oldSpace.X + packed[r].Width, oldSpace.Y, freeWidth, oldSpace.Height));
+                    emptySpaces[bestSpaceIndex] = oldSpace;
+                    EnsureSorted(emptySpaces, bestSpaceIndex);
                 }
                 else // The rectangle uses up the entire empty space.
-                    emptySpaces.RemoveAt(spaceIndex);
+                    emptySpaces.RemoveAt(bestSpaceIndex);
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Tries to find the best empty space that can fit the given rectangle.
-        /// </summary>
-        /// <param name="rectangle">The rectangle to find a space for.</param>
-        /// <param name="emptySpaces">The list with the empty spaces.</param>
-        /// <param name="index">The index of the space found.</param>
-        /// <returns>Whether a suitable space was found.</returns>
-        private static bool TryFindBestSpace(in PackingRectangle rectangle, List<PackingRectangle> emptySpaces, out int index)
-        {
-            for (int i = 0; i < emptySpaces.Count; i++)
-                if (rectangle.Width <= emptySpaces[i].Width && rectangle.Height <= emptySpaces[i].Height)
-                {
-                    index = i;
-                    return true;
-                }
-
-            index = -1;
-            return false;
         }
 
         /// <summary>

@@ -162,5 +162,14 @@ namespace RectpackSharp
         {
             return -SortKey.CompareTo(other.SortKey);
         }
+
+        // v2
+        // <summary>
+        /// Swaps the values of <see cref="Width"/> and <see cref="Height"/>.
+        /// </summary>
+        public void Rotate()
+        {
+            (Width, Height) = (Height, Width);
+        }
     }
 }
