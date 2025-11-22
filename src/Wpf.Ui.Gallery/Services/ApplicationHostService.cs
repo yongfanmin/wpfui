@@ -6,6 +6,8 @@
 using Wpf.Ui.Gallery.Services.Contracts;
 using Wpf.Ui.Gallery.Views.Pages;
 using Wpf.Ui.Gallery.Views.Windows;
+using Serilog;
+using Wpf.Ui.Gallery.Services.Log;
 
 namespace Wpf.Ui.Gallery.Services;
 
@@ -15,11 +17,13 @@ namespace Wpf.Ui.Gallery.Services;
 public class ApplicationHostService : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly Serilog.ILogger _logger;
 
-    public ApplicationHostService(IServiceProvider serviceProvider)
+    public ApplicationHostService(IServiceProvider serviceProvider, Serilog.ILogger logger)
     {
         // If you want, you can do something with these services at the beginning of loading the application.
         _serviceProvider = serviceProvider;
+        _logger = logger;
     }
 
     /// <summary>
@@ -28,6 +32,13 @@ public class ApplicationHostService : IHostedService
     /// <param name="cancellationToken">Indicates that the start process has been aborted.</param>
     public Task StartAsync(CancellationToken cancellationToken)
     {
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var serilogOut = new SerilogTextWriter(_logger);
+        var serilogError = new SerilogTextWriter(_logger, Serilog.Events.LogEventLevel.Error);
+        Console.SetOut(new TeeWriter(originalOut, serilogOut));
+        Console.SetError(new TeeWriter(originalError, serilogError));
+
         return HandleActivationAsync();
     }
 

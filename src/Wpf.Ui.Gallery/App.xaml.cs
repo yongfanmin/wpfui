@@ -35,6 +35,67 @@ using Wpf.Ui.Gallery.Views.Windows;
 using Wpf.Ui.Gallery.Views.Windows.Logs;
 
 namespace Wpf.Ui.Gallery;
+public class TeeWriter : TextWriter
+{
+    private readonly TextWriter _originalWriter;
+    private readonly TextWriter _logWriter;
+
+    public TeeWriter(TextWriter originalWriter, TextWriter logWriter)
+    {
+        _originalWriter = originalWriter;
+        _logWriter = logWriter;
+    }
+
+    public override void Write(char value)
+    {
+        _originalWriter.Write(value);
+        _logWriter.Write(value);
+    }
+
+    public override void Flush()
+    {
+        _originalWriter.Flush();
+        _logWriter.Flush();
+    }
+
+    public override Encoding Encoding => _originalWriter.Encoding;
+}
+public class SerilogTextWriter : TextWriter
+{
+    private readonly Serilog.ILogger _logger;
+    private readonly LogEventLevel _logEventLevel;
+    private readonly StringBuilder _buffer = new();
+
+    public SerilogTextWriter(Serilog.ILogger logger, LogEventLevel logEventLevel = LogEventLevel.Information)
+    {
+        _logger = logger;
+        _logEventLevel = logEventLevel;
+    }
+
+    public override void Write(char value)
+    {
+        if (value == '\n')
+        {
+            Flush();
+        }
+        else if (value != '\r')
+        {
+            _buffer.Append(value);
+        }
+    }
+
+    public override void Flush()
+    {
+        if (_buffer.Length > 0)
+        {
+            _logger.Write(_logEventLevel, _buffer.ToString());
+            _buffer.Clear();
+        }
+    }
+
+    public override Encoding Encoding => Encoding.UTF8;
+}
+
 
 public partial class App
 {
@@ -240,7 +301,12 @@ public partial class App
         Console.OutputEncoding = Encoding.UTF8;
         //程序启动 进入程序 开启程序 打开软件
         //_host.Start();
-
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var serilogOut = new SerilogTextWriter(Log.Logger);
+        var serilogError = new SerilogTextWriter(Log.Logger, LogEventLevel.Error);
+        Console.SetOut(new TeeWriter(originalOut, serilogOut));
+        Console.SetError(new TeeWriter(originalError, serilogError));
         initDatabase();
         AutoCleanup();
         _host.StartAsync();
