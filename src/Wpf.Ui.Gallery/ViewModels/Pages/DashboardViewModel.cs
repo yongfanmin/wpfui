@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Timers;
 using CommunityToolkit.Mvvm.Messaging;
+using NetVips;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Extensions;
@@ -26,11 +27,13 @@ using Wpf.Ui.Gallery.Services;
 using Wpf.Ui.Gallery.Services.Database;
 using Wpf.Ui.Gallery.Services.Downloader;
 using Wpf.Ui.Gallery.Table;
+using Wpf.Ui.Gallery.Test;
 using Wpf.Ui.Gallery.Utils;
 using Wpf.Ui.Gallery.ViewModels.Windows;
 using Wpf.Ui.Gallery.Views.Pages;
 using Wpf.Ui.Gallery.Views.Windows;
 using Wpf.Ui.Gallery.Vo;
+using Image = NetVips.Image;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages;
 
@@ -350,8 +353,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         produceBatchItemVo.ProduceBatchItemProcess = produceBatchItemProcess;
         return produceBatchItemVo;
     }
-
-    // TODO 这个方法瞬间抓取大量订单的情况下 会阻塞UI线程 导致程序界面未响应
+    
     private async Task LoadBatchDataAsync()
     {
         try
@@ -473,16 +475,22 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                     {
                         downloadTasks.Add(Task.Run(async () =>
                         {
-                            // 下载裁片图
-                            LocalImgInfo? patternPieceImg2localImg =
-                                await _imageDownloader.DownloadImageAsync(
-                                    productionTask.PatternPieceImageUrl,
-                                    FileName.getPatternPieceImgPath(productionTask.FactoryId,
-                                        productionTask.DesignProductId),
-                                    // 一个view包含多个面的情况 例如单幅全印 部分单幅全印
-                                    $"{productionTask.ViewId}-{productionTask.PatternPieceTitle}");
-                            // TODO 图片为空 需要报错
-                            productionTask.PatternPieceImageLocalImg = patternPieceImg2localImg;
+                            if (productionTask.PatternPieceImageUrl is not null)
+                            {
+                                // 下载裁片图
+                                LocalImgInfo? patternPieceImg2localImg =
+                                    await _imageDownloader.DownloadImageAsync(
+                                        productionTask.PatternPieceImageUrl,
+                                        FileName.getPatternPieceImgPath(productionTask.FactoryId,
+                                            productionTask.DesignProductId),
+                                        // 一个view包含多个面的情况 例如单幅全印 部分单幅全印
+                                        $"{productionTask.ViewId}-{productionTask.PatternPieceTitle}");
+                                if (patternPieceImg2localImg is null)
+                                {
+                                    throw new Exception($"图片下载为空: {productionTask.PatternPieceImageUrl}");
+                                }
+                                productionTask.PatternPieceImageLocalImg = patternPieceImg2localImg;
+                            }
                             // 下载裁片对应印花图
                             foreach (PrintLayerInfo taskPrintLayer in productionTask.PrintLayers)
                             {
@@ -495,14 +503,20 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                                     fileName = fileName.Replace("-ftp-product", "-print-product");
                                 }
 
-                                LocalImgInfo? patternPrintImg2localImg =
-                                    await _imageDownloader.DownloadImageAsync(
-                                        taskPrintLayer.DesignImageUrl,
-                                        FileName.getPatternPrintImgPath(productionTask.FactoryId,
-                                            taskPrintLayer.GalleryId),
-                                        fileName);
-                                // TODO 图片为空 需要报错
-                                taskPrintLayer.DesignImageLocalImg = patternPrintImg2localImg;
+                                if (taskPrintLayer.DesignImageUrl is not null)
+                                {
+                                    LocalImgInfo? patternPrintImg2localImg =
+                                        await _imageDownloader.DownloadImageAsync(
+                                            taskPrintLayer.DesignImageUrl,
+                                            FileName.getPatternPrintImgPath(productionTask.FactoryId,
+                                                taskPrintLayer.GalleryId),
+                                            fileName);
+                                    if (patternPrintImg2localImg is null)
+                                    {
+                                        throw new Exception($"图片下载为空: {productionTask.PatternPieceImageUrl}");
+                                    }
+                                    taskPrintLayer.DesignImageLocalImg = patternPrintImg2localImg;
+                                }
                             }
                         }));
                     }
@@ -799,6 +813,8 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         LocalAppConfig.Save(LocalAppConfig.AppSetting);
     }
 
+   
+    
     [RelayCommand]
     private void OnOpenFolder()
     {

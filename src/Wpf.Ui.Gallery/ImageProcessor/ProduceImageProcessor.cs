@@ -360,14 +360,19 @@ public class ProduceImageProcessor : IProduceImageProcessor
                                 else
                                 {
                                     // 5. 叠加合成
-                                    using Image newCanvas = tempCanvas.Composite(
+                                    // a. Composite 创建一个全新的 Image 结果
+                                    Image newCanvas = tempCanvas.Composite(
                                         imageToProcess,
                                         blendMode,
                                         x: finalX,
                                         y: finalY
                                     );
+
+                                    // b. 释放上一个中间结果
                                     tempCanvas.Dispose();
-                                    tempCanvas = newCanvas.Copy();
+
+                                    // c. 将引用指向新结果 (不使用 .Copy() 来避免不必要的内存分配)
+                                    tempCanvas = newCanvas;
                                 }
                             }
                         }
@@ -404,13 +409,15 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 }*/
                 // 执行印花裁剪 如果有需要 根据 PrintCropType判断
 
-                using (var cropImg = patternPieceTask.PrintCropType.Equals(PrintCropType.裁片满幅裁切)
-                           ? ImageHelper.CropFromCenter(tempCanvas,
-                               ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.WidthMm,
-                                   patternPieceTask.TargetDpi),
-                               ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.HeightMm,
-                                   patternPieceTask.TargetDpi))
-                           : tempCanvas?.Copy())
+                using (
+                    var cropImg = patternPieceTask.PrintCropType.Equals(PrintCropType.裁片满幅裁切)
+                        ? ImageHelper.CropFromCenter(tempCanvas,
+                            ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.WidthMm,
+                                patternPieceTask.TargetDpi),
+                            ImageHelper.ConvertMmToPixels(patternPieceTask.PrintCropArea.HeightMm,
+                                patternPieceTask.TargetDpi))
+                        : tempCanvas?.Copy()
+                )
                 {
                     if (cropImg != null)
                     {
@@ -1216,8 +1223,8 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
         return false;
     }
-    
-    
+
+
     /// <summary>
     /// 将RGBA图像转换为一个新的RGBA图像，其中有颜色的区域变为完全不透明。
     /// 纯白区域(255,255,255)被视为空白，并变为完全透明。
@@ -1248,7 +1255,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
         return fourBandImage.Copy(interpretation: Enums.Interpretation.Srgb);
 
     }*/
-    
+
     // 这个方法有误: C#程序现在无法处理专色通道, 如果先给印花生成专色通道 再进行排版, 专色通道会丢失
     // 能用的写法: 先给png图片排版 然后整排版图再转 CMYK+专色通道
     public async static Task<bool> CreateLayoutTiffFromPxSize(
@@ -1265,9 +1272,13 @@ public class ProduceImageProcessor : IProduceImageProcessor
         using Image image = Image.Black((int)layoutResult.LayoutWidthPx, (int)layoutResult.LayoutHeightPx, bands: 4);
 
         // 将图像的色彩空间解释为 SRGB
-        using Image layoutCanvas = ImageHelper.AddTransparentPadding(image.Copy(interpretation: Enums.Interpretation.Srgb), ImageHelper.ConvertMmToPixels(safeEdgeWithoutPaddingMm, dpi));
-        
-        Image currentResult = layoutCanvas;
+        Image currentResult;
+        using (var srgbImage = image.Copy(interpretation: Enums.Interpretation.Srgb))
+        using (var layoutCanvas = ImageHelper.AddTransparentPadding(srgbImage,
+                   ImageHelper.ConvertMmToPixels(safeEdgeWithoutPaddingMm, dpi)))
+        {
+            currentResult = layoutCanvas.Copy(); // currentResult 现在拥有自己的图像实例
+        }
 
         // --- 2. 将图片根据X,Y的坐标信息排版在画布上 ---
         foreach (var imgInfo in layoutResult.LayoutImgList)
@@ -1276,7 +1287,9 @@ public class ProduceImageProcessor : IProduceImageProcessor
             Image createdPiece = null;
             if (pieceToUse == null)
             {
-                createdPiece = imgInfo.Rot90 ? Image.NewFromFile(imgInfo.ImgPath).Rot90() : Image.NewFromFile(imgInfo.ImgPath);
+                createdPiece = imgInfo.Rot90
+                    ? Image.NewFromFile(imgInfo.ImgPath).Rot90()
+                    : Image.NewFromFile(imgInfo.ImgPath);
                 pieceToUse = createdPiece;
             }
 
@@ -1284,15 +1297,15 @@ public class ProduceImageProcessor : IProduceImageProcessor
             {
                 if (pieceToUse.Bands == currentResult.Bands)
                 {
-                    using Image newResult =
+                    Image newResult =
                         currentResult.Composite(pieceToUse, Enums.BlendMode.Over, x: (int)imgInfo.PositionX,
                             y: (int)imgInfo.PositionY);
-                    if (currentResult != layoutCanvas)
-                    {
-                        currentResult.Dispose();
-                    }
 
-                    currentResult = newResult.Copy();
+                    // 释放旧的 currentResult
+                    currentResult.Dispose();
+
+                    // 将引用指向新结果
+                    currentResult = newResult;
                 }
                 else
                 {
@@ -1307,138 +1320,152 @@ public class ProduceImageProcessor : IProduceImageProcessor
         }
 
         int machinePrintWidthPx = ImageHelper.ConvertMmToPixels(machinePrintWidthMm, dpi);
-        if (Math.Max(currentResult.Width, currentResult.Height) < machinePrintWidthPx && currentResult.Height > currentResult.Width)
+        if (Math.Max(currentResult.Width, currentResult.Height) < machinePrintWidthPx &&
+            currentResult.Height > currentResult.Width)
         {
             // 排版算法是求面积最小 如果变成竖排 需要旋转成横排
-            using Image rotatedResult = currentResult.Rot90();
-            currentResult.Dispose();
-            using Image paddedResult = ImageHelper.AddTransparentPadding(rotatedResult.Copy(interpretation: Enums.Interpretation.Srgb), -1 * ImageHelper.ConvertMmToPixels(safeEdgeWithoutPaddingMm, dpi));
-            currentResult = paddedResult.Copy();
-        }
-        
-        if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Jpg)
-        {
-            double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
-            using var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
-            finalImage.Jpegsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Jpeg)));
-            return true;
-        }
-        else if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Png)
-        {
-            double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
-            using var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
-            finalImage.Pngsave(Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)));
-            return true;
-        }
-        else if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifCymk || LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifWithSpotColor )
-        {
-            // --- 3. 设置DPI并返回最终图像 ---
-            double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
-            using var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm );
-
-            if (currentResult != layoutCanvas)
+            using (var rotatedResult = currentResult.Rot90())
             {
-                currentResult.Dispose();
+                currentResult.Dispose(); // 释放原始的 currentResult
+
+                using (var srgbCopy = rotatedResult.Copy(interpretation: Enums.Interpretation.Srgb))
+                using (var paddedResult = ImageHelper.AddTransparentPadding(srgbCopy,
+                           -1 * ImageHelper.ConvertMmToPixels(safeEdgeWithoutPaddingMm, dpi)))
+                {
+                    currentResult = paddedResult.Copy();
+                }
             }
-            var iccProfileToUse = cmykProfilePath;
-            if (string.IsNullOrEmpty(iccProfileToUse) || !File.Exists(iccProfileToUse))
+        }
+
+        using (currentResult)
+        {
+            if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Jpg)
             {
-                iccProfileToUse = FindDefaultCmykProfile();
-            }
-
-            string finalPath = Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Tiff));
-            // --- DPI 准备 ---
-            var xresInPpm = finalImage.Xres;
-            var yresInPpm = finalImage.Yres;
-
-            
-
-            // 步骤 1: 确保我们有一个带 Alpha 通道的源图像。
-            // Alpha 通道将作为我们的专色通道。
-            using var imageWithAlpha = finalImage.HasAlpha()
-                ? finalImage.Copy() // 如果已经有 alpha，直接使用
-                : finalImage.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
-            using var imageWithoutAlpha = finalImage.HasAlpha() ? finalImage.ExtractBand(0, n: finalImage.Bands - 1) : finalImage.Copy();
-
-            
-            using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
-            if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifCymk)
-            {
-                cmykImage.Tiffsave(finalPath,
-                    compression: Enums.ForeignTiffCompression.Lzw,
-                    profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
-                    tile: true,
-                    pyramid: false,
-                    resunit: Enums.ForeignTiffResunit.Inch,
-                    xres: xresInPpm,
-                    yres: yresInPpm
-                );
+                double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
+                using var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm);
+                finalImage.Jpegsave(Path.ChangeExtension(outputTiffPath,
+                    ImgFormat2Extend.GetExtend(ImgSupportFormat.Jpeg)));
                 return true;
             }
-            
-            // 步骤 2: 将这个 4 通道的 RGBA 图像转换到目标 CMYK 色彩空间。
-            // libvips 会智能地将 RGB -> CMYK (4 个通道)，并将原始的 Alpha 通道作为第 5 个通道附加。
-            // 这一步的结果是一个 5 通道的图像，其 interpretation 为 Multiband。
-            //using var cmykWithSpot = imageWithAlpha.Colourspace(Enums.Interpretation.Cmyk, sourceSpace: Enums.Interpretation.Srgb);
-
-            // --- 专色层和 CMYK 图像准备 ---
-            using Image spotPlate = finalImage.HasAlpha()
-                ? finalImage.ExtractBand(finalImage.Bands - 1).Invert()
-                : Image.Black(finalImage.Width, finalImage.Height).Invert();
-
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
-            using Image skeletonImg = ImageHelper.UnifiedSkeletonize(spotPlate,LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedSafePx);
-            stopwatch.Stop();
-            Console.WriteLine($"SkeletonizeWithOpenCvInvertLinePixelBest耗时:{stopwatch.ElapsedMilliseconds}ms");
-            // 内缩两个像素
-            // 创建一个 5x5 的方形结构元素 (核)，用于一次性腐蚀2个像素。 (n-1)/2  n为矩阵长度
-            // 在 NetVips 中，结构元素本身就是一个 Image 对象。
-            // 内缩两像素
-            using var mask = Image.NewFromArray(CreateImageMask(LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedPx));
-            // 使用创建的 5x5 核，对专色蒙版执行一次腐蚀操作。
-            //using var spotPlateShrunk = spotPlate.Erode(mask);
-            // 先对透明通道取反->外扩 = 非透明区域内缩
-            using var spotPlateShrunk = spotPlate.Dilate(mask);
-
-            using Image spotComplete = spotPlateShrunk.Composite2(skeletonImg, Enums.BlendMode.Darken);
-            
-            using (var spotBand = spotComplete.ExtractBand(0))
+            else if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.Png)
             {
-                using var cmykWithSpot = cmykImage.Bandjoin(spotBand);
-                // --- 通道合并 ---
-
-                // 步骤 3: 保存这个 5 通道的图像。
-                // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
-                // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
-                cmykWithSpot.Tiffsave(finalPath,
-                    compression: Enums.ForeignTiffCompression.Lzw,
-                    profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
-                    tile: true,
-                    pyramid: false,
-                    resunit: Enums.ForeignTiffResunit.Inch,
-                    xres: xresInPpm,
-                    yres: yresInPpm
-                );
-            }
-            
-            bool success = await ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>(){finalPath});
-            if (success)
-            {
-                // 成功
+                double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
+                using var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm);
+                finalImage.Pngsave(Path.ChangeExtension(outputTiffPath,
+                    ImgFormat2Extend.GetExtend(ImgSupportFormat.Png)));
                 return true;
+            }
+            else if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifCymk ||
+                     LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifWithSpotColor)
+            {
+                // --- 3. 设置DPI并返回最终图像 ---
+                double pixelsPerMm = dpi / ImageHelper.MillimetersPerInch;
+                using var finalImage = currentResult.Copy(xres: pixelsPerMm, yres: pixelsPerMm);
+
+                var iccProfileToUse = cmykProfilePath;
+                if (string.IsNullOrEmpty(iccProfileToUse) || !File.Exists(iccProfileToUse))
+                {
+                    iccProfileToUse = FindDefaultCmykProfile();
+                }
+
+                string finalPath =
+                    Path.ChangeExtension(outputTiffPath, ImgFormat2Extend.GetExtend(ImgSupportFormat.Tiff));
+                // --- DPI 准备 ---
+                var xresInPpm = finalImage.Xres;
+                var yresInPpm = finalImage.Yres;
+
+
+                // 步骤 1: 确保我们有一个带 Alpha 通道的源图像。
+                // Alpha 通道将作为我们的专色通道。
+                using var imageWithAlpha = finalImage.HasAlpha()
+                    ? finalImage.Copy() // 如果已经有 alpha，直接使用
+                    : finalImage.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
+                using var imageWithoutAlpha = finalImage.HasAlpha()
+                    ? finalImage.ExtractBand(0, n: finalImage.Bands - 1)
+                    : finalImage.Copy();
+
+
+                using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
+                if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifCymk)
+                {
+                    cmykImage.Tiffsave(finalPath,
+                        compression: Enums.ForeignTiffCompression.Lzw,
+                        profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
+                        tile: true,
+                        pyramid: false,
+                        resunit: Enums.ForeignTiffResunit.Inch,
+                        xres: xresInPpm,
+                        yres: yresInPpm
+                    );
+                    return true;
+                }
+
+                // 步骤 2: 将这个 4 通道的 RGBA 图像转换到目标 CMYK 色彩空间。
+                // libvips 会智能地将 RGB -> CMYK (4 个通道)，并将原始的 Alpha 通道作为第 5 个通道附加。
+                // 这一步的结果是一个 5 通道的图像，其 interpretation 为 Multiband。
+                //using var cmykWithSpot = imageWithAlpha.Colourspace(Enums.Interpretation.Cmyk, sourceSpace: Enums.Interpretation.Srgb);
+
+                // --- 专色层和 CMYK 图像准备 ---
+                using Image spotPlate = finalImage.HasAlpha()
+                    ? finalImage.ExtractBand(finalImage.Bands - 1).Invert()
+                    : Image.Black(finalImage.Width, finalImage.Height).Invert();
+
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
+                using Image skeletonImg = ImageHelper.UnifiedSkeletonize(spotPlate,
+                    LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedSafePx);
+                stopwatch.Stop();
+                Console.WriteLine($"SkeletonizeWithOpenCvInvertLinePixelBest耗时:{stopwatch.ElapsedMilliseconds}ms");
+                // 内缩两个像素
+                // 创建一个 5x5 的方形结构元素 (核)，用于一次性腐蚀2个像素。 (n-1)/2  n为矩阵长度
+                // 在 NetVips 中，结构元素本身就是一个 Image 对象。
+                // 内缩两像素
+                using var mask =
+                    Image.NewFromArray(CreateImageMask(LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedPx));
+                // 使用创建的 5x5 核，对专色蒙版执行一次腐蚀操作。
+                //using var spotPlateShrunk = spotPlate.Erode(mask);
+                // 先对透明通道取反->外扩 = 非透明区域内缩
+                using var spotPlateShrunk = spotPlate.Dilate(mask);
+
+                using Image spotComplete = spotPlateShrunk.Composite2(skeletonImg, Enums.BlendMode.Darken);
+
+                using (var spotBand = spotComplete.ExtractBand(0))
+                {
+                    using var cmykWithSpot = cmykImage.Bandjoin(spotBand);
+                    // --- 通道合并 ---
+
+                    // 步骤 3: 保存这个 5 通道的图像。
+                    // 在保存时，我们通过 `profile` 参数提供 CMYK ICC 配置文件。
+                    // 这个组合会让 Tiffsave 正确地写入所有 5 个通道，并将第 5 个标记为 Extra Sample。
+                    cmykWithSpot.Tiffsave(finalPath,
+                        compression: Enums.ForeignTiffCompression.Lzw,
+                        profile: iccProfileToUse, // 在这里提供配置文件是成功的关键
+                        tile: true,
+                        pyramid: false,
+                        resunit: Enums.ForeignTiffResunit.Inch,
+                        xres: xresInPpm,
+                        yres: yresInPpm
+                    );
+                }
+
+                bool success = await ExecutePhotoshopJsxAnyChannel2SpotColor(new List<string>() { finalPath });
+                if (success)
+                {
+                    // 成功
+                    return true;
+                }
+                else
+                {
+                    throw new Exception("PS转换专色通道出错");
+                }
             }
             else
             {
-                throw new Exception("PS转换专色通道出错");
+                throw new Exception($"不支持打印任务输出格式: {LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat}");
             }
         }
-        else
-        {
-            throw new Exception($"不支持打印任务输出格式: {LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat}");
-        }
     }
-    
+
     // 专色通道内缩量
     public static byte[,] CreateImageMask(int safeSpotPixel)
     {

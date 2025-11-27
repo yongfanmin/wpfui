@@ -208,7 +208,13 @@ public static class ImageHelper
             extend: Enums.Extend.Background,
             background: new double[] { 0, 0, 0, 0 }
         );
-        imageWithAlpha.Dispose();
+        // 仅当创建了临时图像时才释放它。
+        // imageWithAlpha 指向输入图像时，不应被释放。
+        if (imageWithAlpha != inputImage)
+        {
+            imageWithAlpha.Dispose();
+        }
+
         return paddedImage;
     }
 
@@ -878,7 +884,10 @@ public static class ImageHelper
 
             // --- 步骤 4: 为最终图像添加一个完全不透明的Alpha通道 ---
             // 这样可以确保返回的图像一定是4通道RGBA，方便后续统一处理
-            return finalRgbImage.Bandjoin(255).Copy(interpretation: Enums.Interpretation.Srgb);
+            using (var finalRgbaImage = finalRgbImage.Bandjoin(255))
+            {
+                return finalRgbaImage.Copy(interpretation: Enums.Interpretation.Srgb);
+            }
         }
         catch (Exception ex)
         {
@@ -992,11 +1001,14 @@ public static class ImageHelper
                 int leftOffset = (finalWidthInPixels - textImage.Width) / 2;
                 int topOffset = (finalHeightInPixels - textImage.Height) / 2;
 
-                return textImage.Embed(leftOffset, topOffset,
-                                       finalWidthInPixels,
-                                       finalHeightInPixels,
-                                       extend: Enums.Extend.Background,
-                                       background: whitePixel);
+                using (textImage)
+                {
+                    return textImage.Embed(leftOffset, topOffset,
+                        finalWidthInPixels,
+                        finalHeightInPixels,
+                        extend: Enums.Extend.Background,
+                        background: whitePixel);
+                }
             }
             else
             {
@@ -1012,12 +1024,15 @@ public static class ImageHelper
                 
                 if (textImage == null) return null;
 
-                var whitePixel = new double[] { 255, 255, 255 };
-                return textImage.Embed(paddingInPixels, paddingInPixels,
-                                       textImage.Width + (2 * paddingInPixels),
-                                       textImage.Height + (2 * paddingInPixels),
-                                       extend: Enums.Extend.Background,
-                                       background: whitePixel);
+                using (textImage)
+                {
+                    var whitePixel = new double[] { 255, 255, 255 };
+                    return textImage.Embed(paddingInPixels, paddingInPixels,
+                        textImage.Width + (2 * paddingInPixels),
+                        textImage.Height + (2 * paddingInPixels),
+                        extend: Enums.Extend.Background,
+                        background: whitePixel);
+                }
             }
         }
         catch (Exception ex)
