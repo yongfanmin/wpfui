@@ -7,6 +7,7 @@
 using NetVips;
 using System;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using ImageMagick;
 using OpenCvSharp;
 using OpenCvSharp.XImgProc;
@@ -677,6 +678,128 @@ public static class ImageHelper
         }
     }
 
+     public static Image UnifiedSkeletonizeV2(Image spotPlate, int shrinkDistance, bool invertFinalResult = true)
+    {
+        // 0. 基础校验与快速返回
+        if (spotPlate == null) return null;
+        if (shrinkDistance <= 0) return spotPlate.Copy();
+
+        // NetVips -> 内存流 -> OpenCV Mat
+        // 使用 .Png 保存到内存是最稳妥的转换方式，虽然有一点点IO开销，但避免了复杂的内存对齐问题
+        byte[] memoryBuffer = spotPlate.WriteToBuffer(ImgFormat2Extend.GetExtend(ImgSupportFormat.Png));
+
+        Mat resultMat = null;
+        
+        try
+        {
+            // 1. 加载图像 (灰度模式)
+            using (Mat src = Mat.ImDecode(memoryBuffer, ImreadModes.Grayscale))
+            {
+                if (src.Empty()) return spotPlate.Copy();
+
+                // 2. 预处理：二值化
+                // 确保图像只有 0 和 255。
+                // 如果输入是白底黑图（常见专色），通常需要先反转为黑底白图进行形态学运算，最后再反转回来
+                using (Mat binary = new Mat())
+                {
+                    // 假设输入是常见的专色图（白色代表有墨），如果输入是底片（黑色代表有墨），BitwiseNot 需要调整
+                    // 这里沿用 V1 的逻辑：先反转，再二值化
+                    using (Mat tempInv = new Mat())
+                    {
+                        Cv2.BitwiseNot(src, tempInv);
+                        // 阈值选取：根据配置或默认值，过滤杂点
+                        int threshold = LocalAppConfig.AppSetting?.PrintTaskConfig?.WhiteInkEdgeStrength ?? 127;
+                        Cv2.Threshold(tempInv, binary, threshold, 255, ThresholdTypes.Binary);
+                    }
+
+                    if (binary.CountNonZero() == 0)
+                    {
+                        // 如果全是黑的，直接返回全白（或全黑，视反转逻辑）
+                        return invertFinalResult ? Image.Black(spotPlate.Width, spotPlate.Height).Invert() : Image.Black(spotPlate.Width, spotPlate.Height);
+                    }
+
+                    // =========================================================
+                    // 核心算法：智能内缩 (Smart Shrink)
+                    // =========================================================
+
+                    // A. 定义结构元素 (Kernel)
+                    // shrinkDistance 即为半径。Size = 2*r + 1
+                    int kernelSize = shrinkDistance * 2 + 1;
+                    using (Mat kernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(kernelSize, kernelSize)))
+                    {
+                        // B. 主体内缩 (Erosion)
+                        // 大色块边缘向内缩进 shrinkDistance 个像素
+                        using (Mat erodedBody = new Mat())
+                        {
+                            Cv2.Erode(binary, erodedBody, kernel);
+
+                            // C. 细节找回 (Details Rescue)
+                            // 计算：Details = Original - Open(Original)
+                            // Open(Original) 代表“能被核完全容纳的主体”。
+                            // Original - Open 代表“比核还要细小的细节”（如发丝）。
+                            // 这些细节在 Erode 步骤中消失了，我们需要把它们加回来。
+                            using (Mat opened = new Mat())
+                            using (Mat details = new Mat())
+                            {
+                                // 开运算
+                                Cv2.MorphologyEx(binary, opened, MorphTypes.Open, kernel);
+                                // 差值计算
+                                Cv2.Subtract(binary, opened, details);
+
+                                // D. 融合 (Fusion)
+                                // 结果 = 内缩后的主体 + 找回的细节
+                                using (Mat combined = new Mat())
+                                {
+                                    Cv2.BitwiseOr(erodedBody, details, combined);
+
+                                    // E. 愈合 (Healing / Closing)
+                                    // 解决“断裂伪影”：内缩可能导致细线与主体连接处断开。
+                                    // 使用一个小核进行闭运算，重新连接断裂处。
+                                    using (Mat healKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(3, 3)))
+                                    {
+                                        resultMat = new Mat();
+                                        Cv2.MorphologyEx(combined, resultMat, MorphTypes.Close, healKernel);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. 最终输出处理
+            Mat finalOutput = resultMat;
+            Mat matToDispose = null; // 用于标记需要额外释放的中间Mat
+
+            if (invertFinalResult)
+            {
+                // 如果需要反转（变回白底黑字）
+                Mat inverted = new Mat();
+                Cv2.BitwiseNot(resultMat, inverted);
+                finalOutput = inverted;
+                matToDispose = inverted; // 标记稍后释放
+            }
+
+            // 4. OpenCV Mat -> NetVips Image
+            // 使用 ImEncode 转为内存字节，再由 NetVips 加载
+            byte[] outBuffer;
+            Cv2.ImEncode(".png", finalOutput, out outBuffer);
+
+            // 释放资源
+            matToDispose?.Dispose();
+            resultMat?.Dispose();
+
+            // 返回 NetVips 对象 (需复制一份以脱离 Buffer 依赖，或者直接返回 NewFromBuffer 只要 Buffer 不被复用)
+            return Image.NewFromBuffer(outBuffer);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"UnifiedSkeletonizeV2 Error: {ex.Message}");
+            return spotPlate.Copy();
+        }
+    }
+    
+    
     // TODO 着是将两个算法合并成一个函数, 可能可以 增加 Threshold 的色彩识别范围就行 而不用两种算法进行合并以保留细节 ， 但需要验证  效果接近完美 耗时70秒
     public static Image UnifiedSkeletonize(Image spotPlate, int targetThickness, bool invertFinalResult = true)
     {

@@ -1380,12 +1380,12 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 using var imageWithAlpha = finalImage.HasAlpha()
                     ? finalImage.Copy() // 如果已经有 alpha，直接使用
                     : finalImage.Bandjoin(255); // 如果没有，添加一个全白（不透明）的 alpha 通道
-                using var imageWithoutAlpha = finalImage.HasAlpha()
+                // 以下是错误得写法 现在专色通道是基于 alpha通道进行替换得, 不能移除alpha通道
+                /*using var imageWithoutAlpha = finalImage.HasAlpha()
                     ? finalImage.ExtractBand(0, n: finalImage.Bands - 1)
-                    : finalImage.Copy();
+                    : finalImage.Copy();*/
 
-
-                using Image cmykImage = imageWithoutAlpha.IccTransform(iccProfileToUse, inputProfile: "srgb");
+                using Image cmykImage = finalImage.IccTransform(iccProfileToUse, inputProfile: "srgb");
                 if (LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat == OutputFormat.TifCymk)
                 {
                     cmykImage.Tiffsave(finalPath,
@@ -1412,6 +1412,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
 
                 Stopwatch stopwatch = new Stopwatch();
                 stopwatch.Start();
+
                 using Image skeletonImg = ImageHelper.UnifiedSkeletonize(spotPlate,
                     LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedSafePx);
                 stopwatch.Stop();
