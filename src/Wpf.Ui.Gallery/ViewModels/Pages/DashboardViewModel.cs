@@ -366,7 +366,7 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         produceBatchItemVo.BatchNum = produceBatchItemDetail.BatchNum;
         produceBatchItemVo.OrderNo = produceBatchItemDetail.OrderNo;
         produceBatchItemVo.OrderDetailId = produceBatchItemDetail.OrderDetailId;
-        produceBatchItemVo.SkuAlias = produceBatchItemDetail.DesignName;
+        produceBatchItemVo.Sku = produceBatchItemDetail.Sku;
         //batchOrderVo.SkuAlias = "";
         //batchOrderVo.PayTime = "";
         produceBatchItemVo.ProduceBatchItemProcess = produceBatchItemProcess;

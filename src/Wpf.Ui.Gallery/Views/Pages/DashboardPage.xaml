@@ -12,6 +12,7 @@
     xmlns:vo="clr-namespace:Wpf.Ui.Gallery.Vo"
     xmlns:utils="clr-namespace:Wpf.Ui.Gallery.Utils"
     xmlns:localApp="clr-namespace:Wpf.Ui.Gallery"
+    xmlns:constant="clr-namespace:Wpf.Ui.Gallery.Constant"
     x:Name="DashboardPageRoot"
     Title="Dashboard Page"
     Tag="{Binding ElementName=ProductBatchDataGrid, Path=SelectedItems}"
@@ -452,10 +453,35 @@
                                     <Button Content="查看批次详情"
                                         Command="{Binding DataContext.ViewModel.OpenProduceItemWindowCommand, RelativeSource={RelativeSource AncestorType={x:Type local:DashboardPage}}}"
                                         CommandParameter="{Binding}"/>
-                                    <Button Content="去印刷"
-                                        Margin="4,0,0,0"
-                                        Command="{Binding DataContext.ViewModel.GoToPrintCommand, RelativeSource={RelativeSource AncestorType={x:Type local:DashboardPage}}}"
-                                        CommandParameter="{Binding}"/>
+                                    <Grid Margin="4,0,0,0">
+                                        <Button Content="去印刷"
+                                                Command="{Binding DataContext.ViewModel.GoToPrintCommand, RelativeSource={RelativeSource AncestorType={x:Type local:DashboardPage}}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ProduceBatchStatus}" Value="{x:Static constant:ProduceBatchStatus.全部无需印花}">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <TextBlock Text="无需印花" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                   Foreground="{DynamicResource SystemFillColorCautionBrush}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ProduceBatchStatus}" Value="{x:Static constant:ProduceBatchStatus.全部无需印花}">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
                                 </StackPanel>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>

@@ -84,7 +84,7 @@ public sealed partial class ProduceBatchItemViewModel : ObservableObject, IRecip
                 OrderNo = produceItemEntity.OrderNo,
                 OrderDetailId = produceItemEntity.OrderDetailId,
                 //PatternName = produceItemEntity.PatternName,
-                SkuAlias = produceItemEntity.SkuAlias,
+                Sku = produceItemEntity.SkuAlias,
                 Color = produceItemEntity.Color,
                 Size = produceItemEntity.Size,
                 //PayTime = produceItemEntity.PayTime,

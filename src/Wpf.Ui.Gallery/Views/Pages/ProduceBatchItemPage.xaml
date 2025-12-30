@@ -216,7 +216,7 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}"
-                                         Text="{Binding SkuAlias}" />
+                                         Text="{Binding Sku}" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

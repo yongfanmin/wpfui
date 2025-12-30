@@ -25,8 +25,8 @@ public partial class ProduceBatchItemVo : ObservableObject
     // 纸样/样板/公版/版
     // public string? PatternName { get; set; }
 
-    // sku别名 (颜色-尺码 等集合的名称)
-    public string? SkuAlias { get; set; }
+    // sku (颜色-尺码 等集合的名称)
+    public string? Sku { get; set; }
     
     public string? Color { get; set; }
     
