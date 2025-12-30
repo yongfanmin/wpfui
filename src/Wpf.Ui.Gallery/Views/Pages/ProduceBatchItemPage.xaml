@@ -212,7 +212,7 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="产品名">
+                    <DataGridTemplateColumn Header="SKU">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBox Style="{StaticResource SelectableReadOnlyCellStyle}"

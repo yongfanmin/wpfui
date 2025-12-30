@@ -20,7 +20,7 @@ public class ProduceBatchDetailRequest
 
 public interface IProduceBatchDetailApi
 {
-    [Post("/api/v2/factoryInterface/getOrderProduceInfoByBatchNo")]
+    [Post("/api/v2/software/getOrderProduceInfoByBatchNo")]
     Task<FactoryApiResponse<List<JsonNode?>>> getProduceBatchDetailObjTest(
         [Body] ProduceBatchDetailRequest request,
         // TODO 接口端使用非标准鉴权方式

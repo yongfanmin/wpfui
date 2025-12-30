@@ -14,6 +14,9 @@ public class OrderCodeRequest
     //[JsonPropertyName("batch_no")]
     [JsonPropertyName("orderCode")]
     public string OrderCode { get; set; }
+    
+    [JsonPropertyName("orderNo")]
+    public string OrderNo { get; set; }
 
     [JsonPropertyName("force")] public bool Force { get; set; } = false;
 }
@@ -34,29 +37,36 @@ public class ItemIdRequest
 
 public interface IOrderApi
 {
-    // 获取订单编码
-    [Post("/api/v2/factoryInterface/getOrderDetailByOrderCode")]
+    // 获取订单根据订单编码
+    [Post("/api/v2/software/getOrderDetailByOrderCode")]
     Task<FactoryApiResponse<Object>> getOrderDetailByOrderCode(
         [Body] OrderCodeRequest request,
         [Header("Token")] string token
     );
     
+    // 获取订单根据订单号
+    [Post("/api/v2/software/getOrderDetailByOrderNo")]
+    Task<FactoryApiResponse<Object>> getOrderDetailByOrderNo(
+        [Body] OrderCodeRequest request,
+        [Header("Token")] string token
+    );
     
-    [Post("/api/v2/factoryInterface/getOrderDetailByBatchNo")]
+    
+    [Post("/api/v2/software/getOrderDetailByBatchNo")]
     Task<FactoryApiResponse<Object>> getOrderDetailByBatchNo(
         [Body] BatchNoRequest request,
         [Header("Token")] string token
     );
     
     
-    [Post("/api/v2/factoryInterface/getOrderDetailByItemId")]
+    [Post("/api/v2/software/getOrderDetailByItemId")]
     Task<FactoryApiResponse<Object>> getOrderDetailByItemId(
         [Body] ItemIdRequest request,
         [Header("Token")] string token
     );
     
     // 获取物流面单信息
-    [Post("/api/factoryInterface/getOrderExpressInfoByOrderCode")]
+    [Post("/api/software/getOrderExpressInfoByOrderCode")]
     Task<FactoryApiResponse<Object>> getOrderExpressInfoByOrderCode(
         [Body] OrderCodeRequest request,
         [Header("Token")] string token
@@ -64,14 +74,14 @@ public interface IOrderApi
     
     
     // 设置发货
-    [Post("/api/factoryInterface/setOrderCompleteByOrderCode")]
+    [Post("/api/software/setOrderCompleteByOrderCode")]
     Task<FactoryApiResponse<Object>> setOrderCompleteByOrderCode(
         [Body] OrderCodeRequest request,
         [Header("Token")] string token
     );
     
     // 强制设置发货
-    [Post("/api/factoryInterface/setOrderCompleteByOrderCode")]
+    [Post("/api/software/setOrderCompleteByOrderCode")]
     Task<FactoryApiResponse<Object>> setOrderCompleteByOrderCodeForce(
         [Body] OrderCodeRequest request,
         [Header("Token")] string token

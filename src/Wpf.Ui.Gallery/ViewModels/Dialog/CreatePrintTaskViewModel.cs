@@ -67,8 +67,16 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
 
         [ObservableProperty] private OrderTrackType _orderTrackTypeOb = OrderTrackType.不打印跟踪条;
         
+        [ObservableProperty]
+        private bool _isManualLayoutEnabled = true;
+
+        [ObservableProperty]
+        private bool _isTifFormatEnabled = true;
+
+        
         partial void OnOutputFormatObChanged(OutputFormat value)
         {
+            UpdateLayoutAndFormatStates();
             LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat = value;
             LocalAppConfig.Save(LocalAppConfig.AppSetting);
         }
@@ -82,6 +90,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
         
         partial void OnLayoutOptionObChanged(LayoutOption value)
         {
+            UpdateLayoutAndFormatStates();
             LocalAppConfig.AppSetting.PrintTaskConfig.LayoutOption = value;
             LocalAppConfig.Save(LocalAppConfig.AppSetting);
         }
@@ -97,6 +106,36 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             OutputFormatOb = LocalAppConfig.AppSetting.PrintTaskConfig.OutputFormat;
             LayoutOptionOb = LocalAppConfig.AppSetting.PrintTaskConfig.LayoutOption;
             OrderTrackTypeOb = LocalAppConfig.AppSetting.PrintTaskConfig.OrderTrackConfig.OrderTrackType;
+            UpdateLayoutAndFormatStates();
+        }
+        
+        private void UpdateLayoutAndFormatStates()
+        {
+            if (OutputFormatOb == OutputFormat.TifCymk || OutputFormatOb == OutputFormat.TifWithSpotColor)
+            {
+                if (LayoutOptionOb != LayoutOption.Automatic)
+                {
+                    LayoutOptionOb = LayoutOption.Automatic;
+                }
+                IsManualLayoutEnabled = false;
+            }
+            else
+            {
+                IsManualLayoutEnabled = true;
+            }
+            
+            if (LayoutOptionOb != LayoutOption.Automatic)
+            {
+                IsTifFormatEnabled = false;
+                if (OutputFormatOb == OutputFormat.TifCymk || OutputFormatOb == OutputFormat.TifWithSpotColor)
+                {
+                    OutputFormatOb = OutputFormat.Png;
+                }
+            }
+            else
+            {
+                IsTifFormatEnabled = true;
+            }
         }
 
         [RelayCommand]

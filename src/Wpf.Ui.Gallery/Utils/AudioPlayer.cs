@@ -3,6 +3,8 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
+using Wpf.Ui.Gallery.LocalConfig;
+
 namespace Wpf.Ui.Gallery.Utils;
 
 public static class AudioPlayer
@@ -46,6 +48,11 @@ public static class AudioPlayer
     /// </summary>
     public static async void PlayAudio(string audioFilePath)
     {
+        if (!LocalAppConfig.AppSetting.IsSoundEnabled)
+        {
+            return;
+        }
+        
         if (!File.Exists(audioFilePath))
         {
             Console.WriteLine($"音频文件不存在: {audioFilePath}");

@@ -104,6 +104,10 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 // 公版裁片为基底作业流水线
                 if (patternPieceTask.PrintCropType == PrintCropType.裁片指定印花区域裁切)
                 {
+                    if (patternPieceTask.RenderType == RenderType.全印_叠加裁片)
+                    {
+                        throw new Exception("全印 不能使用裁切方式:PrintCropType.裁片指定印花区域裁切(包含等比缩放)");
+                    }
                     // 直接打印出印花 比如 烫画 印花图先打印在薄膜上 ；所以不需要临时画布
                     if (patternPieceTask.PrintLayers.Count == 0)
                     {
@@ -1413,7 +1417,7 @@ public class ProduceImageProcessor : IProduceImageProcessor
                 Stopwatch stopwatch = new Stopwatch();
                 stopwatch.Start();
 
-                using Image skeletonImg = ImageHelper.UnifiedSkeletonize(spotPlate,
+                using Image skeletonImg = ImageHelper.UnifiedSkeletonizeV2(spotPlate,
                     LocalAppConfig.AppSetting.PrintTaskConfig.WhiteInkBleedSafePx);
                 stopwatch.Stop();
                 Console.WriteLine($"SkeletonizeWithOpenCvInvertLinePixelBest耗时:{stopwatch.ElapsedMilliseconds}ms");

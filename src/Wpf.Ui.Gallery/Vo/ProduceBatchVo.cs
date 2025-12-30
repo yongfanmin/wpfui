@@ -40,7 +40,7 @@ public partial class ProduceBatchVo : ObservableObject
             {
                 return $"{ProduceBatchItemCount}";
             }
-            return $"{AvlProduceBatchItemCount} / {ProduceBatchItemCount} 仅部分可生产";
+            return $"{AvlProduceBatchItemCount} / {ProduceBatchItemCount} 仅部分可生产 [待重置生产]";
         }
     }
 
@@ -93,6 +93,17 @@ public partial class ProduceBatchVo : ObservableObject
     {
         get
         {
+            if (ProduceBatchStatus == ProduceBatchStatus.生产准备就绪 && PiecePrintCount < AvlProduceBatchItemCount)
+            {
+                if (PiecePrintCount == 0)
+                {
+                    return "买家只要底款不印花";
+                }
+                else
+                {
+                    return $"{PiecePrintCount} / {AvlProduceBatchItemCount}完成 | {AvlProduceBatchItemCount - PiecePrintCount} / {AvlProduceBatchItemCount} 无需印花";
+                }
+            }
             if (AvlProduceBatchItemCount > 0 && PiecePrintCount >= AvlProduceBatchItemCount)
             {
                 return tips2;

@@ -61,14 +61,14 @@ public class ResetRequest
 
 public interface IProduceBatchApi
 {
-    [Post("/api/v2/factoryInterface/getProduceList")]
+    [Post("/api/v2/software/getProduceList")]
     Task<FactoryApiResponse<List<ProduceBatchInfo>>> getProduceBatchList(
         [Body] ProduceBatchRequest request,
         // TODO 接口端使用非标准鉴权方式
         [Header("Token")] string token
         );
     
-    [Post("/api/v2/factoryInterface/getProduceList")]
+    [Post("/api/v2/software/getProduceList")]
     Task<object> getProduceBatchListObj(
         [Body] ProduceBatchRequest request,
         // TODO 接口端使用非标准鉴权方式
@@ -76,14 +76,14 @@ public interface IProduceBatchApi
     );
     
     // 后端接口出现歧义 实际是对 item_id 设置成已生产 而不是batch_no
-    [Post("/api/v2/factoryInterface/setOrderProduceBatchNoCreating")]
+    [Post("/api/v2/software/setOrderProduceBatchNoCreating")]
     Task<FactoryApiResponse<Object>> setBatchNo2Produce(
         [Body] BatchNo2Produce request,
         // TODO 接口端使用非标准鉴权方式
         [Header("Token")] string token
     );
     
-    [Post("/api/v2/factoryInterface/setOrderProduceProduceBatchNumCreating")]
+    [Post("/api/v2/software/setOrderProduceProduceBatchNumCreating")]
     Task<FactoryApiResponse<Object>> setProduceBatchNum2Produce(
         [Body] ProduceBatchNum2Produce request,
         // TODO 接口端使用非标准鉴权方式
@@ -91,7 +91,7 @@ public interface IProduceBatchApi
     );
     
     
-    [Post("/api/factoryInterface/setOrderProduceCompleteByBatchNo")]
+    [Post("/api/software/setOrderProduceCompleteByBatchNo")]
     Task<FactoryApiResponse<Object>> setBatchNo2ProduceComplete(
         [Body] BatchNo2ProduceComplete request,
         // TODO 接口端使用非标准鉴权方式
@@ -99,7 +99,7 @@ public interface IProduceBatchApi
     );
     
     
-    [Post("/api/v2/factoryInterface/setOrderProduceCompleteByProduceBatchNum")]
+    [Post("/api/v2/software/setOrderProduceCompleteByProduceBatchNum")]
     Task<FactoryApiResponse<Object>> setProduceBatchNum2Complete(
         [Body] ProduceBatchNo2ProduceComplete request,
         // TODO 接口端使用非标准鉴权方式
@@ -107,7 +107,7 @@ public interface IProduceBatchApi
     );
     
     
-    [Post("/api/v2/factoryInterface/produce/edit")]
+    [Post("/api/v2/software/produce/edit")]
     Task<FactoryApiResponse<Object>> resetProduce(
         [Body] ResetRequest request,
         // TODO 接口端使用非标准鉴权方式

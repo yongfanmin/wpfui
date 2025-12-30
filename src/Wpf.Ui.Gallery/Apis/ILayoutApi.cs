@@ -20,7 +20,7 @@ public class LayoutRequest
 
 public interface ILayoutApi
 {
-    [Get("/api/v2/factoryInterface/getPatternPieceLayout")]
+    [Get("/api/v2/software/getPatternPieceLayout")]
     Task<FactoryApiResponse<Object>> GetLayoutInfo([Body] LayoutRequest request,
         // TODO 接口端使用非标准鉴权方式
         [Header("Token")] string token

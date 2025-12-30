@@ -41,14 +41,14 @@
         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
             <RadioButton Content=".png(RGBA)" IsChecked="{Binding OutputFormatOb, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static printTask:OutputFormat.Png}}" />
             <RadioButton Content=".jpg(RGB)" IsChecked="{Binding OutputFormatOb, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static printTask:OutputFormat.Jpg}}" Margin="10,0,0,0" />
-            <RadioButton Content=".tif(CYMK)" IsChecked="{Binding OutputFormatOb, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static printTask:OutputFormat.TifCymk}}" Margin="10,0,0,0" />
-            <RadioButton Content=".tif(CYMK+专色通道)" IsChecked="{Binding OutputFormatOb, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static printTask:OutputFormat.TifWithSpotColor}}" Margin="10,0,0,0" />
+            <RadioButton Content=".tif(CYMK)" IsEnabled="{Binding IsTifFormatEnabled}" IsChecked="{Binding OutputFormatOb, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static printTask:OutputFormat.TifCymk}}" Margin="10,0,0,0" />
+            <RadioButton Content=".tif(CYMK+专色通道)" IsEnabled="{Binding IsTifFormatEnabled}" IsChecked="{Binding OutputFormatOb, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static printTask:OutputFormat.TifWithSpotColor}}" Margin="10,0,0,0" />
         </StackPanel>
 
         <TextBlock Text="排版:" Margin="0,10,0,0" />
         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
             <RadioButton Content="自动排版" IsChecked="{Binding LayoutOptionOb, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static printTask:LayoutOption.Automatic}}" />
-            <RadioButton Content="不排版(后续手动排版)" IsChecked="{Binding LayoutOptionOb, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static printTask:LayoutOption.Manual}}" Margin="10,0,0,0" />
+            <RadioButton Content="不排版(后续手动排版)" IsEnabled="{Binding IsManualLayoutEnabled}"  IsChecked="{Binding LayoutOptionOb, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static printTask:LayoutOption.Manual}}" Margin="10,0,0,0" />
         </StackPanel>
         
         <TextBlock Text="加打跟踪条:" Margin="0,10,0,0" />

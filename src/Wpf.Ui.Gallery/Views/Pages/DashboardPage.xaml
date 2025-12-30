@@ -328,9 +328,17 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center">
                     <ui:Button
+                        Command="{Binding ViewModel.ToggleSoundCommand}"
+                        ToolTip="声音开关">
+                        <ui:SymbolIcon Symbol="{Binding ViewModel.SoundIcon, Mode=OneWay}" />
+                    </ui:Button>
+                    <Separator
+                        Height="16"
+                        Margin="4,0,4,0" />
+                    <ui:Button
                         Grid.Column="1"
                         Command="{Binding ViewModel.OpenFolderCommand, Mode=OneWay}"
-                        Icon="{ui:SymbolIcon FolderOpen24}"
+                        Icon="{ui:SymbolIcon Folder24}"
                         ToolTip="稿件目录" />
                     <Separator
                         Grid.Column="3"

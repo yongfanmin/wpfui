@@ -67,6 +67,12 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
     [ObservableProperty] private bool _isIndicatorBlinking = false;
     [ObservableProperty] private string _batchNo = string.Empty;
 
+    [ObservableProperty]
+    private bool _isSoundEnabled;
+
+    public SymbolRegular SoundIcon => IsSoundEnabled ? SymbolRegular.Speaker248 : SymbolRegular.SpeakerOff24;
+
+    
     [ObservableProperty] private ObservableCollection<DateFilterButton> _dateFilterButtons = new();
 
 
@@ -130,6 +136,20 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         WeakReferenceMessenger.Default.Register<ProductionPlanChangedMessage>(this);
         // WeakReferenceMessenger.Default.Register(this);
         GenerateDateFilterButtons();
+        _isSoundEnabled = LocalAppConfig.AppSetting.IsSoundEnabled;
+    }
+
+    partial void OnIsSoundEnabledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(SoundIcon));
+    }
+
+    [RelayCommand]
+    private void ToggleSound()
+    {
+        IsSoundEnabled = !IsSoundEnabled;
+        LocalAppConfig.AppSetting.IsSoundEnabled = IsSoundEnabled;
+        LocalAppConfig.Save(LocalAppConfig.AppSetting);
     }
     
     public void Receive(ProductionPlanChangedMessage message)
@@ -353,6 +373,26 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
         return produceBatchItemVo;
     }
     
+    // 检查是否购买无需印花产品
+    private void CheckIsBuyEmptyProduct(string produceBatchNumber)
+    {
+        ProducePlanEntity producePlanEntity = _databaseService.GetProducePlan(produceBatchNumber);
+        if (producePlanEntity.PiecePrintCount < producePlanEntity.AvlProduceBatchItemCount)
+        {
+            // 存在无需印花产品
+            if (producePlanEntity.PiecePrintCount == 0)
+            {
+                // 全部无需印花
+                UpdateProduceBatchStatus(produceBatchNumber, ProduceBatchStatus.全部无需印花);
+            }
+            else
+            {
+                // 部分订单无需印花
+                UpdateProduceBatchStatus(produceBatchNumber, ProduceBatchStatus.部分无需印花);
+            }
+        }
+    }
+    
     private async Task LoadBatchDataAsync()
     {
         try
@@ -381,6 +421,10 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                         await DownloadProduceBatchImgAsync(uniqueBatchItemNumList);
                         // 合成图片
                         await ComposeProduceImgAsync(uniqueBatchItemNumList);
+                        
+                        // 执行完成 检查一遍是否 存在无需印花的条目
+                        CheckIsBuyEmptyProduct(produceBatchInfo.ProduceBatchNumber);
+                        
                     });
                 }
             }
@@ -414,11 +458,13 @@ public partial class DashboardViewModel : ObservableObject, IRecipient<NetworkAc
                         _produceImageProcessor.ProcessProductionTask(uniqueBatchItem);
                     if (produceResult is null)
                     {
+                        // 这个写法不对 同一个生产计划可能存在不需要印花和需要印花的订单
+                        // UpdateProduceBatchStatus(uniqueBatchItem.ProduceBatchNum, ProduceBatchStatus.无需印花生产);
                         // null 的情况 无法生产运行合成图 可能没有印花图层 或者报错
-                        updateProduceBatchItemStatus(
+                        /*updateProduceBatchItemStatus(
                             uniqueBatchItem.ProduceBatchNum,
                             uniqueBatchItem.BatchNum,
-                            ProduceBatchItemProcess.裁片已合成);
+                            ProduceBatchItemProcess.裁片已合成);*/
                     }
                     else
                     {

@@ -155,13 +155,23 @@ namespace Wpf.Ui.Gallery.ViewModels.Windows
             CloseWindow?.Invoke();
         }
 
+        // 获取物流面单
         public async Task FetchAndDownloadWaybill(OrderPick orderPick)
         {
             try
             {
                 _currentOrderPick = orderPick;
                 string token = _loginInfoService.getToken();
-                FactoryApiResponse<Object> response = await _orderApi.getOrderExpressInfoByOrderCode(new OrderCodeRequest() { OrderCode = orderPick.OrderCode }, token);
+                OrderCodeRequest orderCodeRequest = new OrderCodeRequest();
+                if (!string.IsNullOrEmpty(orderPick.OrderNo))
+                {
+                    orderCodeRequest.OrderNo = orderPick.OrderNo;
+                }
+                else
+                {
+                    orderCodeRequest.OrderCode = orderPick.OrderCode;
+                }
+                FactoryApiResponse<Object> response = await _orderApi.getOrderExpressInfoByOrderCode(orderCodeRequest, token);
 
                 if (response.IsSuccess && response?.Data is not null)
                 {

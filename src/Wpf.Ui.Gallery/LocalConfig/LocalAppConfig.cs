@@ -138,6 +138,9 @@ public class AppSetting
     // 主界面 列表条目 选中后是否弹出 帮助小提示
     public bool ShowDashboardSelectionHelp { get; set; } = true;
     
+    // 是否开启声音
+    public bool IsSoundEnabled { get; set; } = true;
+    
     public PrintTaskConfig PrintTaskConfig { get; set; } = new();
 }
 

@@ -23,7 +23,7 @@ public class ProduceBatchInfoRequest
 
 public interface IProduceBatchInfoApi
 {
-    [Post("/api/v2/factoryInterface/getWaitOrderProduceListSmt")]
+    [Post("/api/v2/software/getWaitOrderProduceList")]
     Task<FactoryApiResponse<List<ProductBatchItemInfo>>> getProduceBatchInfo(
         [Body] ProduceBatchInfoRequest request,
         // TODO 接口端使用非标准鉴权方式

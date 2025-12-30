@@ -127,6 +127,7 @@ public partial class PickingViewModel : ObservableObject
 
     private void ScanOrder(string scanCode)
     {
+        scanCode = scanCode.Replace(" ", "");
         PickOrderCode = string.Empty;
         AddOrder(new OrderPick() { OrderNo = "", OrderCode = scanCode, ItemCount = 0, });
     }
@@ -149,7 +150,8 @@ public partial class PickingViewModel : ObservableObject
             string errorMessage = "";
             string token = _loginInfoService.getToken();
             FactoryApiResponse<Object> orderDetailReturn = null;
-            if (StringUtil.IsBatchNo(orderPick.OrderCode))
+            // 这个订单号 包括 外部电商平台单号 所以没法精确判断 OrderCode‘ 是什么类型， 下游已经支持使用OrderNo进行查询 不需要再判断了
+            /*if (StringUtil.IsBatchNo(orderPick.OrderCode))
             {
                 var messageBox = new Wpf.Ui.Controls.MessageBox
                 {
@@ -162,7 +164,7 @@ public partial class PickingViewModel : ObservableObject
                 orderDetailReturn = await _orderApi.getOrderDetailByBatchNo(
                     new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
                     token
-                );*/
+                );#1#
             }
             else if (StringUtil.IsItem(orderPick.OrderCode))
             {
@@ -177,7 +179,8 @@ public partial class PickingViewModel : ObservableObject
             }
             else if (StringUtil.IsOrderNo(orderPick.OrderCode))
             {
-                ProduceItemEntity produceItemEntity = _databaseService.GetProduceItemByOrderNo(orderPick.OrderCode);
+                // 下游已经支持订单号了 不在支持输入是订单号 自动转换成订单编码
+                /*ProduceItemEntity produceItemEntity = _databaseService.GetProduceItemByOrderNo(orderPick.OrderCode);
                 if (produceItemEntity is null)
                 {
                     // 本地存储条目为空 可能不是下载生产计划数据的电脑 需要从远程拉取数据
@@ -186,8 +189,8 @@ public partial class PickingViewModel : ObservableObject
                 else
                 {
                     orderPick.OrderCode = produceItemEntity.OrderCode;
-                }
-            }
+                }#1#
+            }*/
             if (OrderPickBasketList.Any(item => orderPick.OrderCode.Equals(item.OrderCode)))
             {
                 OrderPick thisOrderPick =
@@ -238,10 +241,26 @@ public partial class PickingViewModel : ObservableObject
                 {
                     //获取订单数据
                     errorMessage = "订单编码不存在";
-                    orderDetailReturn = await _orderApi.getOrderDetailByOrderCode(
-                        new OrderCodeRequest() { OrderCode = orderPick.OrderCode },
+                    orderDetailReturn = await _orderApi.getOrderDetailByOrderNo(
+                        new OrderCodeRequest() { OrderNo = orderPick.OrderCode },
                         token
                     );
+                    if (orderDetailReturn.Data is null)
+                    {
+                        OrderCodeRequest orderCodeRequest = new OrderCodeRequest();
+                        if (!string.IsNullOrEmpty(orderPick.OrderNo))
+                        {
+                            orderCodeRequest.OrderNo = orderPick.OrderNo;
+                        }
+                        else
+                        {
+                            orderCodeRequest.OrderCode = orderPick.OrderCode;
+                        }
+                        orderDetailReturn = await _orderApi.getOrderDetailByOrderCode(
+                            orderCodeRequest,
+                            token
+                        );
+                    }
                     if (orderDetailReturn.Data is null)
                     {
                         AudioPlayer.PlayErrorAudio();
@@ -500,8 +519,17 @@ public partial class PickingViewModel : ObservableObject
                 string token = _loginInfoService.getToken();
                 foreach (OrderPick orderSelect in selectedBasket)
                 {
+                    OrderCodeRequest orderCodeRequest = new OrderCodeRequest();
+                    if (!string.IsNullOrEmpty(orderSelect.OrderNo))
+                    {
+                        orderCodeRequest.OrderNo = orderSelect.OrderNo;
+                    }
+                    else
+                    {
+                        orderCodeRequest.OrderCode = orderSelect.OrderCode;
+                    }
                     FactoryApiResponse<Object> response = await _orderApi.setOrderCompleteByOrderCode(
-                        new OrderCodeRequest() { OrderCode = orderSelect.OrderCode },
+                        orderCodeRequest,
                         token
                     );
                     if (response.IsSuccess)
@@ -524,8 +552,19 @@ public partial class PickingViewModel : ObservableObject
                         if (failResult == Wpf.Ui.Controls.MessageBoxResult.Primary)
                         {
                             await Task.Yield();
+                            
+                            OrderCodeRequest orderCodeRequestForce = new OrderCodeRequest();
+                            orderCodeRequestForce.Force = true;
+                            if (!string.IsNullOrEmpty(orderSelect.OrderNo))
+                            {
+                                orderCodeRequestForce.OrderNo = orderSelect.OrderNo;
+                            }
+                            else
+                            {
+                                orderCodeRequestForce.OrderCode = orderSelect.OrderCode;
+                            }
                             FactoryApiResponse<Object> responseAgain = await _orderApi.setOrderCompleteByOrderCodeForce(
-                                new OrderCodeRequest() { OrderCode = orderSelect.OrderCode, Force = true },
+                                orderCodeRequestForce,
                                 token
                             );
                             if (responseAgain.IsSuccess)

@@ -678,6 +678,26 @@ public static class ImageHelper
         }
     }
 
+    /*主体：使用 Erode 快速内缩（O(1)矩阵卷积）。
+    细节：使用 Top-Hat 变体（原图 - 开运算）提取被吞噬的细微线条。
+    愈合：使用 Closing 修复内缩产生的拓扑断裂 断裂伪影。*/
+    /// <summary>
+    /// 【极速版】专色通道智能内缩算法 V2
+    /// <para>
+    /// 替代原有的 UnifiedSkeletonize。
+    /// 舍弃了低效的迭代骨架算法，改用形态学分层重组 (Morphological Layered Reconstruction)。
+    /// </para>
+    /// <para>
+    /// 核心逻辑：
+    /// 1. 主体内缩：大色块向内腐蚀指定像素。
+    /// 2. 细节保护：利用 Top-Hat 思想找回因腐蚀而消失的细小纹理（如发丝）。
+    /// 3. 断裂愈合：使用闭运算自动缝合内缩产生的微小断裂。
+    /// </para>
+    /// </summary>
+    /// <param name="spotPlate">输入的专色通道图像 (NetVips)</param>
+    /// <param name="shrinkDistance">内缩距离 (像素)，原参数名为 targetThickness</param>
+    /// <param name="invertFinalResult">是否反转结果 (通常专色通道需要白底黑图)</param>
+    /// <returns>处理后的 NetVips 图像</returns>
      public static Image UnifiedSkeletonizeV2(Image spotPlate, int shrinkDistance, bool invertFinalResult = true)
     {
         // 0. 基础校验与快速返回
